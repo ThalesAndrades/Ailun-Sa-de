@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginScreen() {
@@ -96,7 +97,11 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <MaterialIcons name="local-hospital" size={40} color="white" />
+            <Image
+              source="https://cdn-ai.onspace.ai/onspace/project/image/kaqfBVwTZxShLpde6eUJbE/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              style={styles.logoImage}
+              contentFit="contain"
+            />
           </View>
           <Text style={styles.title}>Ailun Saúde</Text>
           <Text style={styles.subtitle}>
@@ -199,13 +204,22 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 120,
+    height: 120,
+    borderRadius: 16,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
   },
   title: {
     fontSize: 28,

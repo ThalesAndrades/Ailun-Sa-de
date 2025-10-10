@@ -9,7 +9,7 @@ import Animated, {
   runOnJS
 } from 'react-native-reanimated';
 import { router } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,8 +55,12 @@ export default function SplashScreen() {
     >
       <View style={styles.content}>
         <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="local-hospital" size={60} color="white" />
+          <View style={styles.logoCard}>
+            <Image
+              source="https://cdn-ai.onspace.ai/onspace/project/image/kaqfBVwTZxShLpde6eUJbE/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              style={styles.logoImage}
+              contentFit="contain"
+            />
           </View>
         </Animated.View>
         
@@ -81,18 +85,22 @@ const styles = StyleSheet.create({
   logoContainer: {
     marginBottom: 30,
   },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  logoCard: {
+    width: 140,
+    height: 140,
+    borderRadius: 20,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
   },
   textContainer: {
     alignItems: 'center',
