@@ -3,6 +3,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from '../contexts/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,7 +21,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="splash" />
@@ -31,6 +32,6 @@ export default function RootLayout() {
         <Stack.Screen name="payment" />
         <Stack.Screen name="dashboard" />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

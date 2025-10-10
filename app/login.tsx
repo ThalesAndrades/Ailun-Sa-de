@@ -7,18 +7,23 @@ import {
   StyleSheet, 
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../hooks/useAuth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const { signIn, signUp } = useAuth();
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -28,16 +33,56 @@ export default function LoginScreen() {
     }
   };
 
-  const handleLogin = () => {
+  const handleAuth = async () => {
     if (!email || !password) {
       showAlert('Erro', 'Preencha todos os campos');
       return;
     }
-    router.push('/onboarding/step1');
+
+    if (password.length < 6) {
+      showAlert('Erro', 'A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = isLogin 
+        ? await signIn(email, password)
+        : await signUp(email, password);
+
+      if (error) {
+        if (error.message?.includes('Invalid login credentials')) {
+          showAlert('Erro', 'Email ou senha incorretos');
+        } else if (error.message?.includes('User already registered')) {
+          showAlert('Erro', 'Email já cadastrado. Tente fazer login.');
+        } else if (error.message?.includes('Signup requires a valid password')) {
+          showAlert('Erro', 'Senha deve ter pelo menos 6 caracteres');
+        } else {
+          showAlert('Erro', error.message || 'Erro na autenticação');
+        }
+      } else {
+        if (!isLogin) {
+          showAlert('Sucesso', 'Conta criada! Verifique seu email para confirmar.');
+        } else {
+          router.push('/dashboard');
+        }
+      }
+    } catch (error) {
+      showAlert('Erro', 'Erro inesperado na autenticação');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignup = () => {
-    router.push('/onboarding/step1');
+  const handleCreateAccount = () => {
+    setIsLogin(false);
+  };
+
+  const toggleMode = () => {
+    setIsLogin(!isLogin);
+    setEmail('');
+    setPassword('');
   };
 
   return (
@@ -54,7 +99,9 @@ export default function LoginScreen() {
             <MaterialIcons name="local-hospital" size={40} color="white" />
           </View>
           <Text style={styles.title}>Ailun Saúde</Text>
-          <Text style={styles.subtitle}>Bem-vindo de volta</Text>
+          <Text style={styles.subtitle}>
+            {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -68,6 +115,7 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
             />
           </View>
 
@@ -81,10 +129,12 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              editable={!loading}
             />
             <TouchableOpacity 
               onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeIcon}
+              disabled={loading}
             >
               <Ionicons 
                 name={showPassword ? "eye-off" : "eye"} 
@@ -94,13 +144,25 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Entrar</Text>
+          <TouchableOpacity 
+            style={[styles.authButton, loading && styles.authButtonDisabled]} 
+            onPress={handleAuth}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.authButtonText}>
+                {isLogin ? 'Entrar' : 'Criar Conta'}
+              </Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
-          </TouchableOpacity>
+          {isLogin && (
+            <TouchableOpacity style={styles.forgotPassword} disabled={loading}>
+              <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -108,8 +170,14 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-            <Text style={styles.signupButtonText}>Criar nova conta</Text>
+          <TouchableOpacity 
+            style={styles.toggleButton} 
+            onPress={toggleMode}
+            disabled={loading}
+          >
+            <Text style={styles.toggleButtonText}>
+              {isLogin ? 'Criar nova conta' : 'Já tenho uma conta'}
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -183,7 +251,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
   },
-  loginButton: {
+  authButton: {
     backgroundColor: '#00B4DB',
     borderRadius: 12,
     height: 56,
@@ -196,7 +264,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  loginButtonText: {
+  authButtonDisabled: {
+    opacity: 0.7,
+  },
+  authButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
@@ -224,7 +295,7 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
   },
-  signupButton: {
+  toggleButton: {
     borderWidth: 2,
     borderColor: '#00B4DB',
     borderRadius: 12,
@@ -232,7 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  signupButtonText: {
+  toggleButtonText: {
     color: '#00B4DB',
     fontSize: 16,
     fontWeight: '600',
