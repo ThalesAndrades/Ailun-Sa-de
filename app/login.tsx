@@ -66,7 +66,7 @@ export default function LoginScreen() {
         if (!isLogin) {
           showAlert('Sucesso', 'Conta criada! Verifique seu email para confirmar.');
         } else {
-          router.push('/dashboard');
+          router.push('/tutorial'); // Redirecionar para tutorial após login
         }
       }
     } catch (error) {
@@ -74,10 +74,6 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCreateAccount = () => {
-    setIsLogin(false);
   };
 
   const toggleMode = () => {
@@ -98,7 +94,7 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
-              source="https://cdn-ai.onspace.ai/onspace/project/image/kaqfBVwTZxShLpde6eUJbE/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              source="https://cdn-ai.onspace.ai/onspace/project/image/4DDFe5rZ3uf2bMAQZAUEYw/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
               style={styles.logoImage}
               contentFit="contain"
             />
