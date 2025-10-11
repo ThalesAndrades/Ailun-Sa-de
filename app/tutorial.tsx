@@ -20,10 +20,10 @@ const tutorialSteps = [
   {
     id: 1,
     title: 'Cuidado Médico Instantâneo',
-    subtitle: 'Acesso rápido aos melhores profissionais',
-    description: 'Conecte-se imediatamente com clínicos gerais ou agende consultas com especialistas qualificados.',
+    subtitle: 'Conectado via RapiDoc API',
+    description: 'Nosso app está integrado com a plataforma RapiDoc para conectar você imediatamente com clínicos gerais ou agendar consultas com especialistas qualificados.',
     features: [
-      { icon: 'medical-services', title: 'Médico Agora', desc: 'Consulta imediata 24/7' },
+      { icon: 'medical-services', title: 'Médico Agora', desc: 'Consulta imediata 24/7 via RapiDoc' },
       { icon: 'person-search', title: 'Especialistas', desc: 'Cardiologistas, dermatologistas e mais' }
     ],
     gradient: ['#FF6B6B', '#FF8E53'],
@@ -32,10 +32,10 @@ const tutorialSteps = [
   {
     id: 2,
     title: 'Saúde Mental e Nutricional',
-    subtitle: 'Cuidado completo para seu bem-estar',
-    description: 'Cuide da sua mente e corpo com profissionais especializados em saúde mental e nutrição.',
+    subtitle: 'Profissionais certificados pela RapiDoc',
+    description: 'Cuide da sua mente e corpo com profissionais especializados. Todos os serviços são orquestrados através da nossa integração com a API RapiDoc.',
     features: [
-      { icon: 'psychology', title: 'Psicólogos', desc: 'Apoio profissional para saúde mental' },
+      { icon: 'psychology', title: 'Psicólogos', desc: 'Apoio profissional integrado via RapiDoc' },
       { icon: 'restaurant', title: 'Nutricionistas', desc: 'Planos alimentares personalizados' }
     ],
     gradient: ['#4ECDC4', '#44A08D'],
@@ -44,10 +44,10 @@ const tutorialSteps = [
   {
     id: 3,
     title: 'Bem-vindo ao Ailun Saúde!',
-    subtitle: 'Sua jornada de saúde começa agora',
-    description: 'Tudo pronto! Você agora tem acesso a cuidados médicos de qualidade na palma da sua mão.',
+    subtitle: 'Tecnologia RapiDoc integrada',
+    description: 'Tudo pronto! Você agora tem acesso a cuidados médicos de qualidade através da nossa integração avançada com a plataforma RapiDoc.',
     features: [
-      { icon: 'chat', title: 'Chat 24h', desc: 'Suporte médico sempre disponível' },
+      { icon: 'cloud', title: 'RapiDoc Integration', desc: 'API profissional para serviços médicos' },
       { icon: 'receipt', title: 'Receitas Digitais', desc: 'Prescrições seguras e práticas' },
       { icon: 'history', title: 'Histórico Completo', desc: 'Todos seus dados médicos organizados' },
       { icon: 'security', title: 'Segurança Total', desc: 'Seus dados protegidos e privados' }
@@ -90,7 +90,7 @@ export default function TutorialScreen() {
   };
 
   const handleFinish = () => {
-    router.replace('/dashboard');
+    router.replace('/onboarding/step1');
   };
 
   const currentStepData = tutorialSteps[currentStep];
@@ -103,7 +103,7 @@ export default function TutorialScreen() {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image
-            source="https://cdn-ai.onspace.ai/onspace/project/image/fDEv8pBBtXo3P9C9dKQu68/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+            source="https://cdn-ai.onspace.ai/onspace/project/image/ksdz89BjSWxDET66Tbtsxc/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
             style={styles.logo}
             contentFit="contain"
           />
@@ -175,7 +175,7 @@ export default function TutorialScreen() {
                   <View style={styles.welcomeCard}>
                     <MaterialIcons name="celebration" size={40} color={step.gradient[0]} />
                     <Text style={styles.welcomeText}>
-                      Parabéns! Você está pronto para cuidar da sua saúde com a melhor tecnologia médica.
+                      Parabéns! Você está pronto para cuidar da sua saúde com a melhor tecnologia médica integrada via RapiDoc.
                     </Text>
                   </View>
                 </View>
@@ -215,7 +215,7 @@ export default function TutorialScreen() {
               onPress={handleFinish}
             >
               <MaterialIcons name="check-circle" size={24} color="white" />
-              <Text style={styles.finishButtonText}>Começar Agora!</Text>
+              <Text style={styles.finishButtonText}>Começar Cadastro!</Text>
             </TouchableOpacity>
           )}
         </View>

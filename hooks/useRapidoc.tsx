@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { supabase } from '../services/supabase';
+import { supabase, ConsultationLog, ActiveSession, SystemNotification } from '../services/supabase';
 import { useAuth } from './useAuth';
 
 interface RapidocServiceResponse {
@@ -16,6 +16,7 @@ interface RapidocServiceResponse {
   };
   message?: string;
   error?: string;
+  data?: any;
 }
 
 interface UseRapidocReturn {
@@ -24,12 +25,19 @@ interface UseRapidocReturn {
   requestSpecialist: (specialtyArea?: string) => Promise<void>;
   requestPsychologist: () => Promise<void>;
   requestNutritionist: () => Promise<void>;
-  consultationHistory: RapidocServiceResponse[];
+  consultationHistory: ConsultationLog[];
+  activeSessions: ActiveSession[];
+  notifications: SystemNotification[];
+  cancelConsultation: (consultationId: string) => Promise<void>;
+  markNotificationAsRead: (notificationId: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 export function useRapidoc(): UseRapidocReturn {
   const [loading, setLoading] = useState(false);
-  const [consultationHistory, setConsultationHistory] = useState<RapidocServiceResponse[]>([]);
+  const [consultationHistory, setConsultationHistory] = useState<ConsultationLog[]>([]);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const { user, profile } = useAuth();
 
   const showAlert = useCallback((title: string, message: string) => {
@@ -50,39 +58,86 @@ export function useRapidoc(): UseRapidocReturn {
     };
   }, [user, profile]);
 
-  const callRapidocFunction = useCallback(async (
+  // Buscar dados do usuário
+  const loadUserData = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      // Buscar histórico de consultas
+      const { data: historyData } = await supabase
+        .from('consultation_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (historyData) {
+        setConsultationHistory(historyData);
+      }
+
+      // Buscar sessões ativas
+      const { data: sessionsData } = await supabase
+        .from('active_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString());
+
+      if (sessionsData) {
+        setActiveSessions(sessionsData);
+      }
+
+      // Buscar notificações não lidas
+      const { data: notificationsData } = await supabase
+        .from('system_notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (notificationsData) {
+        setNotifications(notificationsData);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do usuário:', error);
+    }
+  }, [user]);
+
+  // Carregar dados quando o usuário estiver autenticado
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+    }
+  }, [user, loadUserData]);
+
+  // Chamada para o orquestrador
+  const callOrchestrator = useCallback(async (
+    action: string,
     serviceType: 'doctor' | 'specialist' | 'psychologist' | 'nutritionist',
-    specialtyArea?: string
+    specialty?: string
   ): Promise<RapidocServiceResponse> => {
     try {
-      const userProfile = getUserProfile();
-      
-      const { data, error } = await supabase.functions.invoke('rapidoc', {
+      const { data, error } = await supabase.functions.invoke('orchestrator', {
         body: {
-          action: 'request-consultation',
+          action,
           serviceType,
-          userProfile,
-          urgency: serviceType === 'doctor' ? 'high' : serviceType === 'nutritionist' ? 'low' : 'medium',
-          specialtyArea,
+          specialty,
+          userProfile: getUserProfile()
         }
       });
 
       if (error) {
-        console.error('RapiDoc Edge Function Error:', error);
+        console.error('Orchestrator Error:', error);
         return {
           success: false,
           error: error.message || 'Erro na comunicação com o serviço médico'
         };
       }
 
-      // Add to consultation history
-      if (data.success) {
-        setConsultationHistory(prev => [data, ...prev.slice(0, 9)]); // Keep last 10
-      }
-
       return data;
     } catch (error) {
-      console.error('RapiDoc Service Error:', error);
+      console.error('Orchestrator Service Error:', error);
       return {
         success: false,
         error: 'Erro interno do serviço'
@@ -99,8 +154,11 @@ export function useRapidoc(): UseRapidocReturn {
       return;
     }
 
+    // Recarregar dados após sucesso
+    await loadUserData();
+
     if (response.consultationUrl) {
-      // Open consultation URL
+      // Abrir URL da consulta
       try {
         if (Platform.OS === 'web') {
           window.open(response.consultationUrl, '_blank');
@@ -111,7 +169,7 @@ export function useRapidoc(): UseRapidocReturn {
         showAlert('Erro', 'Não foi possível abrir a consulta');
       }
     } else {
-      // Show consultation information
+      // Mostrar informações da consulta
       const waitTimeText = response.estimatedWaitTime 
         ? `\n\nTempo estimado: ${response.estimatedWaitTime} minutos`
         : '';
@@ -127,7 +185,7 @@ export function useRapidoc(): UseRapidocReturn {
         `${message}${waitTimeText}${professionalText}`
       );
     }
-  }, [showAlert]);
+  }, [showAlert, loadUserData]);
 
   const requestDoctorNow = useCallback(async () => {
     if (!user) {
@@ -137,14 +195,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const response = await callRapidocFunction('doctor');
+      const response = await callOrchestrator('start_consultation', 'doctor');
       await handleServiceResponse(response, 'Médico Agora');
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta médica');
     } finally {
       setLoading(false);
     }
-  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
+  }, [user, callOrchestrator, handleServiceResponse, showAlert]);
 
   const requestSpecialist = useCallback(async (specialtyArea = 'Clínica Geral') => {
     if (!user) {
@@ -154,14 +212,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const response = await callRapidocFunction('specialist', specialtyArea);
+      const response = await callOrchestrator('start_consultation', 'specialist', specialtyArea);
       await handleServiceResponse(response, `Especialista em ${specialtyArea}`);
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta com especialista');
     } finally {
       setLoading(false);
     }
-  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
+  }, [user, callOrchestrator, handleServiceResponse, showAlert]);
 
   const requestPsychologist = useCallback(async () => {
     if (!user) {
@@ -171,14 +229,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const response = await callRapidocFunction('psychologist');
+      const response = await callOrchestrator('start_consultation', 'psychologist');
       await handleServiceResponse(response, 'Psicólogo');
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta psicológica');
     } finally {
       setLoading(false);
     }
-  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
+  }, [user, callOrchestrator, handleServiceResponse, showAlert]);
 
   const requestNutritionist = useCallback(async () => {
     if (!user) {
@@ -188,14 +246,50 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const response = await callRapidocFunction('nutritionist');
+      const response = await callOrchestrator('start_consultation', 'nutritionist');
       await handleServiceResponse(response, 'Nutricionista');
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta nutricional');
     } finally {
       setLoading(false);
     }
-  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
+  }, [user, callOrchestrator, handleServiceResponse, showAlert]);
+
+  const cancelConsultation = useCallback(async (consultationId: string) => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const response = await callOrchestrator('cancel_consultation', 'doctor');
+      if (response.success) {
+        showAlert('Sucesso', 'Consulta cancelada com sucesso');
+        await loadUserData();
+      } else {
+        showAlert('Erro', response.error || 'Erro ao cancelar consulta');
+      }
+    } catch (error) {
+      showAlert('Erro', 'Erro inesperado ao cancelar consulta');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, callOrchestrator, showAlert, loadUserData]);
+
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    try {
+      await supabase
+        .from('system_notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notificationId);
+      
+      await loadUserData();
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
+    }
+  }, [loadUserData]);
+
+  const refreshData = useCallback(async () => {
+    await loadUserData();
+  }, [loadUserData]);
 
   return {
     loading,
@@ -204,5 +298,10 @@ export function useRapidoc(): UseRapidocReturn {
     requestPsychologist,
     requestNutritionist,
     consultationHistory,
+    activeSessions,
+    notifications,
+    cancelConsultation,
+    markNotificationAsRead,
+    refreshData,
   };
 }

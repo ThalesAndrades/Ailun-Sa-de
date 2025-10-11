@@ -56,7 +56,7 @@ export default function SplashScreen() {
         <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
           <View style={styles.logoCard}>
             <Image
-              source="https://cdn-ai.onspace.ai/onspace/project/image/fMEbWpXmkbj5cHZzGShEmi/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              source="https://cdn-ai.onspace.ai/onspace/project/image/ksdz89BjSWxDET66Tbtsxc/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
               style={styles.logoImage}
               contentFit="contain"
             />
