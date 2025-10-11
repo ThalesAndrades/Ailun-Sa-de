@@ -76,6 +76,11 @@ export default function LoginScreen() {
     }
   };
 
+  const handleNewUserFlow = () => {
+    // Redirecionar para onboarding para novos usuários
+    router.push('/onboarding/step1');
+  };
+
   const toggleMode = () => {
     setIsLogin(!isLogin);
     setEmail('');
@@ -94,7 +99,7 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
-              source="https://cdn-ai.onspace.ai/onspace/project/image/ksdz89BjSWxDET66Tbtsxc/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              source="https://cdn-ai.onspace.ai/onspace/project/image/ZCYvG3kpYiracpzPwfFpUM/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
               style={styles.logoImage}
               contentFit="contain"
             />
@@ -171,15 +176,26 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity 
-            style={styles.toggleButton} 
-            onPress={toggleMode}
-            disabled={loading}
-          >
-            <Text style={styles.toggleButtonText}>
-              {isLogin ? 'Criar nova conta' : 'Já tenho uma conta'}
-            </Text>
-          </TouchableOpacity>
+          {isLogin ? (
+            <TouchableOpacity 
+              style={styles.newUserButton} 
+              onPress={handleNewUserFlow}
+              disabled={loading}
+            >
+              <MaterialIcons name="person-add" size={24} color="#00B4DB" />
+              <Text style={styles.newUserButtonText}>Ainda não sou Ailun</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.toggleButton} 
+              onPress={toggleMode}
+              disabled={loading}
+            >
+              <Text style={styles.toggleButtonText}>
+                Já tenho uma conta
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -304,6 +320,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     color: '#666',
     fontSize: 14,
+  },
+  newUserButton: {
+    borderWidth: 2,
+    borderColor: '#00B4DB',
+    borderRadius: 12,
+    height: 56,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  newUserButtonText: {
+    color: '#00B4DB',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   toggleButton: {
     borderWidth: 2,
