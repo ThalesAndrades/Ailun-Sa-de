@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
   TouchableOpacity, 
   StyleSheet,
   ScrollView,
-  Alert,
-  Platform
+  ActivityIndicator,
+  Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRapidoc } from '../hooks/useRapidoc';
 
 interface ServiceButton {
   id: string;
@@ -19,67 +20,77 @@ interface ServiceButton {
   icon: keyof typeof MaterialIcons.glyphMap;
   color: string;
   gradient: string[];
+  onPress: () => void;
 }
-
-const services: ServiceButton[] = [
-  {
-    id: 'doctor',
-    title: 'Médico Agora',
-    subtitle: 'Consulta imediata com clínico geral',
-    icon: 'medical-services',
-    color: '#FF6B6B',
-    gradient: ['#FF6B6B', '#FF8E53']
-  },
-  {
-    id: 'specialists',
-    title: 'Especialistas',
-    subtitle: 'Cardiologista, dermatologista e mais',
-    icon: 'person-search',
-    color: '#4ECDC4',
-    gradient: ['#4ECDC4', '#44A08D']
-  },
-  {
-    id: 'psychologists',
-    title: 'Psicólogos',
-    subtitle: 'Cuidado da saúde mental',
-    icon: 'psychology',
-    color: '#A8E6CF',
-    gradient: ['#A8E6CF', '#88D8A3']
-  },
-  {
-    id: 'nutritionists',
-    title: 'Nutricionistas',
-    subtitle: 'Planos alimentares personalizados',
-    icon: 'restaurant',
-    color: '#FFB74D',
-    gradient: ['#FFB74D', '#FFA726']
-  }
-];
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
+  const { loading, requestDoctorNow, requestSpecialist, requestPsychologist, requestNutritionist } = useRapidoc();
+  const [specialtyModal, setSpecialtyModal] = useState(false);
 
-  const showAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
+  const specialties = [
+    'Cardiologia',
+    'Dermatologia',
+    'Endocrinologia',
+    'Ginecologia',
+    'Neurologia',
+    'Ortopedia',
+    'Pediatria',
+    'Psiquiatria',
+    'Urologia',
+    'Clínica Geral'
+  ];
+
+  const services: ServiceButton[] = [
+    {
+      id: 'doctor',
+      title: 'Médico Agora',
+      subtitle: 'Consulta imediata com clínico geral',
+      icon: 'medical-services',
+      color: '#FF6B6B',
+      gradient: ['#FF6B6B', '#FF8E53'],
+      onPress: requestDoctorNow
+    },
+    {
+      id: 'specialists',
+      title: 'Especialistas',
+      subtitle: 'Cardiologista, dermatologista e mais',
+      icon: 'person-search',
+      color: '#4ECDC4',
+      gradient: ['#4ECDC4', '#44A08D'],
+      onPress: () => setSpecialtyModal(true)
+    },
+    {
+      id: 'psychologists',
+      title: 'Psicólogos',
+      subtitle: 'Cuidado da saúde mental',
+      icon: 'psychology',
+      color: '#A8E6CF',
+      gradient: ['#A8E6CF', '#88D8A3'],
+      onPress: requestPsychologist
+    },
+    {
+      id: 'nutritionists',
+      title: 'Nutricionistas',
+      subtitle: 'Planos alimentares personalizados',
+      icon: 'restaurant',
+      color: '#FFB74D',
+      gradient: ['#FFB74D', '#FFA726'],
+      onPress: requestNutritionist
     }
-  };
+  ];
 
-  const handleServicePress = (service: ServiceButton) => {
-    showAlert(
-      service.title,
-      `Funcionalidade ${service.title} em desenvolvimento. Em breve você poderá acessar ${service.subtitle.toLowerCase()}.`
-    );
+  const handleSpecialtySelect = (specialty: string) => {
+    setSpecialtyModal(false);
+    requestSpecialist(specialty);
   };
 
   const handleProfile = () => {
-    showAlert('Perfil', 'Tela de perfil em desenvolvimento');
+    // TODO: Implementar tela de perfil
   };
 
   const handleNotifications = () => {
-    showAlert('Notificações', 'Central de notificações em desenvolvimento');
+    // TODO: Implementar tela de notificações
   };
 
   return (
@@ -113,7 +124,7 @@ export default function DashboardScreen() {
               <Text style={styles.quickAccessTitle}>Acesso Rápido</Text>
             </View>
             <Text style={styles.quickAccessSubtitle}>
-              Escolha o serviço que você precisa agora
+              Conecte-se instantaneamente com profissionais de saúde
             </Text>
           </View>
 
@@ -121,20 +132,25 @@ export default function DashboardScreen() {
             {services.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={styles.serviceCard}
-                onPress={() => handleServicePress(service)}
+                style={[styles.serviceCard, loading && styles.serviceCardDisabled]}
+                onPress={service.onPress}
                 activeOpacity={0.8}
+                disabled={loading}
               >
                 <LinearGradient
                   colors={service.gradient}
                   style={styles.serviceGradient}
                 >
                   <View style={styles.serviceIconContainer}>
-                    <MaterialIcons 
-                      name={service.icon} 
-                      size={32} 
-                      color="white" 
-                    />
+                    {loading ? (
+                      <ActivityIndicator color="white" size={32} />
+                    ) : (
+                      <MaterialIcons 
+                        name={service.icon} 
+                        size={32} 
+                        color="white" 
+                      />
+                    )}
                   </View>
                   
                   <View style={styles.serviceContent}>
@@ -166,28 +182,64 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.featuresCard}>
-            <Text style={styles.featuresTitle}>Recursos Disponíveis</Text>
+            <Text style={styles.featuresTitle}>Recursos Conectados</Text>
             <View style={styles.featuresList}>
               <View style={styles.featureItem}>
-                <MaterialIcons name="chat" size={20} color="#00B4DB" />
-                <Text style={styles.featureText}>Chat 24h com médicos</Text>
+                <MaterialIcons name="online-prediction" size={20} color="#00B4DB" />
+                <Text style={styles.featureText}>Consultas online em tempo real</Text>
               </View>
               <View style={styles.featureItem}>
-                <MaterialIcons name="receipt" size={20} color="#00B4DB" />
-                <Text style={styles.featureText}>Receitas digitais</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <MaterialIcons name="history" size={20} color="#00B4DB" />
-                <Text style={styles.featureText}>Histórico médico completo</Text>
+                <MaterialIcons name="verified" size={20} color="#00B4DB" />
+                <Text style={styles.featureText}>Profissionais certificados</Text>
               </View>
               <View style={styles.featureItem}>
                 <MaterialIcons name="schedule" size={20} color="#00B4DB" />
-                <Text style={styles.featureText}>Agendamento online</Text>
+                <Text style={styles.featureText}>Agendamento automático</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <MaterialIcons name="security" size={20} color="#00B4DB" />
+                <Text style={styles.featureText}>Plataforma segura e confiável</Text>
               </View>
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal de Especialidades */}
+      <Modal
+        visible={specialtyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSpecialtyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Escolha a Especialidade</Text>
+              <TouchableOpacity
+                onPress={() => setSpecialtyModal(false)}
+                style={styles.closeButton}
+              >
+                <MaterialIcons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.specialtyList}>
+              {specialties.map((specialty) => (
+                <TouchableOpacity
+                  key={specialty}
+                  style={styles.specialtyItem}
+                  onPress={() => handleSpecialtySelect(specialty)}
+                >
+                  <MaterialIcons name="medical-services" size={24} color="#00B4DB" />
+                  <Text style={styles.specialtyText}>{specialty}</Text>
+                  <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -270,6 +322,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  serviceCardDisabled: {
+    opacity: 0.7,
+  },
   serviceGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -344,6 +399,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   featureText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  specialtyList: {
+    flex: 1,
+  },
+  specialtyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  specialtyText: {
+    flex: 1,
     fontSize: 16,
     color: '#333',
     marginLeft: 12,
