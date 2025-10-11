@@ -23,9 +23,17 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack 
+        screenOptions={{ headerShown: false }}
+        initialRouteName="splash"
+      >
+        <Stack.Screen 
+          name="index" 
+          options={{ href: null }}
+        />
         <Stack.Screen name="splash" />
         <Stack.Screen name="login" />
+        <Stack.Screen name="tutorial" />
         <Stack.Screen name="onboarding/step1" />
         <Stack.Screen name="onboarding/step2" />
         <Stack.Screen name="onboarding/step3" />
