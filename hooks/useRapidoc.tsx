@@ -1,8 +1,22 @@
 import { useState, useCallback } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { rapidocApiService, RapidocServiceResponse } from '../services/rapidocApi';
+import { supabase } from '../services/supabase';
 import { useAuth } from './useAuth';
+
+interface RapidocServiceResponse {
+  success: boolean;
+  sessionId?: string;
+  consultationUrl?: string;
+  estimatedWaitTime?: number;
+  professionalInfo?: {
+    name: string;
+    specialty: string;
+    rating: number;
+  };
+  message?: string;
+  error?: string;
+}
 
 interface UseRapidocReturn {
   loading: boolean;
@@ -10,10 +24,12 @@ interface UseRapidocReturn {
   requestSpecialist: (specialtyArea?: string) => Promise<void>;
   requestPsychologist: () => Promise<void>;
   requestNutritionist: () => Promise<void>;
+  consultationHistory: RapidocServiceResponse[];
 }
 
 export function useRapidoc(): UseRapidocReturn {
   const [loading, setLoading] = useState(false);
+  const [consultationHistory, setConsultationHistory] = useState<RapidocServiceResponse[]>([]);
   const { user, profile } = useAuth();
 
   const showAlert = useCallback((title: string, message: string) => {
@@ -34,14 +50,57 @@ export function useRapidoc(): UseRapidocReturn {
     };
   }, [user, profile]);
 
-  const handleServiceResponse = useCallback(async (response: RapidocServiceResponse, serviceName: string) => {
+  const callRapidocFunction = useCallback(async (
+    serviceType: 'doctor' | 'specialist' | 'psychologist' | 'nutritionist',
+    specialtyArea?: string
+  ): Promise<RapidocServiceResponse> => {
+    try {
+      const userProfile = getUserProfile();
+      
+      const { data, error } = await supabase.functions.invoke('rapidoc', {
+        body: {
+          action: 'request-consultation',
+          serviceType,
+          userProfile,
+          urgency: serviceType === 'doctor' ? 'high' : serviceType === 'nutritionist' ? 'low' : 'medium',
+          specialtyArea,
+        }
+      });
+
+      if (error) {
+        console.error('RapiDoc Edge Function Error:', error);
+        return {
+          success: false,
+          error: error.message || 'Erro na comunicação com o serviço médico'
+        };
+      }
+
+      // Add to consultation history
+      if (data.success) {
+        setConsultationHistory(prev => [data, ...prev.slice(0, 9)]); // Keep last 10
+      }
+
+      return data;
+    } catch (error) {
+      console.error('RapiDoc Service Error:', error);
+      return {
+        success: false,
+        error: 'Erro interno do serviço'
+      };
+    }
+  }, [getUserProfile]);
+
+  const handleServiceResponse = useCallback(async (
+    response: RapidocServiceResponse, 
+    serviceName: string
+  ) => {
     if (!response.success) {
       showAlert('Erro no Serviço', response.error || `Não foi possível conectar ao serviço de ${serviceName}`);
       return;
     }
 
     if (response.consultationUrl) {
-      // Abrir URL da consulta
+      // Open consultation URL
       try {
         if (Platform.OS === 'web') {
           window.open(response.consultationUrl, '_blank');
@@ -52,7 +111,7 @@ export function useRapidoc(): UseRapidocReturn {
         showAlert('Erro', 'Não foi possível abrir a consulta');
       }
     } else {
-      // Mostrar informações da consulta
+      // Show consultation information
       const waitTimeText = response.estimatedWaitTime 
         ? `\n\nTempo estimado: ${response.estimatedWaitTime} minutos`
         : '';
@@ -61,9 +120,11 @@ export function useRapidoc(): UseRapidocReturn {
         ? `\n\nProfissional: ${response.professionalInfo.name}\nEspecialidade: ${response.professionalInfo.specialty}\nAvaliação: ${response.professionalInfo.rating}/5`
         : '';
 
+      const message = response.message || `Sua solicitação de ${serviceName} foi processada com sucesso!`;
+
       showAlert(
         'Consulta Solicitada',
-        `Sua solicitação de ${serviceName} foi processada com sucesso!${waitTimeText}${professionalText}`
+        `${message}${waitTimeText}${professionalText}`
       );
     }
   }, [showAlert]);
@@ -76,15 +137,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const userProfile = getUserProfile();
-      const response = await rapidocApiService.requestDoctorNow(userProfile);
+      const response = await callRapidocFunction('doctor');
       await handleServiceResponse(response, 'Médico Agora');
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta médica');
     } finally {
       setLoading(false);
     }
-  }, [user, getUserProfile, handleServiceResponse, showAlert]);
+  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
 
   const requestSpecialist = useCallback(async (specialtyArea = 'Clínica Geral') => {
     if (!user) {
@@ -94,15 +154,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const userProfile = getUserProfile();
-      const response = await rapidocApiService.requestSpecialist(userProfile, specialtyArea);
+      const response = await callRapidocFunction('specialist', specialtyArea);
       await handleServiceResponse(response, `Especialista em ${specialtyArea}`);
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta com especialista');
     } finally {
       setLoading(false);
     }
-  }, [user, getUserProfile, handleServiceResponse, showAlert]);
+  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
 
   const requestPsychologist = useCallback(async () => {
     if (!user) {
@@ -112,15 +171,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const userProfile = getUserProfile();
-      const response = await rapidocApiService.requestPsychologist(userProfile);
+      const response = await callRapidocFunction('psychologist');
       await handleServiceResponse(response, 'Psicólogo');
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta psicológica');
     } finally {
       setLoading(false);
     }
-  }, [user, getUserProfile, handleServiceResponse, showAlert]);
+  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
 
   const requestNutritionist = useCallback(async () => {
     if (!user) {
@@ -130,15 +188,14 @@ export function useRapidoc(): UseRapidocReturn {
 
     setLoading(true);
     try {
-      const userProfile = getUserProfile();
-      const response = await rapidocApiService.requestNutritionist(userProfile);
+      const response = await callRapidocFunction('nutritionist');
       await handleServiceResponse(response, 'Nutricionista');
     } catch (error) {
       showAlert('Erro', 'Erro inesperado ao solicitar consulta nutricional');
     } finally {
       setLoading(false);
     }
-  }, [user, getUserProfile, handleServiceResponse, showAlert]);
+  }, [user, callRapidocFunction, handleServiceResponse, showAlert]);
 
   return {
     loading,
@@ -146,5 +203,6 @@ export function useRapidoc(): UseRapidocReturn {
     requestSpecialist,
     requestPsychologist,
     requestNutritionist,
+    consultationHistory,
   };
 }
