@@ -36,7 +36,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Não autorizado' }),
+        JSON.stringify({ success: false, error: 'Acesso não autorizado' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -52,7 +52,6 @@ serve(async (req) => {
 
     // Parse request
     const requestData: TemaOrchestrationRequest = await req.json()
-    console.log('Tema Orchestrator request:', requestData)
 
     let response;
 
@@ -95,7 +94,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Tema Orchestrator error:', error)
+    // Production error logging
+    console.error('Tema Orchestrator Error:', {
+      message: error.message,
+      timestamp: new Date().toISOString(),
+    })
+    
     return new Response(
       JSON.stringify({ success: false, error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -103,11 +107,11 @@ serve(async (req) => {
   }
 })
 
-// Asaas Integration Functions
+// Production Asaas Integration
 async function createAsaasSubscription(supabaseClient: any, userId: string, subscriptionData: any) {
   try {
     const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = Deno.env.get('ASAAS_BASE_URL') || 'https://www.asaas.com/api/v3'
+    const asaasBaseUrl = 'https://www.asaas.com/api/v3'
     
     if (!asaasApiKey) {
       return { success: false, error: 'Configuração de pagamento não encontrada' }
@@ -129,12 +133,13 @@ async function createAsaasSubscription(supabaseClient: any, userId: string, subs
     })
 
     if (!customerResponse.ok) {
-      throw new Error(`Asaas Customer API error: ${customerResponse.status}`)
+      const errorData = await customerResponse.text()
+      throw new Error(`Asaas Customer API error: ${customerResponse.status} - ${errorData}`)
     }
 
     const customerData = await customerResponse.json()
 
-    // Create subscription in Asaas (R$ 89,90)
+    // Create subscription in Asaas (R$ 89,90 monthly)
     const subscriptionResponse = await fetch(`${asaasBaseUrl}/subscriptions`, {
       method: 'POST',
       headers: {
@@ -143,16 +148,17 @@ async function createAsaasSubscription(supabaseClient: any, userId: string, subs
       },
       body: JSON.stringify({
         customer: customerData.id,
-        billingType: 'CREDIT_CARD',
+        billingType: 'BOLETO',
         value: 89.90,
-        nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        nextDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
         cycle: 'MONTHLY',
         description: 'Assinatura Ailun Saúde - Plano Premium',
       }),
     })
 
     if (!subscriptionResponse.ok) {
-      throw new Error(`Asaas Subscription API error: ${subscriptionResponse.status}`)
+      const errorData = await subscriptionResponse.text()
+      throw new Error(`Asaas Subscription API error: ${subscriptionResponse.status} - ${errorData}`)
     }
 
     const subscriptionAsaasData = await subscriptionResponse.json()
@@ -185,6 +191,7 @@ async function createAsaasSubscription(supabaseClient: any, userId: string, subs
           asaas_subscription_id: subscriptionAsaasData.id,
           subscription_value: 89.90,
           billing_type: 'MONTHLY',
+          environment: 'production'
         }
       })
 
@@ -213,14 +220,17 @@ async function createAsaasSubscription(supabaseClient: any, userId: string, subs
 
   } catch (error) {
     console.error('Create Asaas subscription error:', error)
-    return { success: false, error: 'Erro ao criar assinatura' }
+    return { 
+      success: false, 
+      error: 'Não foi possível processar a assinatura. Tente novamente.' 
+    }
   }
 }
 
 async function checkAsaasSubscription(supabaseClient: any, userId: string, userEmail: string) {
   try {
     const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = Deno.env.get('ASAAS_BASE_URL') || 'https://www.asaas.com/api/v3'
+    const asaasBaseUrl = 'https://www.asaas.com/api/v3'
     
     if (!asaasApiKey) {
       return { success: false, error: 'Configuração de pagamento não encontrada' }
@@ -303,7 +313,7 @@ async function cancelAsaasSubscription(supabaseClient: any, userId: string) {
     }
 
     const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = Deno.env.get('ASAAS_BASE_URL') || 'https://www.asaas.com/api/v3'
+    const asaasBaseUrl = 'https://www.asaas.com/api/v3'
 
     // Cancel subscription in Asaas
     const cancelResponse = await fetch(`${asaasBaseUrl}/subscriptions/${logData.metadata.asaas_subscription_id}`, {
@@ -346,7 +356,7 @@ async function cancelAsaasSubscription(supabaseClient: any, userId: string) {
   }
 }
 
-// Consultation Functions (reusing from orchestrator)
+// Production consultation flow with subscription check
 async function startConsultation(supabaseClient: any, userId: string, request: TemaOrchestrationRequest) {
   try {
     // Check if user has active subscription
@@ -360,7 +370,7 @@ async function startConsultation(supabaseClient: any, userId: string, request: T
     }
 
     // Clean expired sessions first
-    await supabaseClient.rpc('clean_expired_sessions')
+    await cleanExpiredSessions(supabaseClient)
 
     // Check if user has active sessions
     const { data: activeSessions } = await supabaseClient
@@ -387,7 +397,8 @@ async function startConsultation(supabaseClient: any, userId: string, request: T
       status: 'waiting',
       metadata: {
         requested_at: new Date().toISOString(),
-        user_agent: 'Ailun Saúde App'
+        user_agent: 'Ailun Saúde App',
+        environment: 'production'
       }
     }
 
@@ -397,7 +408,7 @@ async function startConsultation(supabaseClient: any, userId: string, request: T
       .select()
       .single()
 
-    // Call RapiDoc function
+    // Call RapiDoc function with production settings
     const { data: consultationData } = await supabaseClient.functions.invoke('rapidoc', {
       body: {
         action: 'request-consultation',
@@ -415,7 +426,7 @@ async function startConsultation(supabaseClient: any, userId: string, request: T
 
       return {
         success: false,
-        error: consultationData?.error || 'Erro ao iniciar consulta'
+        error: consultationData?.error || 'Serviço temporariamente indisponível'
       }
     }
 
@@ -431,7 +442,10 @@ async function startConsultation(supabaseClient: any, userId: string, request: T
       consultation_url: consultationData.consultationUrl,
       estimated_wait_time: consultationData.estimatedWaitTime,
       professional_rating: consultationData.professionalInfo?.rating,
-      metadata: consultationData
+      metadata: {
+        ...consultationData,
+        environment: 'production'
+      }
     }
 
     const { data: logData } = await supabaseClient
@@ -472,6 +486,19 @@ async function startConsultation(supabaseClient: any, userId: string, request: T
   } catch (error) {
     console.error('Start consultation error:', error)
     return { success: false, error: 'Erro ao iniciar consulta' }
+  }
+}
+
+// Helper functions
+async function cleanExpiredSessions(supabaseClient: any) {
+  try {
+    await supabaseClient
+      .from('active_sessions')
+      .update({ status: 'expired' })
+      .lt('expires_at', new Date().toISOString())
+      .eq('status', 'active')
+  } catch (error) {
+    console.error('Clean expired sessions error:', error)
   }
 }
 
