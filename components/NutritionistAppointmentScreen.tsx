@@ -16,8 +16,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   startNutritionistFlow,
   confirmNutritionistAppointment,
+  getDefaultDateRange,
 } from '../services/consultationFlow';
-import { useAuth } from '../hooks/useAuth';
+import { useCPFAuth } from '../hooks/useCPFAuth';
 
 interface Availability {
   uuid: string;
@@ -33,7 +34,7 @@ interface NutritionistAppointmentScreenProps {
 }
 
 export default function NutritionistAppointmentScreen({ visible, onClose }: NutritionistAppointmentScreenProps) {
-  const { user, profile } = useAuth();
+  const { beneficiaryUuid } = useCPFAuth();
   const insets = useSafeAreaInsets();
   
   const [loading, setLoading] = useState(false);
@@ -41,8 +42,6 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
   const [availableTimes, setAvailableTimes] = useState<Availability[]>([]);
   const [selectedTime, setSelectedTime] = useState<Availability | null>(null);
   const [nutritionData, setNutritionData] = useState<any>(null);
-
-  const beneficiaryUuid = profile?.rapidoc_beneficiary_uuid || user?.id;
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -61,7 +60,8 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
   const fetchNutritionistAvailability = async () => {
     setLoading(true);
     try {
-      const result = await startNutritionistFlow(beneficiaryUuid!);
+      const { dateInitial, dateFinal } = getDefaultDateRange();
+      const result = await startNutritionistFlow(beneficiaryUuid!, dateInitial, dateFinal);
       
       if (result.success) {
         setNutritionData(result.data);

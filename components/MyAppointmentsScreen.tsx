@@ -15,10 +15,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { useCPFAuth } from '../hooks/useCPFAuth';
 
 interface ConsultationLog {
   id: string;
+  beneficiary_uuid: string;
   service_type: string;
   specialty?: string;
   status: string;
@@ -35,7 +36,7 @@ interface MyAppointmentsScreenProps {
 }
 
 export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenProps) {
-  const { user } = useAuth();
+  const { beneficiaryUuid } = useCPFAuth();
   const insets = useSafeAreaInsets();
   
   const [loading, setLoading] = useState(true);
@@ -51,13 +52,13 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
   };
 
   const fetchAppointments = useCallback(async () => {
-    if (!user?.id) return;
+    if (!beneficiaryUuid) return;
 
     try {
       const { data, error } = await supabase
         .from('consultation_logs')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('beneficiary_uuid', beneficiaryUuid)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -71,7 +72,7 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
       console.error('Erro ao buscar agendamentos:', error);
       showAlert('Erro', 'Erro inesperado ao carregar agendamentos');
     }
-  }, [user]);
+  }, [beneficiaryUuid]);
 
   useEffect(() => {
     const loadAppointments = async () => {
@@ -92,8 +93,10 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
   const getServiceTypeDisplayName = (serviceType: string) => {
     const serviceNames = {
       doctor: 'Médico Imediato',
+      immediate: 'Médico Imediato',
       specialist: 'Especialista',
       psychologist: 'Psicólogo',
+      psychology: 'Psicólogo',
       nutritionist: 'Nutricionista',
       subscription: 'Assinatura'
     };
@@ -103,6 +106,7 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
   const getStatusDisplayName = (status: string) => {
     const statusNames = {
       pending: 'Pendente',
+      confirmed: 'Confirmado',
       active: 'Ativa',
       completed: 'Concluída',
       cancelled: 'Cancelada',
@@ -114,6 +118,7 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
   const getStatusColor = (status: string) => {
     const statusColors = {
       pending: '#FFA726',
+      confirmed: '#4CAF50',
       active: '#4CAF50',
       completed: '#2196F3',
       cancelled: '#F44336',
@@ -177,7 +182,7 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
         )}
       </View>
 
-      {item.consultation_url && item.status === 'active' && (
+      {item.consultation_url && (item.status === 'active' || item.status === 'confirmed') && (
         <TouchableOpacity 
           style={styles.consultationButton}
           onPress={() => handleOpenConsultation(item.consultation_url!)}
@@ -201,8 +206,10 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
   const getServiceIcon = (serviceType: string) => {
     const icons = {
       doctor: 'medical-services',
+      immediate: 'medical-services',
       specialist: 'person-search',
       psychologist: 'psychology',
+      psychology: 'psychology',
       nutritionist: 'restaurant',
       subscription: 'payment'
     };
@@ -212,8 +219,10 @@ export default function MyAppointmentsScreen({ onClose }: MyAppointmentsScreenPr
   const getServiceColor = (serviceType: string) => {
     const colors = {
       doctor: '#FF6B6B',
+      immediate: '#FF6B6B',
       specialist: '#4ECDC4',
       psychologist: '#A8E6CF',
+      psychology: '#A8E6CF',
       nutritionist: '#FFB74D',
       subscription: '#9C27B0'
     };

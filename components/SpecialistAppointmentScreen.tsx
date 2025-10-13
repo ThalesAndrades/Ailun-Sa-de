@@ -20,7 +20,7 @@ import {
   scheduleSpecialistAppointment,
   getDefaultDateRange,
 } from '../services/consultationFlow';
-import { useAuth } from '../hooks/useAuth';
+import { useCPFAuth } from '../hooks/useCPFAuth';
 
 interface Specialty {
   uuid: string;
@@ -42,7 +42,7 @@ interface SpecialistAppointmentScreenProps {
 }
 
 export default function SpecialistAppointmentScreen({ visible, onClose }: SpecialistAppointmentScreenProps) {
-  const { user, profile } = useAuth();
+  const { beneficiaryUuid } = useCPFAuth();
   const insets = useSafeAreaInsets();
   
   const [loading, setLoading] = useState(false);
@@ -53,8 +53,6 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
   const [referralData, setReferralData] = useState<any>(null);
   const [availableTimes, setAvailableTimes] = useState<Availability[]>([]);
   const [selectedTime, setSelectedTime] = useState<Availability | null>(null);
-
-  const beneficiaryUuid = profile?.rapidoc_beneficiary_uuid || user?.id;
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -221,7 +219,7 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
         <View style={styles.content}>
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="white" />
+              <ActivityIndicator size="large" color="#4ECDC4" />
               <Text style={styles.loadingText}>Carregando...</Text>
             </View>
           )}

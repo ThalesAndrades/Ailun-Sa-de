@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRapidoc } from '../hooks/useRapidoc';
+import { useRapidocCPF } from '../hooks/useRapidocCPF';
 import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
 import NutritionistAppointmentScreen from '../components/NutritionistAppointmentScreen';
 import PsychologyAppointmentScreen from '../components/PsychologyAppointmentScreen';
@@ -29,7 +29,7 @@ interface ServiceButton {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { loading, requestDoctorNow } = useRapidoc();
+  const { loading, requestDoctorNow } = useRapidocCPF();
   
   // Modal states
   const [specialistModal, setSpecialistModal] = useState(false);

@@ -15,16 +15,14 @@ import { router } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { useAuth } from '../hooks/useAuth';
+import { loginWithCPF } from '../services/cpfAuth';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
-  const { signIn, signUp } = useAuth();
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -34,41 +32,58 @@ export default function LoginScreen() {
     }
   };
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      showAlert('Erro', 'Preencha todos os campos');
+  const formatCPF = (text: string) => {
+    // Remove caracteres não numéricos
+    const cleaned = text.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos
+    const limited = cleaned.slice(0, 11);
+    
+    // Formata CPF: 123.456.789-00
+    const formatted = limited
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    
+    return formatted;
+  };
+
+  const handleCPFChange = (text: string) => {
+    const formatted = formatCPF(text);
+    setCpf(formatted);
+    
+    // Auto-preencher senha com os 4 primeiros dígitos
+    const cleanCPF = text.replace(/\D/g, '');
+    if (cleanCPF.length >= 4) {
+      setPassword(cleanCPF.substring(0, 4));
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!cpf || !password) {
+      showAlert('Campos Obrigatórios', 'Preencha CPF e senha');
       return;
     }
 
-    if (password.length < 6) {
-      showAlert('Erro', 'A senha deve ter pelo menos 6 caracteres');
+    if (password.length !== 4) {
+      showAlert('Senha Inválida', 'A senha deve ter exatamente 4 dígitos');
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = isLogin 
-        ? await signIn(email, password)
-        : await signUp(email, password);
+      const result = await loginWithCPF(cpf, password);
 
-      if (error) {
-        if (error.message?.includes('Invalid login credentials')) {
-          showAlert('Erro', 'Email ou senha incorretos');
-        } else if (error.message?.includes('User already registered')) {
-          showAlert('Erro', 'Email já cadastrado. Tente fazer login.');
-        } else if (error.message?.includes('Signup requires a valid password')) {
-          showAlert('Erro', 'Senha deve ter pelo menos 6 caracteres');
-        } else {
-          showAlert('Erro', error.message || 'Erro na autenticação');
-        }
-      } else {
-        if (!isLogin) {
-          showAlert('Sucesso', 'Conta criada! Verifique seu email para confirmar.');
-        } else {
-          // LOGIN BEM-SUCEDIDO: Ir direto para o dashboard
+      if (result.success) {
+        showAlert('Bem-vindo!', `Olá, ${result.data.name}! Redirecionando...`);
+        
+        // LOGIN BEM-SUCEDIDO: Ir direto para o dashboard
+        setTimeout(() => {
           router.push('/dashboard');
-        }
+        }, 1500);
+      } else {
+        showAlert('Erro no Login', result.error || 'Erro na autenticação');
       }
     } catch (error) {
       showAlert('Erro', 'Erro inesperado na autenticação');
@@ -80,12 +95,6 @@ export default function LoginScreen() {
   const handleNewUserFlow = () => {
     // NOVO USUÁRIO: Redirecionar para tutorial e onboarding
     router.push('/tutorial');
-  };
-
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setEmail('');
-    setPassword('');
   };
 
   return (
@@ -100,28 +109,33 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
-              source="https://cdn-ai.onspace.ai/onspace/project/image/gKnK4geTMQPeKZAsSb3Jbs/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              source="https://cdn-ai.onspace.ai/onspace/project/image/SZxF5tJTtjPgSg2rCnCKdZ/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
               style={styles.logoImage}
               contentFit="contain"
             />
           </View>
           <Text style={styles.title}>Ailun Saúde</Text>
-          <Text style={styles.subtitle}>
-            {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
-          </Text>
+          <Text style={styles.subtitle}>Entre com seu CPF</Text>
         </View>
 
         <View style={styles.formContainer}>
+          <View style={styles.instructionBox}>
+            <MaterialIcons name="info" size={20} color="#00B4DB" />
+            <Text style={styles.instructionText}>
+              Sua senha são os 4 primeiros dígitos do seu CPF
+            </Text>
+          </View>
+
           <View style={styles.inputContainer}>
-            <MaterialIcons name="email" size={20} color="#666" style={styles.inputIcon} />
+            <MaterialIcons name="badge" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="E-mail"
+              placeholder="CPF (apenas números)"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
+              value={cpf}
+              onChangeText={handleCPFChange}
+              keyboardType="numeric"
+              maxLength={14} // 123.456.789-00
               editable={!loading}
             />
           </View>
@@ -130,12 +144,13 @@ export default function LoginScreen() {
             <MaterialIcons name="lock" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, styles.passwordInput]}
-              placeholder="Senha"
+              placeholder="Senha (4 dígitos)"
               placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              autoCapitalize="none"
+              keyboardType="numeric"
+              maxLength={4}
               editable={!loading}
             />
             <TouchableOpacity 
@@ -152,24 +167,16 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity 
-            style={[styles.authButton, loading && styles.authButtonDisabled]} 
-            onPress={handleAuth}
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+            onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.authButtonText}>
-                {isLogin ? 'Entrar' : 'Criar Conta'}
-              </Text>
+              <Text style={styles.loginButtonText}>Entrar</Text>
             )}
           </TouchableOpacity>
-
-          {isLogin && (
-            <TouchableOpacity style={styles.forgotPassword} disabled={loading}>
-              <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
-            </TouchableOpacity>
-          )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -177,26 +184,21 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {isLogin ? (
-            <TouchableOpacity 
-              style={styles.newUserButton} 
-              onPress={handleNewUserFlow}
-              disabled={loading}
-            >
-              <MaterialIcons name="person-add" size={24} color="#00B4DB" />
-              <Text style={styles.newUserButtonText}>Ainda não sou Ailun</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={styles.toggleButton} 
-              onPress={toggleMode}
-              disabled={loading}
-            >
-              <Text style={styles.toggleButtonText}>
-                Já tenho uma conta
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+            style={styles.newUserButton} 
+            onPress={handleNewUserFlow}
+            disabled={loading}
+          >
+            <MaterialIcons name="person-add" size={24} color="#00B4DB" />
+            <Text style={styles.newUserButtonText}>Ainda não sou Ailun</Text>
+          </TouchableOpacity>
+
+          <View style={styles.helpContainer}>
+            <MaterialIcons name="help" size={16} color="#666" />
+            <Text style={styles.helpText}>
+              Exemplo: CPF 123.456.789-00 → Senha: 1234
+            </Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -254,6 +256,20 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  instructionBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1565c0',
+    marginLeft: 8,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -278,7 +294,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
   },
-  authButton: {
+  loginButton: {
     backgroundColor: '#00B4DB',
     borderRadius: 12,
     height: 56,
@@ -291,21 +307,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  authButtonDisabled: {
+  loginButtonDisabled: {
     opacity: 0.7,
   },
-  authButtonText: {
+  loginButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  forgotPasswordText: {
-    color: '#00B4DB',
-    fontSize: 14,
   },
   divider: {
     flexDirection: 'row',
@@ -338,17 +346,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  toggleButton: {
-    borderWidth: 2,
-    borderColor: '#00B4DB',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
+  helpContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
   },
-  toggleButtonText: {
-    color: '#00B4DB',
-    fontSize: 16,
-    fontWeight: '600',
+  helpText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 6,
   },
 });

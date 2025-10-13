@@ -16,8 +16,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   startPsychologyFlow,
   confirmPsychologyAppointment,
+  getDefaultDateRange,
 } from '../services/consultationFlow';
-import { useAuth } from '../hooks/useAuth';
+import { useCPFAuth } from '../hooks/useCPFAuth';
 
 interface Availability {
   uuid: string;
@@ -33,7 +34,7 @@ interface PsychologyAppointmentScreenProps {
 }
 
 export default function PsychologyAppointmentScreen({ visible, onClose }: PsychologyAppointmentScreenProps) {
-  const { user, profile } = useAuth();
+  const { beneficiaryUuid } = useCPFAuth();
   const insets = useSafeAreaInsets();
   
   const [loading, setLoading] = useState(false);
@@ -41,8 +42,6 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
   const [availableTimes, setAvailableTimes] = useState<Availability[]>([]);
   const [selectedTime, setSelectedTime] = useState<Availability | null>(null);
   const [psychologyData, setPsychologyData] = useState<any>(null);
-
-  const beneficiaryUuid = profile?.rapidoc_beneficiary_uuid || user?.id;
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -61,7 +60,8 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
   const fetchPsychologyAvailability = async () => {
     setLoading(true);
     try {
-      const result = await startPsychologyFlow(beneficiaryUuid!);
+      const { dateInitial, dateFinal } = getDefaultDateRange();
+      const result = await startPsychologyFlow(beneficiaryUuid!, dateInitial, dateFinal);
       
       if (result.success) {
         setPsychologyData(result.data);
