@@ -1,11 +1,13 @@
 import React, { createContext, ReactNode, useState, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, UserProfile } from '../services/supabase';
+import { ensureBeneficiaryProfile } from '../services/userProfile';
 
 export interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
-  session: Session | null;
+  session: Session | null;  
+  beneficiaryUuid: string | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [beneficiaryUuid, setBeneficiaryUuid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await loadProfile(session.user.id);
         } else {
           setProfile(null);
+          setBeneficiaryUuid(null);
           setLoading(false);
         }
       }
@@ -55,16 +59,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = async (userId: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Buscar perfil no Supabase
+      const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Erro ao carregar perfil:', error);
-      } else {
-        setProfile(data);
+        setLoading(false);
+        return;
+      }
+
+      setProfile(profileData);
+
+      // Garantir que o usuário tem um beneficiário RapiDoc
+      if (user?.email) {
+        const beneficiaryResult = await ensureBeneficiaryProfile(
+          userId,
+          user.email,
+          profileData?.full_name || 'Usuário Ailun',
+          profileData?.phone || '',
+          '', // CPF - seria coletado no onboarding
+          profileData?.birth_date || '1990-01-01'
+        );
+
+        if (beneficiaryResult.success) {
+          setBeneficiaryUuid(beneficiaryResult.beneficiaryUuid);
+        } else {
+          console.error('Erro ao garantir beneficiário:', beneficiaryResult.error);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -110,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setProfile(null);
       setSession(null);
+      setBeneficiaryUuid(null);
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     } finally {
@@ -149,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     profile,
     session,
+    beneficiaryUuid,
     loading,
     signUp,
     signIn,

@@ -12,6 +12,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRapidoc } from '../hooks/useRapidoc';
+import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
+import NutritionistAppointmentScreen from '../components/NutritionistAppointmentScreen';
+import PsychologyAppointmentScreen from '../components/PsychologyAppointmentScreen';
+import MyAppointmentsScreen from '../components/MyAppointmentsScreen';
 
 interface ServiceButton {
   id: string;
@@ -25,21 +29,13 @@ interface ServiceButton {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { loading, requestDoctorNow, requestSpecialist, requestPsychologist, requestNutritionist } = useRapidoc();
-  const [specialtyModal, setSpecialtyModal] = useState(false);
-
-  const specialties = [
-    'Cardiologia',
-    'Dermatologia',
-    'Endocrinologia',
-    'Ginecologia',
-    'Neurologia',
-    'Ortopedia',
-    'Pediatria',
-    'Psiquiatria',
-    'Urologia',
-    'Clínica Geral'
-  ];
+  const { loading, requestDoctorNow } = useRapidoc();
+  
+  // Modal states
+  const [specialistModal, setSpecialistModal] = useState(false);
+  const [nutritionistModal, setNutritionistModal] = useState(false);
+  const [psychologyModal, setPsychologyModal] = useState(false);
+  const [appointmentsModal, setAppointmentsModal] = useState(false);
 
   const services: ServiceButton[] = [
     {
@@ -58,7 +54,7 @@ export default function DashboardScreen() {
       icon: 'person-search',
       color: '#4ECDC4',
       gradient: ['#4ECDC4', '#44A08D'],
-      onPress: () => setSpecialtyModal(true)
+      onPress: () => setSpecialistModal(true)
     },
     {
       id: 'psychologists',
@@ -67,7 +63,7 @@ export default function DashboardScreen() {
       icon: 'psychology',
       color: '#A8E6CF',
       gradient: ['#A8E6CF', '#88D8A3'],
-      onPress: requestPsychologist
+      onPress: () => setPsychologyModal(true)
     },
     {
       id: 'nutritionists',
@@ -76,21 +72,16 @@ export default function DashboardScreen() {
       icon: 'restaurant',
       color: '#FFB74D',
       gradient: ['#FFB74D', '#FFA726'],
-      onPress: requestNutritionist
+      onPress: () => setNutritionistModal(true)
     }
   ];
-
-  const handleSpecialtySelect = (specialty: string) => {
-    setSpecialtyModal(false);
-    requestSpecialist(specialty);
-  };
 
   const handleProfile = () => {
     // TODO: Implementar tela de perfil
   };
 
-  const handleNotifications = () => {
-    // TODO: Implementar tela de notificações
+  const handleAppointments = () => {
+    setAppointmentsModal(true);
   };
 
   return (
@@ -108,8 +99,8 @@ export default function DashboardScreen() {
             <Text style={styles.welcomeText}>Como podemos ajudar hoje?</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerButton} onPress={handleNotifications}>
-              <MaterialIcons name="notifications" size={24} color="white" />
+            <TouchableOpacity style={styles.headerButton} onPress={handleAppointments}>
+              <MaterialIcons name="history" size={24} color="white" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerButton} onPress={handleProfile}>
               <MaterialIcons name="account-circle" size={24} color="white" />
@@ -142,7 +133,7 @@ export default function DashboardScreen() {
                   style={styles.serviceGradient}
                 >
                   <View style={styles.serviceIconContainer}>
-                    {loading ? (
+                    {loading && service.id === 'doctor' ? (
                       <ActivityIndicator color="white" size={32} />
                     ) : (
                       <MaterialIcons 
@@ -205,41 +196,27 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* Modal de Especialidades */}
-      <Modal
-        visible={specialtyModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSpecialtyModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Escolha a Especialidade</Text>
-              <TouchableOpacity
-                onPress={() => setSpecialtyModal(false)}
-                style={styles.closeButton}
-              >
-                <MaterialIcons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.specialtyList}>
-              {specialties.map((specialty) => (
-                <TouchableOpacity
-                  key={specialty}
-                  style={styles.specialtyItem}
-                  onPress={() => handleSpecialtySelect(specialty)}
-                >
-                  <MaterialIcons name="medical-services" size={24} color="#00B4DB" />
-                  <Text style={styles.specialtyText}>{specialty}</Text>
-                  <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {/* Modals */}
+      <SpecialistAppointmentScreen 
+        visible={specialistModal}
+        onClose={() => setSpecialistModal(false)}
+      />
+      
+      <NutritionistAppointmentScreen 
+        visible={nutritionistModal}
+        onClose={() => setNutritionistModal(false)}
+      />
+      
+      <PsychologyAppointmentScreen 
+        visible={psychologyModal}
+        onClose={() => setPsychologyModal(false)}
+      />
+
+      {appointmentsModal && (
+        <Modal visible={appointmentsModal} animationType="slide" presentationStyle="pageSheet">
+          <MyAppointmentsScreen onClose={() => setAppointmentsModal(false)} />
+        </Modal>
+      )}
     </LinearGradient>
   );
 }
@@ -399,50 +376,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   featureText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  specialtyList: {
-    flex: 1,
-  },
-  specialtyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  specialtyText: {
-    flex: 1,
     fontSize: 16,
     color: '#333',
     marginLeft: 12,
