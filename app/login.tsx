@@ -1,205 +1,264 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  ActivityIndicator
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { loginWithCPF } from '../services/cpfAuth';
+import { MessageTemplates } from '../constants/messageTemplates';
+import { 
+  showTemplateMessage, 
+  showSuccessAlert, 
+  showErrorAlert,
+  showInvalidCPFAlert 
+} from '../utils/alertHelpers';
 
 export default function LoginScreen() {
-  const [cpf, setCpf] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const [cpf, setCpf] = useState('');
+  const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const showAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
+  // Formatação do CPF
+  const formatCPF = (value: string) => {
+    const numericValue = value.replace(/\D/g, '');
+    if (numericValue.length <= 11) {
+      return numericValue
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})/, '$1-$2');
     }
+    return cpf;
   };
 
-  const formatCPF = (text: string) => {
-    // Remove caracteres não numéricos
-    const cleaned = text.replace(/\D/g, '');
-    
-    // Limita a 11 dígitos
-    const limited = cleaned.slice(0, 11);
-    
-    // Formata CPF: 123.456.789-00
-    const formatted = limited
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    
-    return formatted;
-  };
-
-  const handleCPFChange = (text: string) => {
-    const formatted = formatCPF(text);
+  const handleCPFChange = (value: string) => {
+    const formatted = formatCPF(value);
     setCpf(formatted);
     
-    // Auto-preencher senha com os 4 primeiros dígitos
-    const cleanCPF = text.replace(/\D/g, '');
-    if (cleanCPF.length >= 4) {
-      setPassword(cleanCPF.substring(0, 4));
+    // Auto-fill senha com os 4 primeiros dígitos
+    const numericCPF = value.replace(/\D/g, '');
+    if (numericCPF.length >= 4) {
+      setSenha(numericCPF.substring(0, 4));
     }
+  };
+
+  const validateCPF = (cpfValue: string): boolean => {
+    const numericCPF = cpfValue.replace(/\D/g, '');
+    return numericCPF.length === 11;
   };
 
   const handleLogin = async () => {
-    if (!cpf || !password) {
-      showAlert('Campos Obrigatórios', 'Preencha CPF e senha');
+    if (!cpf.trim()) {
+      showTemplateMessage(MessageTemplates.validation.requiredField('CPF'));
       return;
     }
 
-    if (password.length !== 4) {
-      showAlert('Senha Inválida', 'A senha deve ter exatamente 4 dígitos');
+    if (!validateCPF(cpf)) {
+      showInvalidCPFAlert();
+      return;
+    }
+
+    if (!senha.trim()) {
+      showTemplateMessage(MessageTemplates.validation.requiredField('Senha'));
       return;
     }
 
     setLoading(true);
 
     try {
-      const result = await loginWithCPF(cpf, password);
+      const numericCPF = cpf.replace(/\D/g, '');
+      const result = await loginWithCPF(numericCPF, senha);
 
-      if (result.success) {
-        showAlert('Bem-vindo!', `Olá, ${result.data.name}! Redirecionando...`);
+      if (result.success && result.user) {
+        // Mostrar mensagem de sucesso
+        showTemplateMessage(MessageTemplates.auth.loginSuccess(result.user.name));
         
-        // LOGIN BEM-SUCEDIDO: Ir direto para o dashboard
+        // Navegar para dashboard após um pequeno delay
         setTimeout(() => {
-          router.push('/dashboard');
+          router.replace('/dashboard');
         }, 1500);
       } else {
-        showAlert('Erro no Login', result.error || 'Erro na autenticação');
+        // Mostrar erro específico
+        if (result.error?.includes('beneficiário não encontrado')) {
+          showErrorAlert('CPF não encontrado no sistema. Verifique se você está cadastrado.');
+        } else if (result.error?.includes('senha incorreta')) {
+          showTemplateMessage(MessageTemplates.auth.loginError);
+        } else {
+          showErrorAlert(result.error || 'Erro inesperado ao fazer login');
+        }
       }
-    } catch (error) {
-      showAlert('Erro', 'Erro inesperado na autenticação');
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      showTemplateMessage(MessageTemplates.errors.network);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNewUserFlow = () => {
-    // NOVO USUÁRIO: Redirecionar para tutorial e onboarding
-    router.push('/tutorial');
+  const handleForgotPassword = () => {
+    showTemplateMessage({
+      title: '🔑 Esqueceu a Senha?',
+      message: 'Sua senha são os 4 primeiros dígitos do seu CPF.\n\nPor exemplo:\nCPF: 123.456.789-10\nSenha: 1234\n\nSe continuar com problemas, entre em contato conosco.',
+      type: 'info'
+    });
+  };
+
+  const handleHelp = () => {
+    showTemplateMessage({
+      title: '❓ Ajuda',
+      message: 'Como fazer login:\n\n1. Digite seu CPF completo\n2. A senha são os 4 primeiros dígitos do CPF\n3. Toque em "Entrar"\n\nPrecisa de ajuda? Entre em contato:\ncontato@ailun.com.br',
+      type: 'info'
+    });
   };
 
   return (
     <LinearGradient 
-      colors={['#00B4DB', '#0083B0']} 
+      colors={['#667eea', '#764ba2']} 
       style={styles.container}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[styles.keyboardContainer, { paddingTop: insets.top }]}
+        style={styles.keyboardContainer}
       >
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source="https://cdn-ai.onspace.ai/onspace/project/image/SZxF5tJTtjPgSg2rCnCKdZ/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
-              style={styles.logoImage}
-              contentFit="contain"
-            />
+        <ScrollView 
+          contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 40 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <MaterialIcons name="health-and-safety" size={64} color="white" />
+            </View>
+            <Text style={styles.title}>AiLun Saúde</Text>
+            <Text style={styles.subtitle}>Sua saúde em primeiro lugar</Text>
           </View>
-          <Text style={styles.title}>Ailun Saúde</Text>
-          <Text style={styles.subtitle}>Entre com seu CPF</Text>
-        </View>
 
-        <View style={styles.formContainer}>
-          <View style={styles.instructionBox}>
-            <MaterialIcons name="info" size={20} color="#00B4DB" />
-            <Text style={styles.instructionText}>
-              Sua senha são os 4 primeiros dígitos do seu CPF
+          {/* Form */}
+          <View style={styles.formContainer}>
+            <View style={styles.card}>
+              <Text style={styles.formTitle}>Fazer Login</Text>
+              <Text style={styles.formSubtitle}>
+                Digite seus dados para acessar
+              </Text>
+
+              {/* CPF Input */}
+              <View style={styles.inputContainer}>
+                <View style={styles.inputWrapper}>
+                  <MaterialIcons name="badge" size={24} color="#667eea" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="CPF"
+                    value={cpf}
+                    onChangeText={handleCPFChange}
+                    keyboardType="numeric"
+                    maxLength={14}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+                </View>
+              </View>
+
+              {/* Senha Input */}
+              <View style={styles.inputContainer}>
+                <View style={styles.inputWrapper}>
+                  <MaterialIcons name="lock" size={24} color="#667eea" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Senha (4 primeiros dígitos do CPF)"
+                    value={senha}
+                    onChangeText={setSenha}
+                    secureTextEntry={!showPassword}
+                    keyboardType="numeric"
+                    maxLength={4}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <MaterialIcons 
+                      name={showPassword ? 'visibility' : 'visibility-off'} 
+                      size={24} 
+                      color="#999" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Login Button */}
+              <TouchableOpacity
+                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <MaterialIcons name="login" size={24} color="white" />
+                    <Text style={styles.loginButtonText}>Entrar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Help Links */}
+              <View style={styles.helpContainer}>
+                <TouchableOpacity onPress={handleForgotPassword}>
+                  <Text style={styles.helpLink}>Esqueceu a senha?</Text>
+                </TouchableOpacity>
+                
+                <View style={styles.helpSeparator} />
+                
+                <TouchableOpacity onPress={handleHelp}>
+                  <Text style={styles.helpLink}>Precisa de ajuda?</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={styles.featuresContainer}>
+              <Text style={styles.featuresTitle}>Recursos Disponíveis</Text>
+              <View style={styles.featuresList}>
+                <View style={styles.featureItem}>
+                  <MaterialIcons name="medical-services" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Médico Imediato</Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <MaterialIcons name="person-search" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Especialistas</Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <MaterialIcons name="psychology" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Psicologia</Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <MaterialIcons name="restaurant" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Nutrição</Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.footerText}>
+              AiLun Tecnologia • CNPJ: 60.740.536/0001-75
             </Text>
           </View>
-
-          <View style={styles.inputContainer}>
-            <MaterialIcons name="badge" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="CPF (apenas números)"
-              placeholderTextColor="#999"
-              value={cpf}
-              onChangeText={handleCPFChange}
-              keyboardType="numeric"
-              maxLength={14} // 123.456.789-00
-              editable={!loading}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <MaterialIcons name="lock" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder="Senha (4 dígitos)"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              keyboardType="numeric"
-              maxLength={4}
-              editable={!loading}
-            />
-            <TouchableOpacity 
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
-              disabled={loading}
-            >
-              <Ionicons 
-                name={showPassword ? "eye-off" : "eye"} 
-                size={20} 
-                color="#666" 
-              />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.loginButtonText}>Entrar</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ou</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.newUserButton} 
-            onPress={handleNewUserFlow}
-            disabled={loading}
-          >
-            <MaterialIcons name="person-add" size={24} color="#00B4DB" />
-            <Text style={styles.newUserButtonText}>Ainda não sou Ailun</Text>
-          </TouchableOpacity>
-
-          <View style={styles.helpContainer}>
-            <MaterialIcons name="help" size={16} color="#666" />
-            <Text style={styles.helpText}>
-              Exemplo: CPF 123.456.789-00 → Senha: 1234
-            </Text>
-          </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
@@ -211,8 +270,11 @@ const styles = StyleSheet.create({
   },
   keyboardContainer: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  scrollContainer: {
+    flexGrow: 1,
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -221,23 +283,14 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 120,
     height: 120,
-    borderRadius: 16,
-    backgroundColor: 'white',
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  logoImage: {
-    width: 100,
-    height: 100,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 8,
@@ -245,37 +298,45 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   formContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  instructionBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e3f2fd',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  instructionText: {
     flex: 1,
-    fontSize: 14,
-    color: '#1565c0',
-    marginLeft: 8,
+    justifyContent: 'center',
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 32,
   },
   inputContainer: {
+    marginBottom: 20,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
     paddingHorizontal: 16,
     height: 56,
   },
@@ -287,25 +348,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  passwordInput: {
-    paddingRight: 40,
-  },
   eyeIcon: {
-    position: 'absolute',
-    right: 16,
+    padding: 4,
   },
   loginButton: {
-    backgroundColor: '#00B4DB',
+    backgroundColor: '#667eea',
     borderRadius: 12,
     height: 56,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#00B4DB',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: '#667eea',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 4,
   },
   loginButtonDisabled: {
     opacity: 0.7,
@@ -313,48 +371,63 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: 'white',
     fontSize: 18,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e0e0e0',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#666',
-    fontSize: 14,
-  },
-  newUserButton: {
-    borderWidth: 2,
-    borderColor: '#00B4DB',
-    borderRadius: 12,
-    height: 56,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  newUserButtonText: {
-    color: '#00B4DB',
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     marginLeft: 8,
   },
   helpContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
+    alignItems: 'center',
+    marginTop: 24,
   },
-  helpText: {
+  helpLink: {
+    color: '#667eea',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  helpSeparator: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#ddd',
+    marginHorizontal: 16,
+  },
+  footer: {
+    marginTop: 40,
+    alignItems: 'center',
+  },
+  featuresContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    width: '100%',
+  },
+  featuresTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  featuresList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: 8,
+  },
+  featureText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginLeft: 8,
+  },
+  footerText: {
     fontSize: 12,
-    color: '#666',
-    marginLeft: 6,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
   },
 });

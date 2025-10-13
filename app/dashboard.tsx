@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,16 +6,22 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRapidocCPF } from '../hooks/useRapidocCPF';
+import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
+import { useCPFAuth } from '../hooks/useCPFAuth';
+import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
+import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
 import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
 import NutritionistAppointmentScreen from '../components/NutritionistAppointmentScreen';
 import PsychologyAppointmentScreen from '../components/PsychologyAppointmentScreen';
 import MyAppointmentsScreen from '../components/MyAppointmentsScreen';
+import NotificationScreen from '../components/NotificationScreen';
 
 interface ServiceButton {
   id: string;
@@ -30,12 +36,35 @@ interface ServiceButton {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { loading, requestDoctorNow } = useRapidocCPF();
+  const { user } = useCPFAuth();
+  const { 
+    hasUnreadNotifications, 
+    unreadCount, 
+    refreshNotifications 
+  } = useIntegratedNotifications();
   
   // Modal states
   const [specialistModal, setSpecialistModal] = useState(false);
   const [nutritionistModal, setNutritionistModal] = useState(false);
   const [psychologyModal, setPsychologyModal] = useState(false);
   const [appointmentsModal, setAppointmentsModal] = useState(false);
+  const [notificationsModal, setNotificationsModal] = useState(false);
+
+  // Auto-refresh notifications
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshNotifications();
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [refreshNotifications]);
+
+  const handleDoctorNow = async () => {
+    if (loading) return;
+    
+    showTemplateMessage(MessageTemplates.immediate.starting);
+    await requestDoctorNow();
+  };
 
   const services: ServiceButton[] = [
     {
@@ -45,7 +74,7 @@ export default function DashboardScreen() {
       icon: 'medical-services',
       color: '#FF6B6B',
       gradient: ['#FF6B6B', '#FF8E53'],
-      onPress: requestDoctorNow
+      onPress: handleDoctorNow
     },
     {
       id: 'specialists',
@@ -77,11 +106,35 @@ export default function DashboardScreen() {
   ];
 
   const handleProfile = () => {
-    // TODO: Implementar tela de perfil
+    showTemplateMessage({
+      title: '👤 Perfil',
+      message: 'Funcionalidade de perfil em desenvolvimento.',
+      type: 'info'
+    });
   };
 
   const handleAppointments = () => {
     setAppointmentsModal(true);
+  };
+
+  const handleNotifications = () => {
+    setNotificationsModal(true);
+  };
+
+  const handleLogout = () => {
+    showConfirmationAlert(
+      'Tem certeza que deseja sair do aplicativo?',
+      async () => {
+        // Implementar logout
+        showTemplateMessage({
+          title: '👋 Até Logo',
+          message: 'Logout realizado com sucesso!',
+          type: 'success'
+        });
+      },
+      undefined,
+      '🚪 Sair do Aplicativo'
+    );
   };
 
   return (
@@ -95,15 +148,31 @@ export default function DashboardScreen() {
       >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Olá!</Text>
+            <Text style={styles.greeting}>
+              {user ? getGreetingMessage(user.name.split(' ')[0]) : 'Olá!'}
+            </Text>
             <Text style={styles.welcomeText}>Como podemos ajudar hoje?</Text>
           </View>
           <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={[styles.headerButton, hasUnreadNotifications && styles.headerButtonWithBadge]} 
+              onPress={handleNotifications}
+            >
+              <MaterialIcons name="notifications" size={24} color="white" />
+              {hasUnreadNotifications && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity style={styles.headerButton} onPress={handleAppointments}>
               <MaterialIcons name="history" size={24} color="white" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerButton} onPress={handleProfile}>
               <MaterialIcons name="account-circle" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton} onPress={handleLogout}>
+              <MaterialIcons name="logout" size={24} color="white" />
             </TouchableOpacity>
           </View>
         </View>
@@ -117,16 +186,27 @@ export default function DashboardScreen() {
             <Text style={styles.quickAccessSubtitle}>
               Conecte-se instantaneamente com profissionais de saúde
             </Text>
+            {hasUnreadNotifications && (
+              <TouchableOpacity 
+                style={styles.notificationAlert}
+                onPress={handleNotifications}
+              >
+                <MaterialIcons name="notifications_active" size={20} color="#FF9800" />
+                <Text style={styles.notificationAlertText}>
+                  Você tem {unreadCount} notificação{unreadCount > 1 ? 'ões' : ''} não lida{unreadCount > 1 ? 's' : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.servicesGrid}>
             {services.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={[styles.serviceCard, loading && styles.serviceCardDisabled]}
+                style={[styles.serviceCard, loading && service.id === 'doctor' && styles.serviceCardDisabled]}
                 onPress={service.onPress}
                 activeOpacity={0.8}
-                disabled={loading}
+                disabled={loading && service.id === 'doctor'}
               >
                 <LinearGradient
                   colors={service.gradient}
@@ -173,7 +253,7 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.featuresCard}>
-            <Text style={styles.featuresTitle}>Recursos Conectados</Text>
+            <Text style={styles.featuresTitle}>Recursos Integrados</Text>
             <View style={styles.featuresList}>
               <View style={styles.featureItem}>
                 <MaterialIcons name="online-prediction" size={20} color="#00B4DB" />
@@ -184,8 +264,16 @@ export default function DashboardScreen() {
                 <Text style={styles.featureText}>Profissionais certificados</Text>
               </View>
               <View style={styles.featureItem}>
+                <MaterialIcons name="notifications_active" size={20} color="#00B4DB" />
+                <Text style={styles.featureText}>Notificações inteligentes</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <MaterialIcons name="email" size={20} color="#00B4DB" />
+                <Text style={styles.featureText}>Confirmações por email</Text>
+              </View>
+              <View style={styles.featureItem}>
                 <MaterialIcons name="schedule" size={20} color="#00B4DB" />
-                <Text style={styles.featureText}>Agendamento automático</Text>
+                <Text style={styles.featureText}>Lembretes automáticos</Text>
               </View>
               <View style={styles.featureItem}>
                 <MaterialIcons name="security" size={20} color="#00B4DB" />
@@ -216,6 +304,10 @@ export default function DashboardScreen() {
         <Modal visible={appointmentsModal} animationType="slide" presentationStyle="pageSheet">
           <MyAppointmentsScreen onClose={() => setAppointmentsModal(false)} />
         </Modal>
+      )}
+
+      {notificationsModal && (
+        <NotificationScreen onClose={() => setNotificationsModal(false)} />
       )}
     </LinearGradient>
   );
@@ -260,6 +352,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
+    position: 'relative',
+  },
+  headerButtonWithBadge: {
+    backgroundColor: 'rgba(255, 152, 0, 0.3)',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#FF5722',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -285,6 +397,20 @@ const styles = StyleSheet.create({
   quickAccessSubtitle: {
     fontSize: 14,
     color: '#666',
+  },
+  notificationAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3e0',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  notificationAlertText: {
+    fontSize: 14,
+    color: '#e65100',
+    marginLeft: 8,
+    fontWeight: '500',
   },
   servicesGrid: {
     marginBottom: 24,
