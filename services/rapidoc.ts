@@ -492,3 +492,37 @@ export const cancelAppointment = async (appointmentUuid: string) => {
   }
 };
 
+/**
+ * Busca beneficiário por CPF na RapiDoc
+ */
+export const getBeneficiaryByCPF = async (cpf: string) => {
+  try {
+    const response = await rapidocRequest(`/beneficiaries?cpf=${cpf}`, 'GET');
+
+    if (response.success) {
+      // A API pode retornar uma lista, pegar o primeiro resultado
+      const beneficiary = Array.isArray(response.data) ? response.data[0] : response.data;
+
+      if (!beneficiary) {
+        return {
+          success: false,
+          error: 'CPF não encontrado.',
+        };
+      }
+
+      return {
+        success: true,
+        data: beneficiary,
+      };
+    }
+
+    return { success: false, error: response.message || 'Erro ao buscar beneficiário.' };
+  } catch (error: any) {
+    console.error('Erro ao buscar beneficiário por CPF:', error.message);
+    return {
+      success: false,
+      error: 'Erro de conexão com o servidor.',
+    };
+  }
+};
+
