@@ -66,7 +66,8 @@ export default function LoginScreen() {
         if (!isLogin) {
           showAlert('Sucesso', 'Conta criada! Verifique seu email para confirmar.');
         } else {
-          router.push('/tutorial');
+          // LOGIN BEM-SUCEDIDO: Ir direto para o dashboard
+          router.push('/dashboard');
         }
       }
     } catch (error) {
@@ -77,8 +78,8 @@ export default function LoginScreen() {
   };
 
   const handleNewUserFlow = () => {
-    // Redirecionar para onboarding para novos usuários
-    router.push('/onboarding/step1');
+    // NOVO USUÁRIO: Redirecionar para tutorial e onboarding
+    router.push('/tutorial');
   };
 
   const toggleMode = () => {
@@ -99,7 +100,7 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
-              source="https://cdn-ai.onspace.ai/onspace/project/image/ZCYvG3kpYiracpzPwfFpUM/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+              source="https://cdn-ai.onspace.ai/onspace/project/image/gKnK4geTMQPeKZAsSb3Jbs/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
               style={styles.logoImage}
               contentFit="contain"
             />
