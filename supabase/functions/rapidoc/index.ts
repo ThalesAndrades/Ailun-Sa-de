@@ -6,31 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const RAPIDOC_BASE_URL = 'https://api.rapidoc.tech/tema/api'
+const RAPIDOC_CONTENT_TYPE = 'application/vnd.rapidoc.tema-v2+json'
+
 interface RapidocRequest {
   action: string;
-  serviceType: 'doctor' | 'specialist' | 'psychologist' | 'nutritionist';
-  userProfile?: {
-    name: string;
-    email: string;
-    phone?: string;
-  };
-  urgency?: 'low' | 'medium' | 'high';
-  specialtyArea?: string;
-  queueId?: string;
-}
-
-interface RapidocApiResponse {
-  success: boolean;
-  sessionId?: string;
-  consultationUrl?: string;
-  estimatedWaitTime?: number;
-  professionalInfo?: {
-    name: string;
-    specialty: string;
-    rating: number;
-  };
-  message?: string;
-  error?: string;
+  beneficiaryUuid?: string;
+  specialtyUuid?: string;
+  dateInitial?: string;
+  dateFinal?: string;
+  availabilityUuid?: string;
+  referralUuid?: string;
+  approveAdditionalPayment?: boolean;
 }
 
 serve(async (req) => {
@@ -41,15 +28,14 @@ serve(async (req) => {
 
   try {
     // Get environment variables
-    const rapidocClientId = Deno.env.get('RAPIDOC_CLIENT_ID')
     const rapidocToken = Deno.env.get('RAPIDOC_TOKEN')
-    const rapidocBaseUrl = Deno.env.get('RAPIDOC_BASE_URL')
+    const rapidocClientId = Deno.env.get('RAPIDOC_CLIENT_ID')
 
-    if (!rapidocClientId || !rapidocToken || !rapidocBaseUrl) {
+    if (!rapidocToken || !rapidocClientId) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Configuração da API não encontrada' 
+          error: 'Configuração da API RapiDoc não encontrada' 
         }),
         { 
           status: 500, 
@@ -62,11 +48,11 @@ serve(async (req) => {
     const requestData: RapidocRequest = await req.json()
 
     // Validate request
-    if (!requestData.action || !requestData.serviceType) {
+    if (!requestData.action) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Dados da solicitação inválidos' 
+          error: 'Ação não especificada' 
         }),
         { 
           status: 400, 
@@ -111,53 +97,71 @@ serve(async (req) => {
       )
     }
 
-    // Process different service types
-    let apiResponse: RapidocApiResponse;
+    // Process different actions
+    let apiResponse;
 
-    switch (requestData.serviceType) {
-      case 'doctor':
-        apiResponse = await requestDoctorConsultation(
-          rapidocBaseUrl, 
-          rapidocClientId, 
-          rapidocToken, 
-          requestData.userProfile || { name: 'Usuário', email: user.email || '' },
-          requestData.urgency || 'high'
+    switch (requestData.action) {
+      case 'request-immediate-appointment':
+        apiResponse = await requestImmediateAppointment(
+          rapidocToken,
+          rapidocClientId,
+          requestData.beneficiaryUuid!
         )
-        break;
+        break
 
-      case 'specialist':
-        apiResponse = await requestSpecialistConsultation(
-          rapidocBaseUrl, 
-          rapidocClientId, 
-          rapidocToken, 
-          requestData.userProfile || { name: 'Usuário', email: user.email || '' },
-          requestData.specialtyArea || 'Clínica Geral'
-        )
-        break;
+      case 'list-specialties':
+        apiResponse = await listSpecialties(rapidocToken, rapidocClientId)
+        break
 
-      case 'psychologist':
-        apiResponse = await requestPsychologyConsultation(
-          rapidocBaseUrl, 
-          rapidocClientId, 
-          rapidocToken, 
-          requestData.userProfile || { name: 'Usuário', email: user.email || '' }
+      case 'check-referral':
+        apiResponse = await checkReferral(
+          rapidocToken,
+          rapidocClientId,
+          requestData.beneficiaryUuid!,
+          requestData.specialtyUuid!
         )
-        break;
+        break
 
-      case 'nutritionist':
-        apiResponse = await requestNutritionConsultation(
-          rapidocBaseUrl, 
-          rapidocClientId, 
-          rapidocToken, 
-          requestData.userProfile || { name: 'Usuário', email: user.email || '' }
+      case 'list-availability':
+        apiResponse = await listAvailability(
+          rapidocToken,
+          rapidocClientId,
+          requestData.specialtyUuid!,
+          requestData.dateInitial!,
+          requestData.dateFinal!,
+          requestData.beneficiaryUuid!
         )
-        break;
+        break
+
+      case 'schedule-appointment':
+        apiResponse = await scheduleAppointment(
+          rapidocToken,
+          rapidocClientId,
+          requestData.beneficiaryUuid!,
+          requestData.availabilityUuid!,
+          requestData.specialtyUuid!,
+          requestData.referralUuid,
+          requestData.approveAdditionalPayment
+        )
+        break
+
+      case 'list-appointments':
+        apiResponse = await listAppointments(rapidocToken, rapidocClientId)
+        break
+
+      case 'cancel-appointment':
+        apiResponse = await cancelAppointment(
+          rapidocToken,
+          rapidocClientId,
+          requestData.availabilityUuid! // appointmentUuid
+        )
+        break
 
       default:
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Tipo de serviço não reconhecido' 
+            error: 'Ação não reconhecida' 
           }),
           { 
             status: 400, 
@@ -165,9 +169,6 @@ serve(async (req) => {
           }
         )
     }
-
-    // Log consultation request for tracking (production-ready)
-    await logConsultationRequest(supabaseClient, user.id, requestData.serviceType, apiResponse)
 
     return new Response(
       JSON.stringify(apiResponse),
@@ -177,7 +178,6 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    // Production error logging
     console.error('RapiDoc API Error:', {
       message: error.message,
       timestamp: new Date().toISOString(),
@@ -197,274 +197,245 @@ serve(async (req) => {
   }
 })
 
-// Production-ready API calls with real RapiDoc integration
-async function requestDoctorConsultation(
-  baseUrl: string, 
-  clientId: string, 
-  token: string, 
-  userProfile: any, 
-  urgency: string
-): Promise<RapidocApiResponse> {
-  try {
-    const response = await fetch(`${baseUrl}/api/v1/consultations/immediate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Client-ID': clientId,
-        'X-Service-Type': 'general_medicine',
-      },
-      body: JSON.stringify({
-        patient: {
-          name: userProfile.name,
-          email: userProfile.email,
-          phone: userProfile.phone,
-        },
-        service: {
-          type: 'immediate_consultation',
-          specialty: 'general_medicine',
-          urgency: urgency,
-        },
-        metadata: {
-          platform: 'ailun_health',
-          timestamp: new Date().toISOString(),
-        }
-      }),
-    })
+// ==================== API FUNCTIONS ====================
 
-    if (!response.ok) {
-      throw new Error(`RapiDoc API error: ${response.status} ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    
-    return {
-      success: true,
-      sessionId: data.session_id,
-      consultationUrl: data.consultation_url,
-      estimatedWaitTime: data.estimated_wait_time || 3,
-      professionalInfo: {
-        name: data.professional?.name || 'Médico Disponível',
-        specialty: 'Clínica Geral',
-        rating: data.professional?.rating || 4.8,
-      },
-      message: 'Conexão estabelecida com sucesso'
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: 'Não foi possível conectar com o serviço médico no momento. Tente novamente em alguns minutos.'
-    }
+async function rapidocRequest(
+  token: string,
+  clientId: string,
+  endpoint: string,
+  method: string = 'GET',
+  body?: any
+) {
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${token}`,
+    'clientId': clientId,
+    'Content-Type': RAPIDOC_CONTENT_TYPE,
   }
+
+  const options: RequestInit = {
+    method,
+    headers,
+  }
+
+  if (body && (method === 'POST' || method === 'PUT')) {
+    options.body = JSON.stringify(body)
+  }
+
+  const response = await fetch(`${RAPIDOC_BASE_URL}${endpoint}`, options)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`RapiDoc API Error: ${response.status} - ${errorText}`)
+  }
+
+  return await response.json()
 }
 
-async function requestSpecialistConsultation(
-  baseUrl: string, 
-  clientId: string, 
-  token: string, 
-  userProfile: any, 
-  specialtyArea: string
-): Promise<RapidocApiResponse> {
-  try {
-    const response = await fetch(`${baseUrl}/api/v1/consultations/specialist`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Client-ID': clientId,
-        'X-Service-Type': 'specialist',
-      },
-      body: JSON.stringify({
-        patient: {
-          name: userProfile.name,
-          email: userProfile.email,
-          phone: userProfile.phone,
-        },
-        service: {
-          type: 'specialist_consultation',
-          specialty: specialtyArea.toLowerCase().replace(/\s+/g, '_'),
-          urgency: 'medium',
-        },
-        metadata: {
-          platform: 'ailun_health',
-          timestamp: new Date().toISOString(),
-        }
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`RapiDoc Specialist API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    
-    return {
-      success: true,
-      sessionId: data.session_id,
-      consultationUrl: data.consultation_url,
-      estimatedWaitTime: data.estimated_wait_time || 10,
-      professionalInfo: {
-        name: data.specialist?.name || `Especialista em ${specialtyArea}`,
-        specialty: specialtyArea,
-        rating: data.specialist?.rating || 4.9,
-      },
-      message: `Agendamento confirmado com especialista em ${specialtyArea}`
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: `Especialista em ${specialtyArea} não disponível no momento. Tente novamente mais tarde.`
-    }
-  }
-}
-
-async function requestPsychologyConsultation(
-  baseUrl: string, 
-  clientId: string, 
-  token: string, 
-  userProfile: any
-): Promise<RapidocApiResponse> {
-  try {
-    const response = await fetch(`${baseUrl}/api/v1/consultations/psychology`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Client-ID': clientId,
-        'X-Service-Type': 'psychology',
-      },
-      body: JSON.stringify({
-        patient: {
-          name: userProfile.name,
-          email: userProfile.email,
-          phone: userProfile.phone,
-        },
-        service: {
-          type: 'psychology_consultation',
-          specialty: 'clinical_psychology',
-          urgency: 'medium',
-        },
-        metadata: {
-          platform: 'ailun_health',
-          timestamp: new Date().toISOString(),
-        }
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`RapiDoc Psychology API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    
-    return {
-      success: true,
-      sessionId: data.session_id,
-      consultationUrl: data.consultation_url,
-      estimatedWaitTime: data.estimated_wait_time || 8,
-      professionalInfo: {
-        name: data.psychologist?.name || 'Psicólogo Qualificado',
-        specialty: 'Psicologia Clínica',
-        rating: data.psychologist?.rating || 4.9,
-      },
-      message: 'Sessão de psicologia agendada com sucesso'
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: 'Serviço de psicologia temporariamente indisponível. Nossa equipe está trabalhando para restabelecer o atendimento.'
-    }
-  }
-}
-
-async function requestNutritionConsultation(
-  baseUrl: string, 
-  clientId: string, 
-  token: string, 
-  userProfile: any
-): Promise<RapidocApiResponse> {
-  try {
-    const response = await fetch(`${baseUrl}/api/v1/consultations/nutrition`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Client-ID': clientId,
-        'X-Service-Type': 'nutrition',
-      },
-      body: JSON.stringify({
-        patient: {
-          name: userProfile.name,
-          email: userProfile.email,
-          phone: userProfile.phone,
-        },
-        service: {
-          type: 'nutrition_consultation',
-          specialty: 'clinical_nutrition',
-          urgency: 'low',
-        },
-        metadata: {
-          platform: 'ailun_health',
-          timestamp: new Date().toISOString(),
-        }
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`RapiDoc Nutrition API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    
-    return {
-      success: true,
-      sessionId: data.session_id,
-      consultationUrl: data.consultation_url,
-      estimatedWaitTime: data.estimated_wait_time || 15,
-      professionalInfo: {
-        name: data.nutritionist?.name || 'Nutricionista Certificado',
-        specialty: 'Nutrição Clínica',
-        rating: data.nutritionist?.rating || 4.8,
-      },
-      message: 'Consulta nutricional confirmada'
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: 'Serviço de nutrição indisponível. Tente novamente em alguns minutos.'
-    }
-  }
-}
-
-// Production logging
-async function logConsultationRequest(
-  supabaseClient: any, 
-  userId: string, 
-  serviceType: string, 
-  response: RapidocApiResponse
+async function requestImmediateAppointment(
+  token: string,
+  clientId: string,
+  beneficiaryUuid: string
 ) {
   try {
-    await supabaseClient
-      .from('consultation_logs')
-      .insert({
-        user_id: userId,
-        service_type: serviceType,
-        success: response.success,
-        session_id: response.sessionId,
-        professional_name: response.professionalInfo?.name,
-        specialty: response.professionalInfo?.specialty,
-        status: response.success ? 'active' : 'failed',
-        error_message: response.error,
-        consultation_url: response.consultationUrl,
-        estimated_wait_time: response.estimatedWaitTime,
-        professional_rating: response.professionalInfo?.rating,
-        metadata: {
-          api_response: response,
-          timestamp: new Date().toISOString(),
-          platform: 'production'
-        }
-      })
+    const response = await rapidocRequest(
+      token,
+      clientId,
+      `/beneficiaries/${beneficiaryUuid}/request-appointment`,
+      'GET'
+    )
+
+    return {
+      success: response.success,
+      data: {
+        consultationUrl: response.data?.url || response.data?.appointmentUrl,
+      },
+      message: response.message
+    }
   } catch (error) {
-    console.error('Failed to log consultation request:', error)
+    return {
+      success: false,
+      error: error.message
+    }
   }
 }
+
+async function listSpecialties(token: string, clientId: string) {
+  try {
+    const response = await rapidocRequest(token, clientId, '/specialties', 'GET')
+
+    // Filtrar nutrição
+    const specialties = response.data.filter(
+      (specialty: any) => !specialty.name.toLowerCase().includes('nutrição')
+    )
+
+    return {
+      success: response.success,
+      data: specialties,
+      message: response.message
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+async function checkReferral(
+  token: string,
+  clientId: string,
+  beneficiaryUuid: string,
+  specialtyUuid: string
+) {
+  try {
+    const response = await rapidocRequest(
+      token,
+      clientId,
+      '/beneficiary-medical-referrals',
+      'GET'
+    )
+
+    const referrals = response.data.filter(
+      (referral: any) => 
+        referral.beneficiaryUuid === beneficiaryUuid &&
+        referral.specialtyUuid === specialtyUuid &&
+        referral.status === 'active'
+    )
+
+    return {
+      success: true,
+      hasReferral: referrals.length > 0,
+      referral: referrals[0] || null,
+      message: referrals.length > 0 
+        ? 'Encaminhamento ativo encontrado' 
+        : 'Nenhum encaminhamento ativo'
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+async function listAvailability(
+  token: string,
+  clientId: string,
+  specialtyUuid: string,
+  dateInitial: string,
+  dateFinal: string,
+  beneficiaryUuid: string
+) {
+  try {
+    const params = new URLSearchParams({
+      specialtyUuid,
+      dateInitial,
+      dateFinal,
+      beneficiaryUuid,
+    })
+
+    const response = await rapidocRequest(
+      token,
+      clientId,
+      `/specialty-availability?${params}`,
+      'GET'
+    )
+
+    return {
+      success: response.success,
+      data: response.data,
+      message: response.message
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+async function scheduleAppointment(
+  token: string,
+  clientId: string,
+  beneficiaryUuid: string,
+  availabilityUuid: string,
+  specialtyUuid: string,
+  referralUuid?: string,
+  approveAdditionalPayment?: boolean
+) {
+  try {
+    const body: any = {
+      beneficiaryUuid,
+      availabilityUuid,
+      specialtyUuid,
+    }
+
+    if (referralUuid) {
+      body.beneficiaryMedicalReferralUuid = referralUuid
+    } else {
+      body.approveAdditionalPayment = approveAdditionalPayment ?? true
+    }
+
+    const response = await rapidocRequest(
+      token,
+      clientId,
+      '/appointments',
+      'POST',
+      body
+    )
+
+    return {
+      success: response.success,
+      data: response.data,
+      message: response.message || 'Agendamento realizado com sucesso'
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+async function listAppointments(token: string, clientId: string) {
+  try {
+    const response = await rapidocRequest(token, clientId, '/appointments', 'GET')
+
+    return {
+      success: response.success,
+      data: response.data,
+      message: response.message
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+async function cancelAppointment(
+  token: string,
+  clientId: string,
+  appointmentUuid: string
+) {
+  try {
+    const response = await rapidocRequest(
+      token,
+      clientId,
+      `/appointments/${appointmentUuid}`,
+      'DELETE'
+    )
+
+    return {
+      success: response.success,
+      message: response.message || 'Agendamento cancelado com sucesso'
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
