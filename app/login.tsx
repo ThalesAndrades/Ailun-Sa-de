@@ -517,6 +517,16 @@ export default function LoginScreen() {
                   <Text style={styles.helpLink}>Precisa de ajuda?</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Signup Button */}
+              <TouchableOpacity
+                style={styles.signupButton}
+                onPress={() => router.push('/signup/welcome')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="person-add" size={24} color="#00B4DB" />
+                <Text style={styles.signupButtonText}>Quero ser Ailun</Text>
+              </TouchableOpacity>
             </Animated.View>
           </Animated.View>
 
@@ -743,5 +753,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 12,
+  },
+  signupButton: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    borderWidth: 2,
+    borderColor: '#00B4DB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  signupButtonText: {
+    color: '#00B4DB',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });
