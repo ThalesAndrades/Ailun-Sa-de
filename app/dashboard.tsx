@@ -16,6 +16,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
+import { getBeneficiaryByCPF, canUseService } from '../services/beneficiary-plan-service';
+import { checkSubscriptionStatus } from '../services/asaas';
 import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
 import { useSubscription } from '../hooks/useSubscription';
 import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
@@ -41,6 +43,8 @@ interface ServiceButton {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user, profile, beneficiaryUuid, loading: authLoading, signOut } = useAuth();
+  const [beneficiaryData, setBeneficiaryData] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);
   const { subscriptionData, loading: subscriptionLoading } = useSubscription(beneficiaryUuid || '');
   const { loading: consultationLoading, requestImmediate } = useRapidocConsultation();
@@ -104,16 +108,40 @@ export default function DashboardScreen() {
     }
   }, [authLoading]);
 
-  // Auto-refresh notifications
+  // Auto-refresh notifications e dados
   useEffect(() => {
     if (user) {
       const interval = setInterval(() => {
         refreshNotifications();
+        loadUserData();
       }, 30000); // 30 segundos
 
       return () => clearInterval(interval);
     }
   }, [user, refreshNotifications]);
+
+  // Carregar dados do usuário
+  const loadUserData = async () => {
+    if (!user || !profile?.cpf) return;
+
+    try {
+      // Buscar dados do beneficiário
+      const beneficiary = await getBeneficiaryByCPF(profile.cpf);
+      setBeneficiaryData(beneficiary);
+
+      // Verificar status da assinatura
+      if (beneficiary?.beneficiary_uuid) {
+        const subStatus = await checkSubscriptionStatus(beneficiary.beneficiary_uuid);
+        setSubscriptionStatus(subStatus);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do usuário:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadUserData();
+  }, [user, profile]);
 
   // Redirect para login se não autenticado
   useEffect(() => {
@@ -134,15 +162,28 @@ export default function DashboardScreen() {
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
     
-    // Verificar se pode usar o serviço
-    const canUseService = await canUse('clinical');
-    if (!canUseService.canUse) {
+    // Verificar status da assinatura
+    if (subscriptionStatus && !subscriptionStatus.hasActiveSubscription) {
       showTemplateMessage({
-        title: 'Serviço Indisponível',
-        message: canUseService.reason || 'Você não pode usar este serviço no momento.',
+        title: '⚠️ Assinatura Inativa',
+        message: 'Sua assinatura está inativa. Por favor, regularize seu pagamento para continuar usando os serviços.',
         type: 'warning'
       });
+      router.push('/subscription');
       return;
+    }
+
+    // Verificar se pode usar o serviço
+    if (beneficiaryData?.beneficiary_uuid) {
+      const serviceCheck = await canUseService(beneficiaryData.beneficiary_uuid, 'clinical');
+      if (!serviceCheck.canUse) {
+        showTemplateMessage({
+          title: 'Serviço Indisponível',
+          message: serviceCheck.reason || 'Você não pode usar este serviço no momento.',
+          type: 'warning'
+        });
+        return;
+      }
     }
     
     // Navegar para tela de solicitação de consulta imediata
@@ -152,15 +193,28 @@ export default function DashboardScreen() {
   const handleSpecialists = async () => {
     if (!beneficiaryUuid) return;
     
-    // Verificar se pode usar especialistas
-    const canUseService = await canUse('specialist');
-    if (!canUseService.canUse) {
+    // Verificar status da assinatura
+    if (subscriptionStatus && !subscriptionStatus.hasActiveSubscription) {
       showTemplateMessage({
-        title: 'Especialistas Indisponíveis',
-        message: canUseService.reason || 'Especialistas não estão incluídos no seu plano atual.',
-        type: 'info'
+        title: '⚠️ Assinatura Inativa',
+        message: 'Sua assinatura está inativa. Por favor, regularize seu pagamento para continuar usando os serviços.',
+        type: 'warning'
       });
+      router.push('/subscription');
       return;
+    }
+
+    // Verificar se pode usar especialistas
+    if (beneficiaryData?.beneficiary_uuid) {
+      const serviceCheck = await canUseService(beneficiaryData.beneficiary_uuid, 'specialist');
+      if (!serviceCheck.canUse) {
+        showTemplateMessage({
+          title: 'Especialistas Indisponíveis',
+          message: serviceCheck.reason || 'Especialistas não estão incluídos no seu plano atual.',
+          type: 'info'
+        });
+        return;
+      }
     }
     
     router.push({
@@ -379,6 +433,40 @@ export default function DashboardScreen() {
                 </Text>
                 <MaterialIcons name="arrow-forward" size={16} color="#666" />
               </TouchableOpacity>
+            )}
+
+            {/* Status da Assinatura */}
+            {subscriptionStatus && (
+              <View style={[
+                styles.subscriptionStatus,
+                subscriptionStatus.hasActiveSubscription 
+                  ? styles.subscriptionStatusActive 
+                  : styles.subscriptionStatusInactive
+              ]}>
+                <MaterialIcons 
+                  name={subscriptionStatus.hasActiveSubscription ? "verified" : "warning"} 
+                  size={20} 
+                  color={subscriptionStatus.hasActiveSubscription ? "#4CAF50" : "#FF9800"} 
+                />
+                <Text style={[
+                  styles.subscriptionStatusText,
+                  subscriptionStatus.hasActiveSubscription 
+                    ? styles.subscriptionStatusTextActive
+                    : styles.subscriptionStatusTextInactive
+                ]}>
+                  {subscriptionStatus.hasActiveSubscription 
+                    ? 'Assinatura Ativa' 
+                    : 'Assinatura Inativa'}
+                </Text>
+                {!subscriptionStatus.hasActiveSubscription && (
+                  <TouchableOpacity 
+                    onPress={() => router.push('/subscription')}
+                    style={styles.renewButton}
+                  >
+                    <Text style={styles.renewButtonText}>Renovar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
 
             {hasUnreadNotifications && (
@@ -801,5 +889,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     marginLeft: 12,
+  },
+  subscriptionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  subscriptionStatusActive: {
+    backgroundColor: '#E8F5E8',
+  },
+  subscriptionStatusInactive: {
+    backgroundColor: '#fff3e0',
+  },
+  subscriptionStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
+  },
+  subscriptionStatusTextActive: {
+    color: '#4CAF50',
+  },
+  subscriptionStatusTextInactive: {
+    color: '#e65100',
+  },
+  renewButton: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  renewButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

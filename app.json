@@ -4,11 +4,11 @@
     "slug": "ailun-saude-app",
     "version": "1.2.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/adaptive-icon.png",
     "scheme": "ailun",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/logo.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#00B4DB"
     },
@@ -18,11 +18,16 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ailun.saude",
-      "buildNumber": "12"
+      "buildNumber": "12",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Este aplicativo precisa de acesso à câmera para consultas médicas por vídeo.",
+        "NSMicrophoneUsageDescription": "Este aplicativo precisa de acesso ao microfone para consultas médicas por áudio.",
+        "NSFaceIDUsageDescription": "Use Face ID ou Touch ID para login rápido e seguro no aplicativo."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#00B4DB"
       },
       "package": "com.ailun.saude",
@@ -38,7 +43,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.ico"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
