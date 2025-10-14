@@ -287,13 +287,68 @@ export default function LoginScreen() {
           }
         }
 
+        // Verificar se o usuário tem plano ativo
+        const { supabase } = await import('../services/supabase');
+        const { data: beneficiaryData } = await supabase
+          .from('beneficiaries')
+          .select('beneficiary_uuid')
+          .eq('cpf', numericCPF)
+          .eq('is_primary', true)
+          .single();
+
+        if (beneficiaryData) {
+          const { data: planData } = await supabase
+            .from('v_user_plans')
+            .select('plan_status')
+            .eq('beneficiary_uuid', beneficiaryData.beneficiary_uuid)
+            .eq('plan_status', 'active')
+            .single();
+
+          if (!planData) {
+            // Usuário não tem plano ativo, redirecionar para fluxo de assinatura
+            showTemplateMessage({
+              title: '⚠️ Plano Inativo',
+              message: 'Você precisa de um plano ativo para acessar o aplicativo. Por favor, complete seu cadastro.',
+              type: 'warning'
+            });
+            setTimeout(() => {
+              router.replace('/signup/welcome');
+            }, 1500);
+            return;
+          }
+        } else {
+          // Beneficiário não encontrado, redirecionar para fluxo de assinatura
+          showTemplateMessage({
+            title: '⚠️ Cadastro Incompleto',
+            message: 'Complete seu cadastro para acessar o aplicativo.',
+            type: 'warning'
+          });
+          setTimeout(() => {
+            router.replace('/signup/welcome');
+          }, 1500);
+          return;
+        }
+
+        // Verificar se é o primeiro acesso
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('has_seen_onboarding')
+          .eq('id', result.data.id)
+          .single();
+
+        const isFirstAccess = !profileData?.has_seen_onboarding;
+
         showTemplateMessage(MessageTemplates.auth.loginSuccess(result.data.name));
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
 
         setTimeout(() => {
-          router.replace('/dashboard');
+          if (isFirstAccess) {
+            router.replace('/onboarding/platform-guide');
+          } else {
+            router.replace('/dashboard');
+          }
         }, 1500);
       } else {
         // Mostrar erro no campo apropriado

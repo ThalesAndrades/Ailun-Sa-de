@@ -106,7 +106,8 @@ export default function ConfirmationScreen() {
   }, []);
 
   const handleGoToDashboard = () => {
-    router.replace('/dashboard');
+    // Redirecionar para o guia da plataforma no primeiro acesso
+    router.replace('/onboarding/platform-guide');
   };
 
   const handleTryAgain = () => {

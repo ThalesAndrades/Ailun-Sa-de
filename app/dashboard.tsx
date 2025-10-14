@@ -120,6 +120,15 @@ export default function DashboardScreen() {
     }
   }, [isAuthenticated, authLoading]);
 
+  // Verificar plano ativo e redirecionar se necessário
+  useEffect(() => {
+    // Aguardar o carregamento dos dados de assinatura
+    if (subscriptionData && !subscriptionData.hasActiveSubscription) {
+      // Redirecionar para tela de plano inativo
+      router.replace('/subscription/inactive');
+    }
+  }, [subscriptionData]);
+
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
     
