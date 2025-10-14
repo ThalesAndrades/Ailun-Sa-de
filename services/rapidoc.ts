@@ -78,7 +78,7 @@ const getCredentials = () => {
 };
 
 /**
- * Fazer requisição à API RapiDoc
+ * Fazer requisição à API RapiDoc com logs detalhados
  */
 const rapidocRequest = async (
   endpoint: string,
@@ -87,19 +87,26 @@ const rapidocRequest = async (
 ) => {
   try {
     const { token, clientId } = getCredentials();
+    const fullUrl = `${RAPIDOC_BASE_URL}${endpoint}`;
 
-    console.log('[RapiDoc] Fazendo requisição:', {
-      url: `${RAPIDOC_BASE_URL}${endpoint}`,
-      method,
-      hasToken: !!token,
-      hasClientId: !!clientId,
-    });
+    console.log('🔗 [RapiDoc Request] Iniciando requisição');
+    console.log('📍 URL completa:', fullUrl);
+    console.log('🔧 Método:', method);
+    console.log('🔐 Token presente:', !!token, token ? `(${token.length} chars)` : '(não encontrado)');
+    console.log('🆔 Client ID:', clientId);
+    console.log('📄 Content-Type:', RAPIDOC_CONTENT_TYPE);
+    
+    if (body) {
+      console.log('📦 Body da requisição:', JSON.stringify(body, null, 2));
+    }
 
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${token}`,
       'clientId': clientId,
       'Content-Type': RAPIDOC_CONTENT_TYPE,
     };
+
+    console.log('📋 Headers da requisição:', JSON.stringify(headers, null, 2));
 
     const options: RequestInit = {
       method,
@@ -110,29 +117,176 @@ const rapidocRequest = async (
       options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(`${RAPIDOC_BASE_URL}${endpoint}`, options);
+    console.log('⏳ Enviando requisição...');
+    const response = await fetch(fullUrl, options);
 
-    console.log('[RapiDoc] Resposta recebida:', {
-      status: response.status,
-      ok: response.ok,
-    });
+    console.log('📥 [RapiDoc Response] Resposta recebida');
+    console.log('📊 Status:', response.status);
+    console.log('✅ OK:', response.ok);
+    console.log('📋 Headers da resposta:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+
+    // Ler o texto da resposta uma vez
+    const responseText = await response.text();
+    console.log('📄 Resposta bruta:', responseText);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[RapiDoc] Erro na resposta:', errorText);
-      throw new Error(`RapiDoc API Error: ${response.status} - ${errorText}`);
+      console.error('❌ [RapiDoc Error] Erro HTTP:', response.status);
+      console.error('📄 Texto do erro:', responseText);
+      
+      // Tentar parsear como JSON para obter mais detalhes
+      try {
+        const errorData = JSON.parse(responseText);
+        console.error('🔍 Detalhes do erro (JSON):', JSON.stringify(errorData, null, 2));
+      } catch (parseError) {
+        console.error('⚠️ Não foi possível parsear erro como JSON');
+      }
+      
+      throw new Error(`RapiDoc API Error: ${response.status} - ${responseText}`);
     }
 
-    const data = await response.json();
-    console.log('[RapiDoc] Dados recebidos:', data);
+    // Tentar parsear como JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log('✅ Dados parseados com sucesso:', JSON.stringify(data, null, 2));
+    } catch (parseError) {
+      console.error('❌ Erro ao parsear JSON:', parseError);
+      console.error('📄 Resposta que causou erro:', responseText);
+      throw new Error('Resposta da API não é um JSON válido');
+    }
+
     return data;
   } catch (error: any) {
-    console.error('[RapiDoc] Erro na requisição:', error);
+    console.error('💥 [RapiDoc Request] Erro na requisição:', error);
+    console.error('🔍 Detalhes do erro:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.substring(0, 500)
+    });
     throw error;
   }
 };
 
 // ==================== BENEFICIÁRIOS ====================
+
+/**
+ * Busca beneficiário por CPF na RapiDoc
+ */
+export const getBeneficiaryByCPF = async (cpf: string) => {
+  try {
+    console.log('🔍 [getBeneficiaryByCPF] Iniciando busca de beneficiário');
+    console.log('📋 CPF recebido:', cpf);
+    console.log('🧹 CPF limpo:', cpf.replace(/\D/g, ''));
+    
+    const cleanCPF = cpf.replace(/\D/g, '');
+    
+    if (!cleanCPF) {
+      console.error('❌ CPF vazio após limpeza');
+      return {
+        success: false,
+        error: 'CPF inválido ou vazio',
+      };
+    }
+
+    if (cleanCPF.length !== 11) {
+      console.error('❌ CPF com tamanho incorreto:', cleanCPF.length);
+      return {
+        success: false,
+        error: `CPF deve ter 11 dígitos. Recebido: ${cleanCPF.length} dígitos`,
+      };
+    }
+
+    console.log('🌐 Fazendo requisição para RapiDoc...');
+    const response = await rapidocRequest(`/beneficiaries?cpf=${cleanCPF}`, 'GET');
+
+    console.log('📊 [getBeneficiaryByCPF] Analisando resposta da API');
+    console.log('✅ Response.success:', response.success);
+    console.log('📄 Response.data:', response.data);
+    console.log('📄 Response.message:', response.message);
+
+    if (response.success) {
+      // A API pode retornar uma lista, pegar o primeiro resultado
+      const beneficiary = Array.isArray(response.data) ? response.data[0] : response.data;
+
+      console.log('👤 Beneficiário processado:', beneficiary);
+
+      if (!beneficiary) {
+        console.log('❌ Nenhum beneficiário encontrado na resposta');
+        return {
+          success: false,
+          error: 'CPF não encontrado no sistema.',
+        };
+      }
+
+      console.log('✅ Beneficiário encontrado com sucesso');
+      return {
+        success: true,
+        data: beneficiary,
+      };
+    }
+
+    console.log('❌ Response.success = false');
+    const errorMessage = response.message || 'Erro desconhecido ao buscar beneficiário';
+    console.log('📄 Mensagem de erro:', errorMessage);
+    
+    // Verificar se é erro de "não encontrado" vs erro de sistema
+    if (errorMessage.toLowerCase().includes('not found') || 
+        errorMessage.toLowerCase().includes('não encontrado') ||
+        errorMessage.toLowerCase().includes('inexistente')) {
+      return { 
+        success: false, 
+        error: 'CPF não encontrado no sistema.' 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
+
+  } catch (error: any) {
+    console.error('💥 [getBeneficiaryByCPF] Erro na busca do beneficiário:', error);
+    console.error('🔍 Detalhes:', {
+      message: error.message,
+      name: error.name,
+      cpf: cpf
+    });
+
+    // Classificar tipos de erro
+    if (error.message.includes('fetch')) {
+      return {
+        success: false,
+        error: 'Erro de conexão. Verifique sua internet e tente novamente.',
+      };
+    }
+    
+    if (error.message.includes('timeout')) {
+      return {
+        success: false,
+        error: 'Timeout na conexão. Tente novamente.',
+      };
+    }
+
+    if (error.message.includes('404')) {
+      return {
+        success: false,
+        error: 'CPF não encontrado no sistema.',
+      };
+    }
+
+    if (error.message.includes('401') || error.message.includes('403')) {
+      return {
+        success: false,
+        error: 'Erro de autenticação na API. Entre em contato com o suporte.',
+      };
+    }
+
+    return {
+      success: false,
+      error: 'Erro interno do servidor. Tente novamente mais tarde.',
+    };
+  }
+};
 
 /**
  * Adicionar beneficiário na RapiDoc
@@ -511,38 +665,3 @@ export const cancelAppointment = async (appointmentUuid: string) => {
     return { success: false, error: error.message };
   }
 };
-
-/**
- * Busca beneficiário por CPF na RapiDoc
- */
-export const getBeneficiaryByCPF = async (cpf: string) => {
-  try {
-    const response = await rapidocRequest(`/beneficiaries?cpf=${cpf}`, 'GET');
-
-    if (response.success) {
-      // A API pode retornar uma lista, pegar o primeiro resultado
-      const beneficiary = Array.isArray(response.data) ? response.data[0] : response.data;
-
-      if (!beneficiary) {
-        return {
-          success: false,
-          error: 'CPF não encontrado.',
-        };
-      }
-
-      return {
-        success: true,
-        data: beneficiary,
-      };
-    }
-
-    return { success: false, error: response.message || 'Erro ao buscar beneficiário.' };
-  } catch (error: any) {
-    console.error('Erro ao buscar beneficiário por CPF:', error.message);
-    return {
-      success: false,
-      error: 'Erro de conexão com o servidor.',
-    };
-  }
-};
-
