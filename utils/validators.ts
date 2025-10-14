@@ -1,87 +1,114 @@
-export class Validators {
-  /**
-   * Valida CPF brasileiro
-   */
-  static isValidCpf(cpf: string): boolean {
-    cpf = cpf.replace(/[^\d]/g, 
-    '');
-    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
-      return false;
-    }
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(cpf.charAt(i)) * (10 - i);
-    }
-    let remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    if (remainder !== parseInt(cpf.charAt(9))) return false;
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += parseInt(cpf.charAt(i)) * (11 - i);
-    }
-    remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    return remainder === parseInt(cpf.charAt(10));
+/**
+ * Valida um CPF brasileiro
+ * @param cpf - CPF no formato XXX.XXX.XXX-XX ou XXXXXXXXXXX
+ * @returns boolean - true se válido, false se inválido
+ */
+export function isValidCpf(cpf: string): boolean {
+  if (!cpf) return false;
+  
+  // Remove pontos, hífens e espaços
+  const cleanCpf = cpf.replace(/[^\d]/g, '');
+  
+  // Verifica se tem 11 dígitos
+  if (cleanCpf.length !== 11) return false;
+  
+  // Verifica se todos os dígitos são iguais
+  if (/^(\d)\1{10}$/.test(cleanCpf)) return false;
+  
+  // Valida primeiro dígito verificador
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
   }
-
-  /**
-   * Valida email
-   */
-  static isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  let remainder = 11 - (sum % 11);
+  let firstDigit = remainder >= 10 ? 0 : remainder;
+  
+  if (parseInt(cleanCpf.charAt(9)) !== firstDigit) return false;
+  
+  // Valida segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
   }
-
-  /**
-   * Valida telefone brasileiro
-   */
-  static isValidPhone(phone: string): boolean {
-    const cleanPhone = phone.replace(/[^\d]/g, 
-    '');
-    return /^[1-9]{2}9?[0-9]{8}$/.test(cleanPhone);
-  }
-
-  /**
-   * Valida CEP brasileiro
-   */
-  static isValidZipCode(zipCode: string): boolean {
-    const cleanZipCode = zipCode.replace(/[^\d]/g, 
-    '');
-    return /^[0-9]{8}$/.test(cleanZipCode);
-  }
-
-  /**
-   * Valida UUID
-   */
-  static isValidUuid(uuid: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
-    9a-f]{12}$/i.test(uuid);
-  }
-
-  /**
-   * Valida data no formato brasileiro
-   */
-  static isValidBrazilianDate(date: string): boolean {
-    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-      return false;
-    }
-    const [day, month, year] = date.split(
-      '/'
-    ).map(Number);
-    const dateObj = new Date(year, month - 1, day);
-    return dateObj.getDate() === day &&
-      dateObj.getMonth() === month - 1 &&
-      dateObj.getFullYear() === year;
-  }
-
-  /**
-   * Valida data no formato ISO
-   */
-  static isValidIsoDate(date: string): boolean {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return false;
-    }
-    return !isNaN(Date.parse(date));
-  }
+  remainder = 11 - (sum % 11);
+  let secondDigit = remainder >= 10 ? 0 : remainder;
+  
+  return parseInt(cleanCpf.charAt(10)) === secondDigit;
 }
 
+/**
+ * Valida uma data no formato brasileiro DD/MM/YYYY
+ * @param date - Data no formato DD/MM/YYYY
+ * @returns boolean - true se válida, false se inválida
+ */
+export function isValidBrazilianDate(date: string): boolean {
+  if (!date) return false;
+  
+  // Verifica formato básico DD/MM/YYYY
+  const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const match = date.match(dateRegex);
+  
+  if (!match) return false;
+  
+  const day = parseInt(match[1]);
+  const month = parseInt(match[2]);
+  const year = parseInt(match[3]);
+  
+  // Verifica intervalos básicos
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  if (year < 1900 || year > new Date().getFullYear()) return false;
+  
+  // Verifica dias válidos para cada mês
+  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  
+  // Verifica ano bissexto
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  if (isLeapYear) {
+    daysInMonth[1] = 29; // Fevereiro em ano bissexto
+  }
+  
+  if (day > daysInMonth[month - 1]) return false;
+  
+  // Verifica se a data não é futura
+  const inputDate = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // Permite até o final do dia atual
+  
+  return inputDate <= today;
+}
+
+/**
+ * Formata um CPF adicionando pontos e hífen
+ * @param cpf - CPF sem formatação
+ * @returns string - CPF formatado XXX.XXX.XXX-XX
+ */
+export function formatCpf(cpf: string): string {
+  const cleanCpf = cpf.replace(/[^\d]/g, '');
+  
+  if (cleanCpf.length <= 11) {
+    return cleanCpf
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2');
+  }
+  
+  return cpf;
+}
+
+/**
+ * Formata uma data adicionando barras
+ * @param date - Data sem formatação
+ * @returns string - Data formatada DD/MM/YYYY
+ */
+export function formatBrazilianDate(date: string): string {
+  const cleanDate = date.replace(/[^\d]/g, '');
+  
+  if (cleanDate.length <= 8) {
+    return cleanDate
+      .replace(/(\d{2})(\d)/, '$1/$2')
+      .replace(/(\d{2})(\d)/, '$1/$2');
+  }
+  
+  return date;
+}
