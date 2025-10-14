@@ -1,7 +1,7 @@
 import React, { createContext, ReactNode, useState, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, UserProfile } from '../services/supabase';
-import { ensureBeneficiaryProfile, acceptTerms, hasAcceptedTerms } from '../services/userProfile';
+import { ensureBeneficiaryProfile } from '../services/userProfile';
 
 export interface AuthContextType {
   user: User | null;
@@ -14,8 +14,6 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
-  acceptTerms: () => Promise<{ success: boolean; error?: string }>;
-  hasAcceptedTerms: () => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -174,23 +172,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const acceptTermsHandler = async () => {
-    if (!user) {
-      return { success: false, error: 'Usuário não autenticado' };
-    }
-    
-    const result = await acceptTerms(user.id);
-    if (result.success) {
-      await refreshProfile();
-    }
-    return result;
-  };
-
-  const checkTermsAccepted = async () => {
-    if (!user) return false;
-    return await hasAcceptedTerms(user.id);
-  };
-
   const value: AuthContextType = {
     user,
     profile,
@@ -202,8 +183,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     updateProfile,
     refreshProfile,
-    acceptTerms: acceptTermsHandler,
-    hasAcceptedTerms: checkTermsAccepted,
   };
 
   return (

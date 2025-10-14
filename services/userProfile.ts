@@ -7,8 +7,6 @@ export interface UserProfile {
   phone?: string;
   birth_date?: string;
   has_seen_onboarding: boolean;
-  terms_accepted?: boolean;
-  terms_accepted_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -134,37 +132,4 @@ export async function updateUserProfile(
  */
 export async function markOnboardingSeen(userId: string): Promise<{ success: boolean; error?: string }> {
   return updateUserProfile(userId, { has_seen_onboarding: true });
-}
-
-/**
- * Marcar que o usuário aceitou os termos de uso
- */
-export async function acceptTerms(userId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Usar a função SQL que criamos
-    const { error } = await supabase
-      .rpc('accept_terms', { user_id_param: userId });
-
-    if (error) {
-      throw error;
-    }
-
-    return { success: true };
-  } catch (error: any) {
-    console.error('Erro ao aceitar termos:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Verificar se o usuário já aceitou os termos
- */
-export async function hasAcceptedTerms(userId: string): Promise<boolean> {
-  try {
-    const profile = await getUserProfile(userId);
-    return profile?.terms_accepted || false;
-  } catch (error) {
-    console.error('Erro ao verificar termos aceitos:', error);
-    return false;
-  }
 }

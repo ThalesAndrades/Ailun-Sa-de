@@ -12,9 +12,6 @@ export interface UserProfile {
   full_name?: string;
   phone?: string;
   birth_date?: string;
-  has_seen_onboarding?: boolean;
-  terms_accepted?: boolean;
-  terms_accepted_at?: string;
   created_at: string;
   updated_at: string;
 }
