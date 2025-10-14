@@ -4,16 +4,14 @@
  */
 
 import axios from 'axios';
-
-// Configuração da API Rapidoc
-const RAPIDOC_API_BASE_URL = process.env.EXPO_PUBLIC_RAPIDOC_API_URL || 'https://sandbox.rapidoc.tech/tema/api';
-const RAPIDOC_API_KEY = process.env.EXPO_PUBLIC_RAPIDOC_API_KEY || '';
+import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
 
 const rapidocApi = axios.create({
-  baseURL: RAPIDOC_API_BASE_URL,
+  baseURL: RAPIDOC_CONFIG.BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${RAPIDOC_API_KEY}`,
+    'Content-Type': RAPIDOC_CONFIG.CONTENT_TYPE,
+    'Authorization': `Bearer ${RAPIDOC_CONFIG.TOKEN}`,
+    'clientId': RAPIDOC_CONFIG.CLIENT_ID,
   },
   timeout: 30000,
 });

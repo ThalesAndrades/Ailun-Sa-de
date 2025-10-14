@@ -10,6 +10,7 @@ export interface AuthContextType {
   session: Session | null;  
   beneficiaryUuid: string | null;
   loading: boolean;
+  isAuthenticated: boolean;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -205,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     beneficiaryUuid,
     loading,
+    isAuthenticated: !!user,
     signUp,
     signIn,
     signOut,
