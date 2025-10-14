@@ -230,6 +230,9 @@ export default function LoginScreen() {
 
   const handleLogin = async (cpfValue = cpf, senhaValue = senha) => {
     console.log('[LoginScreen] Iniciando handleLogin');
+    console.log('[LoginScreen] cpfValue:', cpfValue, 'tipo:', typeof cpfValue);
+    console.log('[LoginScreen] senhaValue:', senhaValue, 'tipo:', typeof senhaValue);
+    
     if (!validateFields()) {
       console.log('[LoginScreen] Validação de campos falhou');
       return;
@@ -238,9 +241,13 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const numericCPF = cpfValue.replace(/\D/g, '');
+      // Garantir que cpfValue é uma string
+      const cpfString = String(cpfValue || cpf);
+      const senhaString = String(senhaValue || senha);
+      
+      const numericCPF = cpfString.replace(/\D/g, '');
       console.log('[LoginScreen] Chamando loginWithCPF com CPF:', numericCPF);
-      const result = await loginWithCPF(numericCPF, senhaValue);
+      const result = await loginWithCPF(numericCPF, senhaString);
       console.log('[LoginScreen] Resultado do login:', result);
 
       if (result.success && result.data) {
@@ -248,7 +255,7 @@ export default function LoginScreen() {
         if (Platform.OS !== 'web') {
           try {
             await SecureStore.setItemAsync(CPF_KEY, numericCPF);
-            await SecureStore.setItemAsync(numericCPF, senhaValue);
+            await SecureStore.setItemAsync(numericCPF, senhaString);
           } catch (error) {
             console.log('Erro ao salvar credenciais:', error);
           }
