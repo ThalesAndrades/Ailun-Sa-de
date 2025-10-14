@@ -5,8 +5,10 @@ import { supabase } from './supabase';
  * Documentação: https://sandbox.rapidoc.tech/tema/api/
  */
 
-const RAPIDOC_BASE_URL = 'https://api.rapidoc.tech/tema/api';
-const RAPIDOC_CONTENT_TYPE = 'application/vnd.rapidoc.tema-v2+json';
+import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
+
+const RAPIDOC_BASE_URL = RAPIDOC_CONFIG.baseUrl;
+const RAPIDOC_CONTENT_TYPE = RAPIDOC_CONFIG.contentType;
 
 // ==================== TIPOS ====================
 
@@ -66,14 +68,12 @@ export interface Appointment {
 // ==================== HELPERS ====================
 
 /**
- * Obter credenciais do Supabase
+ * Obter credenciais da API RapiDoc
  */
-const getCredentials = async () => {
-  // As credenciais devem estar configuradas como secrets no Supabase
-  // ou podem ser armazenadas em uma tabela de configuração
+const getCredentials = () => {
   return {
-    token: process.env.RAPIDOC_TOKEN || '',
-    clientId: process.env.RAPIDOC_CLIENT_ID || '',
+    token: RAPIDOC_CONFIG.token,
+    clientId: RAPIDOC_CONFIG.clientId,
   };
 };
 
@@ -85,7 +85,7 @@ const rapidocRequest = async (
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
   body?: any
 ) => {
-  const { token, clientId } = await getCredentials();
+  const { token, clientId } = getCredentials();
 
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${token}`,
