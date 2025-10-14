@@ -1,10 +1,6 @@
-/*
- * @Description: 
- */
-
-// Powered by OnSpace.AI
-import { MaterialIcons } from '@expo/vector-icons';
+import React from 'react';
 import { Tabs } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 
 export default function TabLayout() {
@@ -12,28 +8,30 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0a0a0a',
-          borderTopColor: '#1a1a1a',
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 85 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-          paddingTop: 10,
-        },
-        tabBarActiveTintColor: '#FFD700',
+        tabBarActiveTintColor: '#00B4DB',
         tabBarInactiveTintColor: '#666',
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e1e1e1',
+          height: Platform.select({
+            ios: 80,
+            android: 60,
+            default: 60,
+          }),
+          paddingBottom: Platform.select({
+            ios: 20,
+            default: 5,
+          }),
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Gallery',
+          title: 'Dashboard',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="photo-library" size={size} color={color} />
+            <MaterialIcons name="dashboard" size={size} color={color} />
           ),
         }}
       />

@@ -7,15 +7,52 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { Platform } from 'react-native';
 
-// Desabilitar warnings específicos do Expo Router durante desenvolvimento
-if (__DEV__) {
-  const originalWarn = console.warn;
-  console.warn = (...args) => {
-    if (args[0] && typeof args[0] === 'string' && args[0].includes('expo-router')) {
-      return;
+// Polyfill para React.use se não existir
+if (!React.use && typeof React !== 'undefined') {
+  (React as any).use = function(resource: any) {
+    if (resource && typeof resource.then === 'function') {
+      throw resource;
     }
-    originalWarn(...args);
+    return resource;
   };
+}
+
+// Polyfill global para compatibilidade
+if (typeof global !== 'undefined' && !global.React) {
+  global.React = React;
+}
+
+// Configurações de performance e compatibilidade
+if (Platform.OS === 'web') {
+  // Evitar warnings desnecessários na web
+  const originalConsole = {
+    warn: console.warn,
+    error: console.error,
+  };
+  
+  console.warn = (...args) => {
+    const message = args[0];
+    if (typeof message === 'string') {
+      // Filtrar warnings específicos que não são relevantes
+      if (message.includes('expo-router') || 
+          message.includes('useExpoRouterStore') ||
+          message.includes('NavigationContainer')) {
+        return;
+      }
+    }
+    originalConsole.warn(...args);
+  };
+}
+
+// Performance otimizations
+if (Platform.OS !== 'web') {
+  // Configurações nativas de performance
+  const InteractionManager = require('react-native').InteractionManager;
+  
+  // Permitir mais tempo para animações em dispositivos lentos
+  if (InteractionManager?.setDeadline) {
+    InteractionManager.setDeadline(100);
+  }
 }
 
 export default function RootLayout() {
@@ -28,6 +65,9 @@ export default function RootLayout() {
               {/* Tela inicial e login */}
               <Stack.Screen name="index" />
               <Stack.Screen name="login" />
+              
+              {/* Tab navigator */}
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               
               {/* Onboarding */}
               <Stack.Screen name="onboarding/step1" />

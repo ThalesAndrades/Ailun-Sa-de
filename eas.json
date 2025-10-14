@@ -1,41 +1,55 @@
+/**
+ * Configuração EAS Build para AiLun Saúde
+ * Configurações otimizadas para build e deploy
+ */
+
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 8.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "resourceClass": "medium"
+      }
     },
     "preview": {
-      "android": {
-        "buildType": "apk"
-      },
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_APP_ENV": "staging"
+      "ios": {
+        "resourceClass": "m-medium",
+        "simulator": true
+      },
+      "android": {
+        "resourceClass": "medium",
+        "buildType": "apk"
       }
     },
     "production": {
-      "env": {
-        "EXPO_PUBLIC_APP_ENV": "production",
-        "EXPO_PUBLIC_DISABLE_LOGS": "true"
+      "ios": {
+        "resourceClass": "m-large",
+        "autoIncrement": "buildNumber"
       },
       "android": {
+        "resourceClass": "large",
+        "autoIncrement": "versionCode",
         "buildType": "aab"
       }
     }
   },
   "submit": {
     "production": {
-      "android": {
-        "serviceAccountKeyPath": "./google-play-service-account.json",
-        "track": "internal"
-      },
       "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-team-id"
+        "ascAppId": "YOUR_ASC_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./android-service-account.json",
+        "track": "production"
       }
     }
   }
