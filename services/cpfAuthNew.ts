@@ -40,7 +40,7 @@ const getBeneficiaryByCPF = async (cpf: string): Promise<{ success: boolean; dat
   try {
     console.log('[Auth] Buscando beneficiário por CPF:', cpf);
 
-    const response = await fetch(`${RAPIDOC_BASE_URL}/beneficiaries?cpf=${cpf}`, {
+    const response = await fetch(`${RAPIDOC_BASE_URL}/beneficiaries`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${RAPIDOC_CONFIG.token}`,
@@ -61,7 +61,7 @@ const getBeneficiaryByCPF = async (cpf: string): Promise<{ success: boolean; dat
     }
 
     const data = await response.json();
-    console.log('[Auth] Dados recebidos:', data);
+    console.log('[Auth] Resposta da API:', { success: data.success, message: data.message, count: data.beneficiaries?.length });
 
     if (!data.success) {
       return {
@@ -72,14 +72,20 @@ const getBeneficiaryByCPF = async (cpf: string): Promise<{ success: boolean; dat
 
     // A API retorna um array de beneficiários
     const beneficiaries = data.beneficiaries || [];
+    console.log('[Auth] Total de beneficiários recebidos:', beneficiaries.length);
+    
+    // Buscar o beneficiário pelo CPF
     const beneficiary = beneficiaries.find((b: Beneficiary) => b.cpf === cpf);
 
     if (!beneficiary) {
+      console.log('[Auth] CPF não encontrado na lista de beneficiários');
       return {
         success: false,
         error: 'CPF não encontrado no sistema.',
       };
     }
+
+    console.log('[Auth] Beneficiário encontrado:', { name: beneficiary.name, isActive: beneficiary.isActive });
 
     if (!beneficiary.isActive) {
       return {
@@ -107,6 +113,7 @@ const getBeneficiaryByCPF = async (cpf: string): Promise<{ success: boolean; dat
 const validatePassword = (cpf: string, password: string): boolean => {
   const cleanCPF = cpf.replace(/\D/g, '');
   const first4Digits = cleanCPF.substring(0, 4);
+  console.log('[Auth] Validando senha. Primeiros 4 dígitos do CPF:', first4Digits, 'Senha fornecida:', password);
   return password === first4Digits;
 };
 
@@ -123,7 +130,9 @@ const validateCPFFormat = (cpf: string): boolean => {
  */
 export const loginWithCPF = async (cpf: string, password: string) => {
   try {
-    console.log('[Auth] Iniciando login com CPF');
+    console.log('[Auth] ========== INÍCIO DO LOGIN ==========');
+    console.log('[Auth] CPF recebido:', cpf);
+    console.log('[Auth] Senha recebida:', password);
 
     // 1. Limpar CPF (remover pontos e traços)
     const cleanCPF = cpf.replace(/\D/g, '');
@@ -131,7 +140,7 @@ export const loginWithCPF = async (cpf: string, password: string) => {
 
     // 2. Validar formato do CPF
     if (!validateCPFFormat(cleanCPF)) {
-      console.log('[Auth] CPF inválido');
+      console.log('[Auth] CPF inválido - não tem 11 dígitos');
       return {
         success: false,
         error: 'CPF inválido. Deve conter 11 dígitos.',
@@ -147,12 +156,13 @@ export const loginWithCPF = async (cpf: string, password: string) => {
       };
     }
 
-    console.log('[Auth] Buscando beneficiário na RapiDoc...');
+    console.log('[Auth] Validações iniciais OK. Buscando beneficiário na RapiDoc...');
+    
     // 4. Buscar beneficiário na RapiDoc
     const beneficiaryResult = await getBeneficiaryByCPF(cleanCPF);
-    console.log('[Auth] Resultado da busca:', beneficiaryResult);
-
+    
     if (!beneficiaryResult.success || !beneficiaryResult.data) {
+      console.log('[Auth] Falha ao buscar beneficiário:', beneficiaryResult.error);
       return {
         success: false,
         error: beneficiaryResult.error || 'CPF não encontrado no sistema.',
@@ -160,6 +170,7 @@ export const loginWithCPF = async (cpf: string, password: string) => {
     }
 
     const beneficiary = beneficiaryResult.data;
+    console.log('[Auth] Beneficiário autenticado com sucesso:', beneficiary.name);
 
     // 5. Criar sessão local
     const session: AuthSession = {
@@ -173,6 +184,8 @@ export const loginWithCPF = async (cpf: string, password: string) => {
     };
 
     await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(session));
+    console.log('[Auth] Sessão criada com sucesso');
+    console.log('[Auth] ========== FIM DO LOGIN ==========');
 
     return {
       success: true,
