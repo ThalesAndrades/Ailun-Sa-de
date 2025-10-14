@@ -35,11 +35,15 @@ const validateCPFFormat = (cpf: string): boolean => {
  */
 export const loginWithCPF = async (cpf: string, password: string) => {
   try {
+    console.log('[Login] Iniciando login com CPF');
+    
     // 1. Limpar CPF (remover pontos e traços)
     const cleanCPF = cpf.replace(/\D/g, '');
+    console.log('[Login] CPF limpo:', cleanCPF);
 
     // 2. Validar formato do CPF
     if (!validateCPFFormat(cleanCPF)) {
+      console.log('[Login] CPF inválido');
       return {
         success: false,
         error: 'CPF inválido. Deve conter 11 dígitos.',
@@ -48,14 +52,17 @@ export const loginWithCPF = async (cpf: string, password: string) => {
 
     // 3. Validar senha (4 primeiros dígitos do CPF)
     if (!validatePassword(cleanCPF, password)) {
+      console.log('[Login] Senha incorreta');
       return {
         success: false,
         error: 'Senha incorreta. A senha deve ser os 4 primeiros dígitos do CPF.',
       };
     }
 
+    console.log('[Login] Buscando beneficiário na RapiDoc...');
     // 4. Buscar beneficiário na RapiDoc
     const beneficiaryResult = await getBeneficiaryByCPF(cleanCPF);
+    console.log('[Login] Resultado da busca:', beneficiaryResult);
 
     if (!beneficiaryResult.success) {
       return {

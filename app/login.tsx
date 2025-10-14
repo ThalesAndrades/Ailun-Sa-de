@@ -229,13 +229,19 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async (cpfValue = cpf, senhaValue = senha) => {
-    if (!validateFields()) return;
+    console.log('[LoginScreen] Iniciando handleLogin');
+    if (!validateFields()) {
+      console.log('[LoginScreen] Validação de campos falhou');
+      return;
+    }
 
     setLoading(true);
 
     try {
       const numericCPF = cpfValue.replace(/\D/g, '');
+      console.log('[LoginScreen] Chamando loginWithCPF com CPF:', numericCPF);
       const result = await loginWithCPF(numericCPF, senhaValue);
+      console.log('[LoginScreen] Resultado do login:', result);
 
       if (result.success && result.data) {
         // Salvar credenciais apenas em plataformas nativas

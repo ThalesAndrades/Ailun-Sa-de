@@ -85,31 +85,51 @@ const rapidocRequest = async (
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
   body?: any
 ) => {
-  const { token, clientId } = getCredentials();
+  try {
+    const { token, clientId } = getCredentials();
 
-  const headers: Record<string, string> = {
-    'Authorization': `Bearer ${token}`,
-    'clientId': clientId,
-    'Content-Type': RAPIDOC_CONTENT_TYPE,
-  };
+    console.log('[RapiDoc] Fazendo requisição:', {
+      url: `${RAPIDOC_BASE_URL}${endpoint}`,
+      method,
+      hasToken: !!token,
+      hasClientId: !!clientId,
+    });
 
-  const options: RequestInit = {
-    method,
-    headers,
-  };
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'clientId': clientId,
+      'Content-Type': RAPIDOC_CONTENT_TYPE,
+    };
 
-  if (body && (method === 'POST' || method === 'PUT')) {
-    options.body = JSON.stringify(body);
+    const options: RequestInit = {
+      method,
+      headers,
+    };
+
+    if (body && (method === 'POST' || method === 'PUT')) {
+      options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${RAPIDOC_BASE_URL}${endpoint}`, options);
+
+    console.log('[RapiDoc] Resposta recebida:', {
+      status: response.status,
+      ok: response.ok,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[RapiDoc] Erro na resposta:', errorText);
+      throw new Error(`RapiDoc API Error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[RapiDoc] Dados recebidos:', data);
+    return data;
+  } catch (error: any) {
+    console.error('[RapiDoc] Erro na requisição:', error);
+    throw error;
   }
-
-  const response = await fetch(`${RAPIDOC_BASE_URL}${endpoint}`, options);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`RapiDoc API Error: ${response.status} - ${errorText}`);
-  }
-
-  return await response.json();
 };
 
 // ==================== BENEFICIÁRIOS ====================
