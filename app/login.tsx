@@ -20,7 +20,7 @@ import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
-import { loginWithCPF } from '../services/cpfAuth';
+import { loginWithCPF } from '../services/cpfAuthNew';
 import { MessageTemplates } from '../constants/messageTemplates';
 import {
   showTemplateMessage,
