@@ -1,91 +1,62 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  TextInputProps,
+import React from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  TextInputProps 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface FormInputProps extends TextInputProps {
   label: string;
-  value: string;
-  onChangeText: (text: string) => void;
   error?: string;
   icon?: keyof typeof MaterialIcons.glyphMap;
-  showClearButton?: boolean;
-  showCheckmark?: boolean;
   isValid?: boolean;
+  showCheckmark?: boolean;
 }
 
-export default function FormInput({
-  label,
-  value,
-  onChangeText,
-  error,
-  icon,
-  showClearButton = true,
-  showCheckmark = true,
+export default function FormInput({ 
+  label, 
+  error, 
+  icon, 
   isValid = false,
-  ...textInputProps
+  showCheckmark = true,
+  ...textInputProps 
 }: FormInputProps) {
-  const [focused, setFocused] = useState(false);
-  const [focusAnim] = useState(new Animated.Value(0));
-
-  const handleFocus = () => {
-    setFocused(true);
-    Animated.timing(focusAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleBlur = () => {
-    setFocused(false);
-    Animated.timing(focusAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const borderColor = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: error ? ['#ff6b6b', '#ff6b6b'] : ['#e0e0e0', '#00B4DB'],
-  });
-
-  const iconColor = error ? '#ff6b6b' : focused ? '#00B4DB' : '#999';
-
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <Animated.View style={[styles.inputWrapper, { borderColor }]}>
+      
+      <View style={[styles.inputContainer, error && styles.inputContainerError]}>
         {icon && (
-          <MaterialIcons name={icon} size={24} color={iconColor} style={styles.icon} />
+          <MaterialIcons 
+            name={icon} 
+            size={20} 
+            color={error ? '#ff6b6b' : '#666'} 
+            style={styles.icon}
+          />
         )}
+        
         <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
+          style={[styles.input, icon && styles.inputWithIcon]}
           placeholderTextColor="#999"
           {...textInputProps}
         />
-        {showClearButton && value.length > 0 && !isValid && (
-          <TouchableOpacity onPress={() => onChangeText('')} style={styles.clearButton}>
-            <MaterialIcons name="close" size={20} color="#999" />
-          </TouchableOpacity>
+        
+        {showCheckmark && isValid && !error && (
+          <MaterialIcons 
+            name="check-circle" 
+            size={20} 
+            color="#4CAF50" 
+            style={styles.checkmark}
+          />
         )}
-        {showCheckmark && isValid && value.length > 0 && (
-          <MaterialIcons name="check-circle" size={24} color="#4CAF50" style={styles.checkmark} />
-        )}
-      </Animated.View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      </View>
+      
+      {error && (
+        <Text style={styles.errorText}>{error}</Text>
+      )}
     </View>
   );
 }
@@ -100,19 +71,19 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  inputWrapper: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     paddingHorizontal: 16,
-    height: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    minHeight: 52,
+  },
+  inputContainerError: {
+    borderColor: '#ff6b6b',
+    backgroundColor: '#fff5f5',
   },
   icon: {
     marginRight: 12,
@@ -121,18 +92,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#333',
+    paddingVertical: 0,
   },
-  clearButton: {
-    padding: 4,
+  inputWithIcon: {
+    marginLeft: 0,
   },
   checkmark: {
-    marginLeft: 8,
+    marginLeft: 12,
   },
   errorText: {
     fontSize: 12,
     color: '#ff6b6b',
-    marginTop: 6,
+    marginTop: 8,
     marginLeft: 4,
   },
 });
-

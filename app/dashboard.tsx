@@ -15,10 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useRapidocCPF } from '../hooks/useRapidocCPF';
-import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
 import { useCPFAuth } from '../hooks/useCPFAuth';
-import { useSubscription, formatSubscriptionStatus } from '../hooks/useSubscription';
+import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
+import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
+import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
 import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
 import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
@@ -39,9 +39,9 @@ interface ServiceButton {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { loading, requestDoctorNow } = useRapidocCPF();
-  const { user, beneficiaryUuid } = useCPFAuth();
-  const { subscriptionData } = useSubscription(beneficiaryUuid || '');
+  const { user, beneficiaryUuid, isAuthenticated, loading: authLoading, logout } = useCPFAuth();
+  const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);
+  const { loading: consultationLoading, requestImmediate } = useRapidocConsultation();
   const { 
     hasUnreadNotifications, 
     unreadCount, 
@@ -68,56 +68,134 @@ export default function DashboardScreen() {
 
   // Animações de entrada
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (!authLoading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
 
-    // Animar cards em sequência
-    cardAnimations.forEach((anim, index) => {
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 500,
-        delay: index * 100,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    });
-  }, []);
+      // Animar cards em sequência
+      cardAnimations.forEach((anim, index) => {
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 500,
+          delay: index * 100,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [authLoading]);
 
   // Auto-refresh notifications
   useEffect(() => {
-    const interval = setInterval(() => {
-      refreshNotifications();
-    }, 30000); // 30 segundos
+    if (isAuthenticated) {
+      const interval = setInterval(() => {
+        refreshNotifications();
+      }, 30000); // 30 segundos
 
-    return () => clearInterval(interval);
-  }, [refreshNotifications]);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, refreshNotifications]);
+
+  // Redirect para login se não autenticado
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, authLoading]);
 
   const handleDoctorNow = async () => {
-    if (loading) return;
+    if (consultationLoading || !beneficiaryUuid) return;
     
-    showTemplateMessage(MessageTemplates.immediate.starting);
-    await requestDoctorNow();
+    // Verificar se pode usar o serviço
+    const canUseService = await canUse('clinical');
+    if (!canUseService.canUse) {
+      showTemplateMessage({
+        title: 'Serviço Indisponível',
+        message: canUseService.reason || 'Você não pode usar este serviço no momento.',
+        type: 'warning'
+      });
+      return;
+    }
+    
+    // Navegar para tela de solicitação de consulta imediata
+    router.push('/consultation/request-immediate');
   };
 
-  const handleSubscription = () => {
-    router.push('/subscription');
+  const handleSpecialists = async () => {
+    if (!beneficiaryUuid) return;
+    
+    // Verificar se pode usar especialistas
+    const canUseService = await canUse('specialist');
+    if (!canUseService.canUse) {
+      showTemplateMessage({
+        title: 'Especialistas Indisponíveis',
+        message: canUseService.reason || 'Especialistas não estão incluídos no seu plano atual.',
+        type: 'info'
+      });
+      return;
+    }
+    
+    router.push({
+      pathname: '/consultation/schedule',
+      params: { serviceType: 'specialist' }
+    });
+  };
+
+  const handlePsychology = async () => {
+    if (!beneficiaryUuid) return;
+    
+    // Verificar se pode usar psicologia
+    const canUseService = await canUse('psychology');
+    if (!canUseService.canUse) {
+      showTemplateMessage({
+        title: 'Psicologia Indisponível',
+        message: canUseService.reason || 'Psicologia não está incluída no seu plano atual.',
+        type: 'info'
+      });
+      return;
+    }
+    
+    router.push({
+      pathname: '/consultation/schedule',
+      params: { serviceType: 'psychology' }
+    });
+  };
+
+  const handleNutrition = async () => {
+    if (!beneficiaryUuid) return;
+    
+    // Verificar se pode usar nutrição
+    const canUseService = await canUse('nutrition');
+    if (!canUseService.canUse) {
+      showTemplateMessage({
+        title: 'Nutrição Indisponível',
+        message: canUseService.reason || 'Nutrição não está incluída no seu plano atual.',
+        type: 'info'
+      });
+      return;
+    }
+    
+    router.push({
+      pathname: '/consultation/schedule',
+      params: { serviceType: 'nutrition' }
+    });
   };
 
   const services: ServiceButton[] = [
@@ -137,7 +215,7 @@ export default function DashboardScreen() {
       icon: 'person-search',
       color: '#4ECDC4',
       gradient: ['#4ECDC4', '#44A08D'],
-      onPress: () => setSpecialistModal(true)
+      onPress: handleSpecialists
     },
     {
       id: 'psychologists',
@@ -146,7 +224,7 @@ export default function DashboardScreen() {
       icon: 'psychology',
       color: '#A8E6CF',
       gradient: ['#A8E6CF', '#88D8A3'],
-      onPress: () => setPsychologyModal(true)
+      onPress: handlePsychology
     },
     {
       id: 'nutritionists',
@@ -155,16 +233,12 @@ export default function DashboardScreen() {
       icon: 'restaurant',
       color: '#FFB74D',
       gradient: ['#FFB74D', '#FFA726'],
-      onPress: () => setNutritionistModal(true)
+      onPress: handleNutrition
     }
   ];
 
   const handleProfile = () => {
-    showTemplateMessage({
-      title: '👤 Perfil',
-      message: 'Funcionalidade de perfil em desenvolvimento.',
-      type: 'info'
-    });
+    router.push('/profile');
   };
 
   const handleAppointments = () => {
@@ -179,21 +253,37 @@ export default function DashboardScreen() {
     showConfirmationAlert(
       'Tem certeza que deseja sair do aplicativo?',
       async () => {
-        // Implementar logout
+        await logout();
         showTemplateMessage({
           title: '👋 Até Logo',
           message: 'Logout realizado com sucesso!',
           type: 'success'
         });
+        router.replace('/login');
       },
       undefined,
       '🚪 Sair do Aplicativo'
     );
   };
 
-  // Verificar status da assinatura
-  const hasActiveSubscription = subscriptionData?.hasActiveSubscription;
-  const subscriptionStatusInfo = formatSubscriptionStatus(subscriptionData?.status || 'NO_SUBSCRIPTION');
+  const handleSubscription = () => {
+    router.push('/subscription');
+  };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00B4DB" />
+        <Text style={styles.loadingText}>Carregando...</Text>
+      </View>
+    );
+  }
+
+  // Se não autenticado, não renderizar nada (será redirecionado)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <LinearGradient 
@@ -216,14 +306,14 @@ export default function DashboardScreen() {
             <TouchableOpacity 
               style={[
                 styles.subscriptionButton, 
-                hasActiveSubscription && styles.subscriptionButtonActive
+                plan && styles.subscriptionButtonActive
               ]} 
               onPress={handleSubscription}
             >
               <MaterialIcons 
-                name={hasActiveSubscription ? "stars" : "star"} 
+                name={plan ? "stars" : "star"} 
                 size={20} 
-                color={hasActiveSubscription ? "#FFD700" : "white"} 
+                color={plan ? "#FFD700" : "white"} 
               />
             </TouchableOpacity>
             
@@ -260,27 +350,19 @@ export default function DashboardScreen() {
               Conecte-se instantaneamente com profissionais de saúde
             </Text>
 
-            {/* Status da Assinatura */}
-            <TouchableOpacity 
-              style={[
-                styles.subscriptionStatus,
-                hasActiveSubscription ? styles.subscriptionStatusActive : styles.subscriptionStatusInactive
-              ]}
-              onPress={handleSubscription}
-            >
-              <MaterialIcons 
-                name={hasActiveSubscription ? "check-circle" : "info"} 
-                size={20} 
-                color={hasActiveSubscription ? "#4CAF50" : "#FF9800"} 
-              />
-              <Text style={[
-                styles.subscriptionStatusText,
-                { color: hasActiveSubscription ? "#4CAF50" : "#FF9800" }
-              ]}>
-                Assinatura: {subscriptionStatusInfo.text}
-              </Text>
-              <MaterialIcons name="arrow-forward" size={16} color="#666" />
-            </TouchableOpacity>
+            {/* Status do Plano */}
+            {plan && (
+              <TouchableOpacity 
+                style={styles.planStatus}
+                onPress={() => router.push('/profile/plan')}
+              >
+                <MaterialIcons name="card-membership" size={20} color="#4CAF50" />
+                <Text style={styles.planStatusText}>
+                  {plan.plan_name} • {plan.member_count} {plan.member_count === 1 ? 'membro' : 'membros'}
+                </Text>
+                <MaterialIcons name="arrow-forward" size={16} color="#666" />
+              </TouchableOpacity>
+            )}
 
             {hasUnreadNotifications && (
               <TouchableOpacity 
@@ -318,17 +400,20 @@ export default function DashboardScreen() {
                 }}
               >
                 <TouchableOpacity
-                  style={[styles.serviceCard, loading && service.id === 'doctor' && styles.serviceCardDisabled]}
+                  style={[
+                    styles.serviceCard, 
+                    (consultationLoading && service.id === 'doctor') && styles.serviceCardDisabled
+                  ]}
                   onPress={service.onPress}
                   activeOpacity={0.8}
-                  disabled={loading && service.id === 'doctor'}
+                  disabled={consultationLoading && service.id === 'doctor'}
                 >
                 <LinearGradient
                   colors={service.gradient}
                   style={styles.serviceGradient}
                 >
                   <View style={styles.serviceIconContainer}>
-                    {loading && service.id === 'doctor' ? (
+                    {(consultationLoading && service.id === 'doctor') ? (
                       <ActivityIndicator color="white" size={32} />
                     ) : (
                       <MaterialIcons 
@@ -436,6 +521,17 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   scrollContainer: {
     flex: 1,
@@ -546,24 +642,20 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
   },
-  subscriptionStatus: {
+  planStatus: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     borderRadius: 8,
+    backgroundColor: '#E8F5E8',
     marginBottom: 12,
   },
-  subscriptionStatusActive: {
-    backgroundColor: '#E8F5E8',
-  },
-  subscriptionStatusInactive: {
-    backgroundColor: '#FFF3E0',
-  },
-  subscriptionStatusText: {
+  planStatusText: {
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
     flex: 1,
+    color: '#4CAF50',
   },
   notificationAlert: {
     flexDirection: 'row',

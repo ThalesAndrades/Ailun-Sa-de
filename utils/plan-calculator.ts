@@ -1,123 +1,94 @@
-/**
- * Utilitário para cálculo de planos personalizados da AiLun Saúde
- */
-
-export interface PlanServices {
-  clinico: boolean; // Sempre true (obrigatório)
-  especialistas: boolean;
-  psicologia: boolean;
-  nutricao: boolean;
+export interface PlanConfig {
+  includeSpecialists: boolean;
+  includePsychology: boolean;
+  includeNutrition: boolean;
+  memberCount: number;
 }
 
-export interface PlanCalculation {
-  services: PlanServices;
-  membersCount: number;
-  basePrice: number;
-  discountPercentage: number;
-  discountAmount: number;
-  totalPrice: number;
-  pricePerMember: number;
-  pricePerDay: number;
-  pricePerDayPerMember: number;
+export interface PlanDetails {
   serviceType: 'G' | 'GS' | 'GSP';
-  savings: number;
-}
-
-// Preços base dos serviços
-const SERVICE_PRICES = {
-  clinico: 29.90,
-  especialistas: 19.90,
-  psicologia: 59.90,
-  nutricao: 59.90,
-};
-
-// Descontos por número de membros adicionais
-const MEMBER_DISCOUNTS = {
-  0: 0,    // Apenas 1 pessoa (titular)
-  1: 0.10, // 1 membro adicional = 10%
-  2: 0.20, // 2 membros adicionais = 20%
-  3: 0.30, // 3+ membros adicionais = 30%
-};
-
-/**
- * Calcula o serviceType baseado nos serviços selecionados
- */
-export function calculateServiceType(services: PlanServices): 'G' | 'GS' | 'GSP' {
-  if (services.psicologia) {
-    return 'GSP'; // Clínico + Especialistas + Psicologia
-  }
-  if (services.especialistas) {
-    return 'GS'; // Clínico + Especialistas
-  }
-  return 'G'; // Apenas Clínico
-}
-
-/**
- * Calcula o preço base do plano (sem descontos)
- */
-export function calculateBasePrice(services: PlanServices): number {
-  let price = SERVICE_PRICES.clinico; // Sempre inclui clínico
-
-  if (services.especialistas) {
-    price += SERVICE_PRICES.especialistas;
-  }
-  if (services.psicologia) {
-    price += SERVICE_PRICES.psicologia;
-  }
-  if (services.nutricao) {
-    price += SERVICE_PRICES.nutricao;
-  }
-
-  return price;
-}
-
-/**
- * Calcula o desconto baseado no número de membros
- */
-export function calculateDiscount(membersCount: number): number {
-  const additionalMembers = Math.max(0, membersCount - 1);
-  const discountKey = Math.min(additionalMembers, 3) as 0 | 1 | 2 | 3;
-  return MEMBER_DISCOUNTS[discountKey];
-}
-
-/**
- * Calcula o plano completo com todos os valores
- */
-export function calculatePlan(
-  services: PlanServices,
-  membersCount: number
-): PlanCalculation {
-  const basePrice = calculateBasePrice(services);
-  const discountPercentage = calculateDiscount(membersCount);
-  const discountAmount = basePrice * discountPercentage * membersCount;
-  const totalPrice = (basePrice * membersCount) - discountAmount;
-  const pricePerMember = totalPrice / membersCount;
-  const pricePerDay = totalPrice / 30; // Considerando mês de 30 dias
-  const pricePerDayPerMember = pricePerDay / membersCount;
-  const serviceType = calculateServiceType(services);
-  
-  // Economia comparada ao preço sem desconto
-  const priceWithoutDiscount = basePrice * membersCount;
-  const savings = priceWithoutDiscount - totalPrice;
-
-  return {
-    services,
-    membersCount,
-    basePrice,
-    discountPercentage,
-    discountAmount,
-    totalPrice,
-    pricePerMember,
-    pricePerDay,
-    pricePerDayPerMember,
-    serviceType,
-    savings,
+  planName: string;
+  basePrice: number;
+  totalPrice: number;
+  discountPercentage: number;
+  memberCount: number;
+  services: {
+    clinical: boolean;
+    specialists: boolean;
+    psychology: boolean;
+    nutrition: boolean;
   };
 }
 
-/**
- * Formata valor em reais
- */
+// Preços base dos serviços
+const BASE_PRICES = {
+  clinical: 29.90,        // Clínico sempre incluído
+  specialists: 49.90,     // Especialistas
+  psychology: 39.90,      // Psicologia
+  nutrition: 29.90,       // Nutrição
+};
+
+// Descontos progressivos por quantidade de membros
+const MEMBER_DISCOUNTS = [
+  { min: 1, max: 1, discount: 0 },     // 1 pessoa: 0%
+  { min: 2, max: 3, discount: 10 },    // 2-3 pessoas: 10%
+  { min: 4, max: 6, discount: 15 },    // 4-6 pessoas: 15%
+  { min: 7, max: 10, discount: 20 },   // 7-10 pessoas: 20%
+];
+
+export function calculatePlan(config: PlanConfig): PlanDetails {
+  // Calcular preço base
+  let basePrice = BASE_PRICES.clinical; // Clínico sempre incluído
+
+  if (config.includeSpecialists) {
+    basePrice += BASE_PRICES.specialists;
+  }
+
+  if (config.includePsychology) {
+    basePrice += BASE_PRICES.psychology;
+  }
+
+  if (config.includeNutrition) {
+    basePrice += BASE_PRICES.nutrition;
+  }
+
+  // Aplicar desconto por quantidade de membros
+  const memberDiscount = MEMBER_DISCOUNTS.find(
+    discount => config.memberCount >= discount.min && config.memberCount <= discount.max
+  );
+
+  const discountPercentage = memberDiscount?.discount || 0;
+  const discountAmount = (basePrice * discountPercentage) / 100;
+  const totalPrice = (basePrice - discountAmount) * config.memberCount;
+
+  // Determinar tipo de serviço
+  let serviceType: 'G' | 'GS' | 'GSP' = 'G';
+  let planName = 'Plano Clínico';
+
+  if (config.includeSpecialists && (config.includePsychology || config.includeNutrition)) {
+    serviceType = 'GSP';
+    planName = 'Plano Completo';
+  } else if (config.includeSpecialists) {
+    serviceType = 'GS';
+    planName = 'Plano Clínico + Especialistas';
+  }
+
+  return {
+    serviceType,
+    planName,
+    basePrice,
+    totalPrice,
+    discountPercentage,
+    memberCount: config.memberCount,
+    services: {
+      clinical: true, // Sempre incluído
+      specialists: config.includeSpecialists,
+      psychology: config.includePsychology,
+      nutrition: config.includeNutrition,
+    },
+  };
+}
+
 export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
     style: 'currency',
@@ -125,46 +96,23 @@ export function formatCurrency(value: number): string {
   });
 }
 
-/**
- * Gera mensagem persuasiva sobre o plano
- */
-export function generatePersuasiveMessage(calculation: PlanCalculation): string {
-  const { membersCount, pricePerDayPerMember, savings, discountPercentage } = calculation;
-
-  let message = `Por apenas ${formatCurrency(pricePerDayPerMember)} por dia por pessoa`;
-
-  if (membersCount > 1) {
-    message += `, você e mais ${membersCount - 1} ${membersCount === 2 ? 'pessoa' : 'pessoas'} têm acesso completo à saúde`;
-    
-    if (discountPercentage > 0) {
-      message += ` com ${(discountPercentage * 100).toFixed(0)}% de desconto (economize ${formatCurrency(savings)}/mês)`;
-    }
-  } else {
-    message += `, você tem acesso completo à saúde`;
+export function getServiceTypeName(serviceType: string): string {
+  switch (serviceType) {
+    case 'G': return 'Plano Clínico';
+    case 'GS': return 'Plano Clínico + Especialistas';
+    case 'GSP': return 'Plano Completo';
+    default: return 'Plano Personalizado';
   }
-
-  message += '!';
-  return message;
 }
 
-/**
- * Gera descrição dos serviços incluídos
- */
-export function getServicesDescription(services: PlanServices): string[] {
-  const descriptions: string[] = [
-    'Atendimento Médico 24h (Clínico Geral)',
-  ];
-
-  if (services.especialistas) {
-    descriptions.push('Atendimento com Médicos Especialistas');
+export function getDiscountText(memberCount: number): string {
+  const discount = MEMBER_DISCOUNTS.find(
+    d => memberCount >= d.min && memberCount <= d.max
+  );
+  
+  if (!discount || discount.discount === 0) {
+    return '';
   }
-  if (services.psicologia) {
-    descriptions.push('Atendimento Psicológico (2 consultas/mês)');
-  }
-  if (services.nutricao) {
-    descriptions.push('Atendimento com Nutricionista (1 consulta a cada 3 meses)');
-  }
-
-  return descriptions;
+  
+  return `${discount.discount}% de desconto por ter ${memberCount} ${memberCount === 1 ? 'membro' : 'membros'}`;
 }
-
