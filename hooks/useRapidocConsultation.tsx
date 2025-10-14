@@ -1,97 +1,134 @@
-import { useState } from 'react';
-import {
-  requestImmediateConsultation,
-  checkConsultationStatus,
-  cancelImmediateConsultation,
-  getAvailableSlots,
-  scheduleConsultation,
-  getAvailableSpecialties,
-  completeConsultation,
-  getConsultationHistory,
-  type ImmediateConsultationRequest,
-  type ScheduleConsultationRequest
-} from '../services/rapidoc-consultation-service';
+import { useState, useCallback } from 'react';
+import { useCPFAuth } from './useCPFAuth';
+import { useBeneficiaryPlan } from './useBeneficiaryPlan';
+import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
 
-export interface UseRapidocConsultationReturn {
-  loading: boolean;
-  requestImmediate: (request: ImmediateConsultationRequest) => Promise<any>;
-  checkStatus: (sessionId: string) => Promise<any>;
-  cancelSession: (sessionId: string) => Promise<any>;
-  getSlots: (serviceType: any, specialty?: string, startDate?: string) => Promise<any>;
-  scheduleConsult: (request: ScheduleConsultationRequest) => Promise<any>;
-  getSpecialties: () => Promise<any>;
-  completeSession: (sessionId: string, rating: number, feedback?: string) => Promise<any>;
-  getHistory: (beneficiaryUuid: string, limit?: number) => Promise<any>;
+export interface ConsultationRequest {
+  serviceType: 'clinical' | 'specialist' | 'psychology' | 'nutrition';
+  specialty?: string;
+  urgency?: 'immediate' | 'scheduled';
+  preferredTime?: string;
+  notes?: string;
 }
 
-export function useRapidocConsultation(): UseRapidocConsultationReturn {
+export interface ConsultationResponse {
+  success: boolean;
+  sessionId?: string;
+  consultationUrl?: string;
+  message?: string;
+  error?: string;
+}
+
+export function useRapidocConsultation() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { beneficiaryUuid, user } = useCPFAuth();
+  const { canUse, incrementUsage } = useBeneficiaryPlan(beneficiaryUuid);
 
-  const requestImmediate = async (request: ImmediateConsultationRequest) => {
+  const requestConsultation = useCallback(async (
+    request: ConsultationRequest
+  ): Promise<ConsultationResponse> => {
+    if (!beneficiaryUuid || !user) {
+      return {
+        success: false,
+        error: 'Usuário não autenticado'
+      };
+    }
+
     setLoading(true);
+    setError(null);
+
     try {
-      const result = await requestImmediateConsultation(request);
-      return result;
+      // Verificar se pode usar o serviço
+      const serviceCheck = await canUse(request.serviceType);
+      if (!serviceCheck.canUse) {
+        return {
+          success: false,
+          error: serviceCheck.reason || 'Serviço não disponível'
+        };
+      }
+
+      // Fazer solicitação para RapiDoc
+      const response = await fetch(`${RAPIDOC_CONFIG.baseUrl}consultations/request`, {
+        method: 'POST',
+        headers: RAPIDOC_CONFIG.headers,
+        body: JSON.stringify({
+          beneficiaryUuid,
+          serviceType: request.serviceType,
+          specialty: request.specialty,
+          urgency: request.urgency || 'immediate',
+          preferredTime: request.preferredTime,
+          notes: request.notes,
+          beneficiaryData: {
+            name: user.name,
+            cpf: user.cpf,
+            email: user.email,
+            phone: user.phone,
+          }
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Erro ao solicitar consulta');
+      }
+
+      // Se for serviço limitado (psicologia/nutrição), incrementar uso
+      if (request.serviceType === 'psychology' || request.serviceType === 'nutrition') {
+        await incrementUsage(request.serviceType);
+      }
+
+      return {
+        success: true,
+        sessionId: data.sessionId,
+        consultationUrl: data.consultationUrl,
+        message: data.message || 'Consulta solicitada com sucesso',
+      };
+
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erro ao solicitar consulta';
+      setError(errorMessage);
+      return {
+        success: false,
+        error: errorMessage
+      };
     } finally {
       setLoading(false);
     }
-  };
+  }, [beneficiaryUuid, user, canUse, incrementUsage]);
 
-  const checkStatus = async (sessionId: string) => {
-    return await checkConsultationStatus(sessionId);
-  };
+  const requestImmediate = useCallback(async (
+    serviceType: 'clinical' = 'clinical',
+    notes?: string
+  ): Promise<ConsultationResponse> => {
+    return requestConsultation({
+      serviceType,
+      urgency: 'immediate',
+      notes,
+    });
+  }, [requestConsultation]);
 
-  const cancelSession = async (sessionId: string) => {
-    return await cancelImmediateConsultation(sessionId);
-  };
-
-  const getSlots = async (serviceType: any, specialty?: string, startDate?: string) => {
-    setLoading(true);
-    try {
-      const result = await getAvailableSlots(serviceType, specialty, startDate);
-      return result;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const scheduleConsult = async (request: ScheduleConsultationRequest) => {
-    setLoading(true);
-    try {
-      const result = await scheduleConsultation(request);
-      return result;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSpecialties = async () => {
-    setLoading(true);
-    try {
-      const result = await getAvailableSpecialties();
-      return result;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const completeSession = async (sessionId: string, rating: number, feedback?: string) => {
-    return await completeConsultation(sessionId, rating, feedback);
-  };
-
-  const getHistory = async (beneficiaryUuid: string, limit?: number) => {
-    return await getConsultationHistory(beneficiaryUuid, limit);
-  };
+  const scheduleConsultation = useCallback(async (
+    serviceType: 'specialist' | 'psychology' | 'nutrition',
+    specialty: string,
+    preferredTime: string,
+    notes?: string
+  ): Promise<ConsultationResponse> => {
+    return requestConsultation({
+      serviceType,
+      specialty,
+      urgency: 'scheduled',
+      preferredTime,
+      notes,
+    });
+  }, [requestConsultation]);
 
   return {
     loading,
+    error,
+    requestConsultation,
     requestImmediate,
-    checkStatus,
-    cancelSession,
-    getSlots,
-    scheduleConsult,
-    getSpecialties,
-    completeSession,
-    getHistory,
+    scheduleConsultation,
   };
 }
