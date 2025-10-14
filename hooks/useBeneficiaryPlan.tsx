@@ -41,15 +41,22 @@ export function useBeneficiaryPlan(beneficiaryUuid: string | null): UseBeneficia
       setError(null);
 
       // Buscar beneficiário
-      const beneficiaryData = await getBeneficiaryByUUID(beneficiaryUuid);
-      setBeneficiary(beneficiaryData);
+      const beneficiaryDataResult = await getBeneficiaryByUUID(beneficiaryUuid);
+      if (beneficiaryDataResult.error) {
+        throw new Error(`Erro ao carregar dados do beneficiário: ${beneficiaryDataResult.error}`);
+      }
+      setBeneficiary(beneficiaryDataResult.data);
 
       // Buscar plano ativo
-      const planData = await getActivePlanByBeneficiaryUUID(beneficiaryUuid);
-      setPlan(planData);
+      const planDataResult = await getActivePlanByBeneficiaryUUID(beneficiaryUuid);
+      if (planDataResult.error) {
+        throw new Error(`Erro ao carregar plano ativo: ${planDataResult.error}`);
+      }
+      setPlan(planDataResult.data);
 
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados');
+      console.error('[useBeneficiaryPlan] Erro ao carregar dados:', err);
+      setError(err.message || 'Ocorreu um erro inesperado ao carregar os dados do plano.');
     } finally {
       setLoading(false);
     }
