@@ -1,5 +1,5 @@
 export const RAPIDOC_CONFIG = {
-    baseUrl: 'https://api.rapidoc.tech/',
+    baseUrl: 'https://sandbox.rapidoc.tech/tema/api/',
   loginUrl: 'https://api.rapidoc.tech/login',
   clientId: '540e4b44-d68d-4ade-885f-fd4940a3a045',
   token: process.env.EXPO_PUBLIC_RAPIDOC_TOKEN || 'YOUR_RAPIDOC_TOKEN_HERE',

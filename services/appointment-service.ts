@@ -14,7 +14,7 @@ export class AppointmentService {
   private readonly ENDPOINTS = {
     APPOINTMENTS: '/appointments',
     APPOINTMENT_BY_ID: (id: string) => `/appointments/${id}`,
-    CANCEL_APPOINTMENT: (id: string) => `/appointments/${id}/cancel`
+    CANCEL_APPOINTMENT: (id: string) => `/appointments/${id}`
   };
 
   /**
@@ -161,9 +161,8 @@ export class AppointmentService {
         };
       }
 
-      const response = await rapidocHttpClient.post<ApiResponse>(
-        this.ENDPOINTS.CANCEL_APPOINTMENT(appointmentId),
-        {}
+      const response = await rapidocHttpClient.delete<ApiResponse>(
+        this.ENDPOINTS.CANCEL_APPOINTMENT(appointmentId)
       );
 
       return {

@@ -6,7 +6,7 @@
 import axios from 'axios';
 
 // Configuração da API Rapidoc
-const RAPIDOC_API_BASE_URL = process.env.EXPO_PUBLIC_RAPIDOC_API_URL || 'https://api.rapidoc.tech';
+const RAPIDOC_API_BASE_URL = process.env.EXPO_PUBLIC_RAPIDOC_API_URL || 'https://sandbox.rapidoc.tech/tema/api';
 const RAPIDOC_API_KEY = process.env.EXPO_PUBLIC_RAPIDOC_API_KEY || '';
 
 const rapidocApi = axios.create({
@@ -86,13 +86,8 @@ export async function requestImmediateConsultation(
   try {
     console.log('[requestImmediateConsultation] Solicitando consulta imediata:', request);
 
-    const response = await rapidocApi.post('/consultations/immediate', {
-      beneficiary_uuid: request.beneficiaryUuid,
-      service_type: request.serviceType,
-      specialty: request.specialty,
-      symptoms: request.symptoms,
-      urgency: request.urgency || 'medium',
-      metadata: request.metadata,
+    // Endpoint correto para solicitar atendimento imediato
+    const response = await rapidocApi.get(`/beneficiaries/${request.beneficiaryUuid}/request-appointment`, {
     });
 
     console.log('[requestImmediateConsultation] Resposta da API:', response.data);
