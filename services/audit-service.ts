@@ -94,8 +94,10 @@ class AuditService {
   private deviceInfo: any = null;
 
   constructor() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || \'\';
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || \'\';
+
+
     this.supabase = createClient(supabaseUrl, supabaseKey);
     this.initializeDeviceInfo();
   }
