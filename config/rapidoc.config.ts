@@ -1,16 +1,29 @@
 export const RAPIDOC_CONFIG = {
-    baseUrl: 'https://sandbox.rapidoc.tech/tema/api/',
+  BASE_URL: process.env.EXPO_PUBLIC_RAPIDOC_API_BASE_URL || 'https://sandbox.rapidoc.tech/tema/api/',
+  CLIENT_ID: process.env.EXPO_PUBLIC_RAPIDOC_CLIENT_ID || '540e4b44-d68d-4ade-885f-fd4940a3a045',
+  TOKEN: process.env.EXPO_PUBLIC_RAPIDOC_API_TOKEN || 'YOUR_RAPIDOC_TOKEN_HERE',
+  CONTENT_TYPE: 'application/vnd.rapidoc.tema-v2+json',
   loginUrl: 'https://api.rapidoc.tech/login',
-  clientId: '540e4b44-d68d-4ade-885f-fd4940a3a045',
-  token: process.env.EXPO_PUBLIC_RAPIDOC_TOKEN || 'YOUR_RAPIDOC_TOKEN_HERE',
-  contentType: 'application/vnd.rapidoc.tema-v2+json',
   
-  get headers() {
+  get HEADERS() {
     return {
-      'Authorization': `Bearer ${this.token}`,
-      'clientId': this.clientId,
-      'Content-Type': this.contentType,
+      'Authorization': `Bearer ${this.TOKEN}`,
+      'clientId': this.CLIENT_ID,
+      'Content-Type': this.CONTENT_TYPE,
     };
+  },
+
+  // Configurações de Rate Limiting
+  RATE_LIMIT: {
+    REQUESTS_PER_SECOND: 10,
+    BURST_LIMIT: 20
+  },
+
+  // Configurações de Cache
+  CACHE: {
+    SPECIALTIES_DURATION: 5 * 60 * 1000, // 5 minutos
+    AVAILABILITY_DURATION: 2 * 60 * 1000, // 2 minutos
+    REFERRALS_DURATION: 2 * 60 * 1000, // 2 minutos
   }
 };
 

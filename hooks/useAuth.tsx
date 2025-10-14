@@ -1,10 +1,10 @@
-/**
- * Hook de compatibilidade para autenticação
- * Redireciona para o hook CPF correto
- */
+import { useContext } from 'react';
+import { AuthContext, AuthContextType } from '../contexts/AuthContext';
 
-import { useCPFAuth } from './useCPFAuth';
-
-export function useAuth() {
-  return useCPFAuth();
-}
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

@@ -288,28 +288,22 @@ export default function LoginScreen() {
           }
         }
 
-        // Verificar se o usuário tem plano ativo
+        // Verificar se o usuário tem plano ativo usando novos serviços
         const { supabase } = await import('../services/supabase');
-        const { data: beneficiaryData } = await supabase
-          .from('beneficiaries')
-          .select('beneficiary_uuid')
-          .eq('cpf', numericCPF)
-          .eq('is_primary', true)
-          .single();
-
-        if (beneficiaryData) {
-          const { data: planData } = await supabase
-            .from('v_user_plans')
-            .select('plan_status')
-            .eq('beneficiary_uuid', beneficiaryData.beneficiary_uuid)
-            .eq('plan_status', 'active')
-            .single();
-
-          if (!planData) {
-            // Usuário não tem plano ativo, redirecionar para fluxo de assinatura
+        const { getBeneficiaryByCPF, getActivePlanByBeneficiaryUUID } = await import('../services/beneficiary-plan-service');
+        const { checkSubscriptionStatus } = await import('../services/asaas');
+        
+        const beneficiary = await getBeneficiaryByCPF(numericCPF);
+        
+        if (beneficiary) {
+          const planData = await getActivePlanByBeneficiaryUUID(beneficiary.beneficiary_uuid);
+          const subscriptionStatus = await checkSubscriptionStatus(beneficiary.beneficiary_uuid);
+          
+          if (!planData || !subscriptionStatus.hasActiveSubscription) {
+            // Usuário não tem plano ativo ou assinatura inativa
             showTemplateMessage({
-              title: '⚠️ Plano Inativo',
-              message: 'Você precisa de um plano ativo para acessar o aplicativo. Por favor, complete seu cadastro.',
+              title: '⚠️ Assinatura Inativa',
+              message: 'Sua assinatura está inativa. Complete ou renove seu plano para acessar o aplicativo.',
               type: 'warning'
             });
             setTimeout(() => {
