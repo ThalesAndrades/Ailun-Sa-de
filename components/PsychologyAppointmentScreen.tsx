@@ -8,7 +8,9 @@ import {
   FlatList, 
   StyleSheet,
   Modal,
-  Platform
+  Platform,
+  Animated,
+  Easing
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -43,6 +45,11 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
   const [selectedTime, setSelectedTime] = useState<Availability | null>(null);
   const [psychologyData, setPsychologyData] = useState<any>(null);
 
+  // Animações
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.95));
+
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
       alert(`${title}: ${message}`);
@@ -56,6 +63,36 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
       fetchPsychologyAvailability();
     }
   }, [visible, step, beneficiaryUuid]);
+
+  // Animar entrada quando modal abre ou step muda
+  useEffect(() => {
+    if (visible) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(50);
+      scaleAnim.setValue(0.95);
+
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, step]);
 
   const fetchPsychologyAvailability = async () => {
     setLoading(true);
@@ -162,7 +199,10 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
           )}
 
           {!loading && step === 1 && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Profissionais Disponíveis</Text>
               <Text style={styles.stepSubtitle}>Escolha o psicólogo e horário que melhor se adapta às suas necessidades</Text>
               
@@ -170,11 +210,23 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
                 <FlatList
                   data={availableTimes}
                   keyExtractor={(item) => item.uuid}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={styles.timeItem} 
-                      onPress={() => handleSelectTime(item)}
+                  renderItem={({ item, index }) => (
+                    <Animated.View
+                      style={{
+                        opacity: fadeAnim,
+                        transform: [{
+                          translateX: fadeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-50, 0]
+                          })
+                        }]
+                      }}
                     >
+                      <TouchableOpacity 
+                        style={styles.timeItem} 
+                        onPress={() => handleSelectTime(item)}
+                        activeOpacity={0.7}
+                      >
                       <View style={styles.professionalCard}>
                         <View style={styles.professionalHeader}>
                           <MaterialIcons name="psychology" size={24} color="#A8E6CF" />
@@ -195,7 +247,8 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
                       </View>
                       
                       <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                    </Animated.View>
                   )}
                   showsVerticalScrollIndicator={false}
                 />
@@ -206,11 +259,14 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
                   <Text style={styles.emptySubtext}>Tente novamente mais tarde</Text>
                 </View>
               )}
-            </View>
+            </Animated.View>
           )}
 
           {!loading && step === 2 && selectedTime && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Confirmar Consulta</Text>
               
               <View style={styles.confirmationCard}>
@@ -253,18 +309,21 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
               <TouchableOpacity 
                 style={styles.confirmButton} 
                 onPress={handleConfirmAppointment}
+                activeOpacity={0.8}
               >
+                <MaterialIcons name="check-circle" size={24} color="white" style={{ marginRight: 8 }} />
                 <Text style={styles.confirmButtonText}>Confirmar Agendamento</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.backButton} 
                 onPress={() => setStep(1)}
+                activeOpacity={0.7}
               >
                 <MaterialIcons name="arrow-back" size={20} color="#A8E6CF" />
                 <Text style={styles.backButtonText}>Voltar para Horários</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </View>
       </LinearGradient>
@@ -345,14 +404,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    padding: 16,
+    padding: 20,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
   professionalCard: {
     flex: 1,
@@ -471,10 +530,17 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#A8E6CF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
+    shadowColor: '#A8E6CF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   confirmButtonText: {
     color: 'white',
