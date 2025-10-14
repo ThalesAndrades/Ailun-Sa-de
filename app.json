@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "onspace-app",
-    "slug": "onspace-app",
+    "name": "AiLun Saúde",
+    "slug": "ailun-saude",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "onspaceapp",
+    "scheme": "ailunsaude",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

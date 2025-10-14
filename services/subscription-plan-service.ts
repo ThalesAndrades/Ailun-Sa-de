@@ -7,9 +7,43 @@
 import { createClient } from '@supabase/supabase-js';
 import { auditService, AuditEventType, AuditEventStatus } from './audit-service';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Configuração robusta do Supabase com múltiplas variáveis de ambiente
+const getSupabaseConfig = () => {
+  const supabaseUrl = 
+    process.env.EXPO_PUBLIC_SUPABASE_URL || 
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 
+    process.env.SUPABASE_URL || 
+    '';
+  
+  const supabaseKey = 
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    process.env.SUPABASE_ANON_KEY || 
+    '';
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('[SubscriptionPlanService] Configuração do Supabase não encontrada');
+    throw new Error('Configuração do Supabase não encontrada');
+  }
+  
+  return { supabaseUrl, supabaseKey };
+};
+
+let supabase: any;
+try {
+  const { supabaseUrl, supabaseKey } = getSupabaseConfig();
+  supabase = createClient(supabaseUrl, supabaseKey);
+} catch (error) {
+  console.error('[SubscriptionPlanService] Erro na configuração:', error);
+  // Criar um cliente mock que sempre retorna erro
+  supabase = {
+    from: () => ({
+      insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }) }) }),
+      update: () => ({ eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }) }) }) }),
+      select: () => ({ eq: () => ({ order: () => ({ limit: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }) }) }) }) })
+    })
+  };
+}
 
 // Interface para dados do plano de assinatura
 export interface SubscriptionPlanData {
@@ -57,6 +91,11 @@ export async function createSubscriptionPlan(
   data: SubscriptionPlanData
 ): Promise<{ success: boolean; plan?: SubscriptionPlan; error?: string }> {
   try {
+    // Verificar se o Supabase está configurado
+    if (!supabase || typeof supabase.from !== 'function') {
+      return { success: false, error: 'Supabase não está configurado corretamente' };
+    }
+    
     const now = new Date().toISOString();
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1);
@@ -92,30 +131,38 @@ export async function createSubscriptionPlan(
     }
 
     // Registrar evento de auditoria
-    await auditService.logEvent({
-      eventType: AuditEventType.PLAN_ASSIGNED,
-      userId: data.userId,
-      status: AuditEventStatus.SUCCESS,
-      eventData: {
-        planId: plan.id,
-        serviceType: data.serviceType,
-        memberCount: data.memberCount,
-        monthlyPrice: data.monthlyPrice,
-      },
-    });
+    try {
+      await auditService.logEvent({
+        eventType: AuditEventType.PLAN_ASSIGNED,
+        userId: data.userId,
+        status: AuditEventStatus.SUCCESS,
+        eventData: {
+          planId: plan.id,
+          serviceType: data.serviceType,
+          memberCount: data.memberCount,
+          monthlyPrice: data.monthlyPrice,
+        },
+      });
+    } catch (auditError) {
+      console.warn('[createSubscriptionPlan] Falha na auditoria:', auditError);
+    }
 
     return { success: true, plan };
   } catch (error: any) {
     console.error('[createSubscriptionPlan] Erro inesperado:', error);
     
     // Registrar evento de auditoria de falha
-    await auditService.logEvent({
-      eventType: AuditEventType.PLAN_ASSIGNED,
-      userId: data.userId,
-      status: AuditEventStatus.FAILURE,
-      errorMessage: error.message,
-      errorStack: error.stack,
-    });
+    try {
+      await auditService.logEvent({
+        eventType: AuditEventType.PLAN_ASSIGNED,
+        userId: data.userId,
+        status: AuditEventStatus.FAILURE,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
+    } catch (auditError) {
+      console.warn('[createSubscriptionPlan] Falha na auditoria de erro:', auditError);
+    }
 
     return { success: false, error: error.message };
   }
@@ -129,6 +176,11 @@ export async function updateSubscriptionPlan(
   updates: Partial<SubscriptionPlanData>
 ): Promise<{ success: boolean; plan?: SubscriptionPlan; error?: string }> {
   try {
+    // Verificar se o Supabase está configurado
+    if (!supabase || typeof supabase.from !== 'function') {
+      return { success: false, error: 'Supabase não está configurado corretamente' };
+    }
+    
     const updateData: any = {
       ...updates,
       updated_at: new Date().toISOString(),
@@ -151,15 +203,19 @@ export async function updateSubscriptionPlan(
     }
 
     // Registrar evento de auditoria
-    await auditService.logEvent({
-      eventType: AuditEventType.PLAN_UPDATED,
-      userId: plan.user_id,
-      status: AuditEventStatus.SUCCESS,
-      eventData: {
-        planId,
-        updates,
-      },
-    });
+    try {
+      await auditService.logEvent({
+        eventType: AuditEventType.PLAN_UPDATED,
+        userId: plan.user_id,
+        status: AuditEventStatus.SUCCESS,
+        eventData: {
+          planId,
+          updates,
+        },
+      });
+    } catch (auditError) {
+      console.warn('[updateSubscriptionPlan] Falha na auditoria:', auditError);
+    }
 
     return { success: true, plan };
   } catch (error: any) {
@@ -175,6 +231,11 @@ export async function getActiveSubscriptionPlan(
   userId: string
 ): Promise<{ success: boolean; plan?: SubscriptionPlan; error?: string }> {
   try {
+    // Verificar se o Supabase está configurado
+    if (!supabase || typeof supabase.from !== 'function') {
+      return { success: false, error: 'Supabase não está configurado corretamente' };
+    }
+    
     const { data: plan, error } = await supabase
       .from('subscription_plans')
       .select('*')
@@ -208,6 +269,11 @@ export async function cancelSubscriptionPlan(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Verificar se o Supabase está configurado
+    if (!supabase || typeof supabase.from !== 'function') {
+      return { success: false, error: 'Supabase não está configurado corretamente' };
+    }
+    
     const { error } = await supabase
       .from('subscription_plans')
       .update({
@@ -222,14 +288,18 @@ export async function cancelSubscriptionPlan(
     }
 
     // Registrar evento de auditoria
-    await auditService.logEvent({
-      eventType: AuditEventType.PLAN_CANCELLED,
-      userId,
-      status: AuditEventStatus.SUCCESS,
-      eventData: {
-        planId,
-      },
-    });
+    try {
+      await auditService.logEvent({
+        eventType: AuditEventType.PLAN_CANCELLED,
+        userId,
+        status: AuditEventStatus.SUCCESS,
+        eventData: {
+          planId,
+        },
+      });
+    } catch (auditError) {
+      console.warn('[cancelSubscriptionPlan] Falha na auditoria:', auditError);
+    }
 
     return { success: true };
   } catch (error: any) {
@@ -245,6 +315,11 @@ export async function getUserSubscriptionHistory(
   userId: string
 ): Promise<{ success: boolean; plans?: SubscriptionPlan[]; error?: string }> {
   try {
+    // Verificar se o Supabase está configurado
+    if (!supabase || typeof supabase.from !== 'function') {
+      return { success: false, error: 'Supabase não está configurado corretamente' };
+    }
+    
     const { data: plans, error } = await supabase
       .from('subscription_plans')
       .select('*')
