@@ -8,7 +8,9 @@ import {
   FlatList, 
   StyleSheet,
   Modal,
-  Platform
+  Platform,
+  Animated,
+  Easing
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -43,6 +45,11 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
   const [selectedTime, setSelectedTime] = useState<Availability | null>(null);
   const [nutritionData, setNutritionData] = useState<any>(null);
 
+  // Animações
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.95));
+
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
       alert(`${title}: ${message}`);
@@ -56,6 +63,36 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
       fetchNutritionistAvailability();
     }
   }, [visible, step, beneficiaryUuid]);
+
+  // Animar entrada quando modal abre ou step muda
+  useEffect(() => {
+    if (visible) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(50);
+      scaleAnim.setValue(0.95);
+
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, step]);
 
   const fetchNutritionistAvailability = async () => {
     setLoading(true);
@@ -162,7 +199,10 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
           )}
 
           {!loading && step === 1 && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Horários Disponíveis</Text>
               <Text style={styles.stepSubtitle}>Escolha o melhor horário para sua consulta nutricional</Text>
               
@@ -170,11 +210,23 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
                 <FlatList
                   data={availableTimes}
                   keyExtractor={(item) => item.uuid}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={styles.timeItem} 
-                      onPress={() => handleSelectTime(item)}
+                  renderItem={({ item, index }) => (
+                    <Animated.View
+                      style={{
+                        opacity: fadeAnim,
+                        transform: [{
+                          translateX: fadeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-50, 0]
+                          })
+                        }]
+                      }}
                     >
+                      <TouchableOpacity 
+                        style={styles.timeItem} 
+                        onPress={() => handleSelectTime(item)}
+                        activeOpacity={0.7}
+                      >
                       <View style={styles.timeInfo}>
                         <Text style={styles.timeDate}>{item.date}</Text>
                         <Text style={styles.timeHour}>{item.time}</Text>
@@ -184,7 +236,8 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
                         <Text style={styles.professionalName}>{item.professionalName}</Text>
                       </View>
                       <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                    </Animated.View>
                   )}
                   showsVerticalScrollIndicator={false}
                 />
@@ -195,11 +248,14 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
                   <Text style={styles.emptySubtext}>Tente novamente mais tarde</Text>
                 </View>
               )}
-            </View>
+            </Animated.View>
           )}
 
           {!loading && step === 2 && selectedTime && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Confirmar Consulta</Text>
               
               <View style={styles.confirmationCard}>
@@ -235,18 +291,21 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
               <TouchableOpacity 
                 style={styles.confirmButton} 
                 onPress={handleConfirmAppointment}
+                activeOpacity={0.8}
               >
+                <MaterialIcons name="check-circle" size={24} color="white" style={{ marginRight: 8 }} />
                 <Text style={styles.confirmButtonText}>Confirmar Agendamento</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.backButton} 
                 onPress={() => setStep(1)}
+                activeOpacity={0.7}
               >
                 <MaterialIcons name="arrow-back" size={20} color="#FFB74D" />
                 <Text style={styles.backButtonText}>Voltar para Horários</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </View>
       </LinearGradient>
@@ -327,14 +386,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    padding: 16,
+    padding: 20,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
   timeInfo: {
     marginRight: 16,
@@ -426,10 +485,17 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#FFB74D',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
+    shadowColor: '#FFB74D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   confirmButtonText: {
     color: 'white',
