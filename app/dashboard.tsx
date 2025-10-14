@@ -16,7 +16,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
 import { getBeneficiaryByCPF, canUseService } from '../services/beneficiary-plan-service';
 import { checkSubscriptionStatus } from '../services/asaas';
 import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';

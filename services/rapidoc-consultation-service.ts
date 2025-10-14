@@ -84,8 +84,13 @@ export async function requestImmediateConsultation(
   try {
     console.log('[requestImmediateConsultation] Solicitando consulta imediata:', request);
 
-    // Endpoint correto para solicitar atendimento imediato
-    const response = await rapidocApi.get(`/beneficiaries/${request.beneficiaryUuid}/request-appointment`, {
+    const response = await rapidocApi.post('/consultations/immediate', {
+      beneficiary_uuid: request.beneficiaryUuid,
+      service_type: request.serviceType,
+      specialty: request.specialty,
+      symptoms: request.symptoms,
+      urgency: request.urgency || 'medium',
+      metadata: request.metadata,
     });
 
     console.log('[requestImmediateConsultation] Resposta da API:', response.data);

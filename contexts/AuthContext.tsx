@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const { error } = await supabase
-      .from(\'user_profiles\')
+        .from('profiles')
         .update({
           ...data,
           updated_at: new Date().toISOString(),

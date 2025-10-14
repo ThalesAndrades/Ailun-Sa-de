@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RapidocApiAdapter } from './rapidoc-api-adapter';
-import { auditService, AuditEventType, AuditEventStatus } from './audit-service';
 
 const AUTH_KEY = '@ailun_auth';
 
@@ -102,7 +101,6 @@ const validateCPFFormat = (cpf: string): boolean => {
 export const loginWithCPF = async (cpf: string, password: string) => {
   try {
     console.log('[Auth] ========== INÍCIO DO LOGIN ==========');
-    auditService.logEvent(AuditEventType.LOGIN_ATTEMPT, AuditEventStatus.INFO, { cpf: cpf });
     console.log('[Auth] CPF recebido:', cpf);
     console.log('[Auth] Senha recebida:', password);
 
@@ -113,7 +111,6 @@ export const loginWithCPF = async (cpf: string, password: string) => {
     // 2. Validar formato do CPF
     if (!validateCPFFormat(cleanCPF)) {
       console.log('[Auth] CPF inválido - não tem 11 dígitos');
-      auditService.logEvent(AuditEventType.LOGIN_ATTEMPT, AuditEventStatus.FAIL, { cpf: cpf, reason: 'CPF inválido' });
       return {
         success: false,
         error: 'CPF inválido. Deve conter 11 dígitos.',
@@ -123,7 +120,6 @@ export const loginWithCPF = async (cpf: string, password: string) => {
     // 3. Validar senha (4 primeiros dígitos do CPF)
     if (!validatePassword(cleanCPF, password)) {
       console.log('[Auth] Senha incorreta');
-      auditService.logEvent(AuditEventType.LOGIN_ATTEMPT, AuditEventStatus.FAIL, { cpf: cpf, reason: 'Senha incorreta' });
       return {
         success: false,
         error: 'Senha incorreta. A senha deve ser os 4 primeiros dígitos do CPF.',
@@ -137,7 +133,6 @@ export const loginWithCPF = async (cpf: string, password: string) => {
     
     if (!beneficiaryResult.success || !beneficiaryResult.data) {
       console.log('[Auth] Falha ao buscar beneficiário:', beneficiaryResult.error);
-      auditService.logEvent(AuditEventType.LOGIN_ATTEMPT, AuditEventStatus.FAIL, { cpf: cpf, reason: beneficiaryResult.error || 'Beneficiário não encontrado' });
       return {
         success: false,
         error: beneficiaryResult.error || 'CPF não encontrado no sistema.',
@@ -146,7 +141,6 @@ export const loginWithCPF = async (cpf: string, password: string) => {
 
     const beneficiary = beneficiaryResult.data;
     console.log('[Auth] Beneficiário autenticado com sucesso:', beneficiary.name);
-    auditService.logEvent(AuditEventType.LOGIN_SUCCESS, AuditEventStatus.SUCCESS, { beneficiaryUuid: beneficiary.uuid, cpf: cleanCPF });
 
     // 5. Criar sessão local
     const session: AuthSession = {
@@ -168,8 +162,7 @@ export const loginWithCPF = async (cpf: string, password: string) => {
       data: session,
     };
   } catch (error) {
-     console.error('[Auth] Erro no login:', error);
-    auditService.logEvent(AuditEventType.LOGIN_ATTEMPT, AuditEventStatus.FAIL, { cpf: cpf, reason: error.message || 'Erro desconhecido no login' });
+    console.error('[Auth] Erro no login:', error);
     return {
       success: false,
       error: 'Erro ao realizar login. Tente novamente.',

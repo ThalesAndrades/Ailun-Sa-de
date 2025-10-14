@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CPFAuthProvider } from '../contexts/CPFAuthContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { Platform } from 'react-native';
 
 export default function RootLayout() {
   return (
@@ -20,6 +21,7 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/step1" />
               <Stack.Screen name="onboarding/step2" />
               <Stack.Screen name="onboarding/step3" />
+              <Stack.Screen name="onboarding/platform-guide" />
               
               {/* Signup Flow */}
               <Stack.Screen name="signup/welcome" />
@@ -28,7 +30,6 @@ export default function RootLayout() {
               <Stack.Screen name="signup/address" />
               <Stack.Screen name="signup/payment" />
               <Stack.Screen name="signup/confirmation" />
-              <Stack.Screen name="signup/terms-acceptance" />
               
               {/* Dashboard principal */}
               <Stack.Screen name="dashboard" />
@@ -42,6 +43,7 @@ export default function RootLayout() {
               {/* Perfil */}
               <Stack.Screen name="profile/index" />
               <Stack.Screen name="profile/plan" />
+              <Stack.Screen name="profile/subscription" />
               
               {/* Pagamentos */}
               <Stack.Screen name="payment" />
@@ -49,10 +51,19 @@ export default function RootLayout() {
               <Stack.Screen name="payment-card" />
               <Stack.Screen name="payment-history" />
               
-              {/* Outros */}
+              {/* Subscription */}
               <Stack.Screen name="subscription" />
+              <Stack.Screen name="subscription/inactive" />
+              
+              {/* Admin */}
+              <Stack.Screen name="admin/audit-logs" />
+              
+              {/* Outros */}
               <Stack.Screen name="tutorial" />
               <Stack.Screen name="splash" />
+              
+              {/* 404 Page */}
+              <Stack.Screen name="+not-found" />
             </Stack>
             <StatusBar style="auto" />
           </NotificationProvider>

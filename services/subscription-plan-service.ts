@@ -9,23 +9,23 @@ import { auditService, AuditEventType, AuditEventStatus } from './audit-service'
 
 // Configuração robusta do Supabase com múltiplas variáveis de ambiente
 const getSupabaseConfig = () => {
-  const supabaseUrl =
-    process.env.EXPO_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
+  const supabaseUrl = 
+    process.env.EXPO_PUBLIC_SUPABASE_URL || 
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 
+    process.env.SUPABASE_URL || 
     '';
-
-  const supabaseKey =
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
+  
+  const supabaseKey = 
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    process.env.SUPABASE_ANON_KEY || 
     '';
-
+  
   if (!supabaseUrl || !supabaseKey) {
     console.warn('[SubscriptionPlanService] Configuração do Supabase não encontrada');
     throw new Error('Configuração do Supabase não encontrada');
   }
-
+  
   return { supabaseUrl, supabaseKey };
 };
 

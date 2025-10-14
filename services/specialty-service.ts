@@ -3,9 +3,8 @@
  * Gerencia operações relacionadas a especialidades médicas na API RapiDoc
  */
 
-import { rapidocHttpClient, RapidocHttpClientError } from './http-client';
-import { SpecialtyData } from '../types/rapidoc-types';
-import { ApiResponse } from '../types/api-types';
+import { rapidocHttpClient } from './http-client';
+import { SpecialtyData, ApiResponse } from '../types/rapidoc-types';
 
 export class SpecialtyService {
   private readonly ENDPOINTS = {
@@ -61,7 +60,7 @@ export class SpecialtyService {
     } catch (error: any) {
       return {
         success: false,
-        error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao carregar especialidades'
+        error: this.extractErrorMessage(error)
       };
     }
   }
@@ -171,6 +170,15 @@ export class SpecialtyService {
       (Date.now() - this.cacheTimestamp) < this.CACHE_DURATION;
   }
 
+  private extractErrorMessage(error: any): string {
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+    if (error.message) {
+      return error.message;
+    }
+    return 'Erro desconhecido na comunicação com a API';
+  }
 }
 
 // Instância singleton
