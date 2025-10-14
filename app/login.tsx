@@ -13,6 +13,7 @@ import {
   Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -216,7 +217,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={['#667eea', '#764ba2']} style={styles.container}>
+    <LinearGradient colors={['#00B4DB', '#0083B0']} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
@@ -224,10 +225,16 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 40 }]}>
           <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.logoContainer}>
-              <MaterialIcons name="health-and-safety" size={64} color="white" />
+              <View style={styles.logoCard}>
+                <Image
+                  source="https://cdn-ai.onspace.ai/onspace/project/image/SZxF5tJTtjPgSg2rCnCKdZ/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+                  style={styles.logoImage}
+                  contentFit="contain"
+                />
+              </View>
             </View>
-            <Text style={styles.title}>AiLun Saúde</Text>
-            <Text style={styles.subtitle}>Sua saúde em primeiro lugar</Text>
+            <Text style={styles.title}>Ailun Saúde</Text>
+            <Text style={styles.subtitle}>Cuidando da sua saúde com tecnologia</Text>
           </Animated.View>
 
           <Animated.View style={[styles.formContainer, { opacity: fadeAnim }]}>
@@ -240,7 +247,7 @@ export default function LoginScreen() {
               {/* CPF Input */}
               <View style={styles.inputContainer}>
                 <View style={[styles.inputWrapper, cpfError ? styles.inputError : {}]}>
-                  <MaterialIcons name="badge" size={24} color="#667eea" style={styles.inputIcon} />
+                  <MaterialIcons name="badge" size={24} color="#00B4DB" style={styles.inputIcon} />
                   <Animated.View style={{ transform: [{ translateX: cpfShakeAnim }] }}>
                     <TextInput
                       style={styles.input}
@@ -259,7 +266,7 @@ export default function LoginScreen() {
               {/* Senha Input */}
               <View style={styles.inputContainer}>
                 <View style={[styles.inputWrapper, senhaError ? styles.inputError : {}]}>
-                  <MaterialIcons name="lock" size={24} color="#667eea" style={styles.inputIcon} />
+                  <MaterialIcons name="lock" size={24} color="#00B4DB" style={styles.inputIcon} />
                   <Animated.View style={{ transform: [{ translateX: senhaShakeAnim }] }}>
                     <TextInput
                       style={styles.input}
@@ -372,13 +379,24 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoContainer: {
+    marginBottom: 20,
+  },
+  logoCard: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
   },
   title: {
     fontSize: 32,
@@ -443,14 +461,14 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   loginButton: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#00B4DB',
     borderRadius: 12,
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#667eea',
+    shadowColor: '#00B4DB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -472,7 +490,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   helpLink: {
-    color: '#667eea',
+    color: '#00B4DB',
     fontSize: 14,
     fontWeight: '500',
   },
