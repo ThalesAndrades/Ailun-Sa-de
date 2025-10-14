@@ -192,22 +192,36 @@ export default function LoginScreen() {
 
   const validateFields = () => {
     let isValid = true;
-    if (!cpf.trim()) {
+    
+    // Validar CPF
+    const cpfString = String(cpf || '').trim();
+    const numericCPF = cpfString.replace(/\D/g, '');
+    
+    console.log('[validateFields] CPF original:', cpfString);
+    console.log('[validateFields] CPF numérico:', numericCPF);
+    console.log('[validateFields] Tamanho do CPF numérico:', numericCPF.length);
+    
+    if (!cpfString) {
       setCpfError("CPF é obrigatório");
       triggerShake(cpfShakeAnim);
       isValid = false;
-    } else if (cpf.replace(/\D/g, '').length !== 11) {
-      setCpfError("CPF deve ter 11 dígitos");
+    } else if (numericCPF.length !== 11) {
+      setCpfError(`CPF deve ter 11 dígitos (atual: ${numericCPF.length})`);
       triggerShake(cpfShakeAnim);
       isValid = false;
     }
 
-    if (!senha.trim()) {
+    // Validar Senha
+    const senhaString = String(senha || '').trim();
+    console.log('[validateFields] Senha:', senhaString);
+    console.log('[validateFields] Tamanho da senha:', senhaString.length);
+    
+    if (!senhaString) {
       setSenhaError("Senha é obrigatória");
       triggerShake(senhaShakeAnim);
       isValid = false;
-    } else if (senha.length !== 4) {
-      setSenhaError("Senha deve ter 4 dígitos");
+    } else if (senhaString.length !== 4) {
+      setSenhaError(`Senha deve ter 4 dígitos (atual: ${senhaString.length})`);
       triggerShake(senhaShakeAnim);
       isValid = false;
     }
