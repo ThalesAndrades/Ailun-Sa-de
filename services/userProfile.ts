@@ -6,8 +6,8 @@ export interface UserProfile {
   full_name?: string;
   phone?: string;
   birth_date?: string;
-	  has_seen_onboarding?: boolean;
-	  avatar_url?: string;
+  has_seen_onboarding?: boolean;
+  avatar_url?: string;
   terms_accepted?: boolean;
   terms_accepted_at?: string;
   created_at: string;
@@ -47,7 +47,7 @@ export async function ensureBeneficiaryProfile(
 
     // Criar profile se não existir
     const { data: profile, error: insertError } = await supabase
-    .from(\'user_profiles\')
+      .from('profiles')
       .insert({
         id: userId,
         email,

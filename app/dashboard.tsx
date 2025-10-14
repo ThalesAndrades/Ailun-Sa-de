@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../services/supabase';
 import { getBeneficiaryByCPF, canUseService } from '../services/beneficiary-plan-service';
 import { checkSubscriptionStatus } from '../services/asaas';
 import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
@@ -42,7 +43,7 @@ interface ServiceButton {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { user, profile, beneficiaryUuid, loading: authLoading, signOut } = useAuth();
+  const { user, profile, beneficiaryUuid, loading: authLoading, signOut, isAuthenticated } = useAuth();
   const [beneficiaryData, setBeneficiaryData] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);

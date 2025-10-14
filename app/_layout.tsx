@@ -1,3 +1,4 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -5,6 +6,17 @@ import { CPFAuthProvider } from '../contexts/CPFAuthContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { Platform } from 'react-native';
+
+// Desabilitar warnings específicos do Expo Router durante desenvolvimento
+if (__DEV__) {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && args[0].includes('expo-router')) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
 
 export default function RootLayout() {
   return (
