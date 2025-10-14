@@ -2,6 +2,7 @@ import React, { createContext, ReactNode, useState, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, UserProfile } from '../services/supabase';
 import { ensureBeneficiaryProfile } from '../services/userProfile';
+import { getBeneficiaryByCPF } from '../services/beneficiary-plan-service';
 
 export interface AuthContextType {
   user: User | null;
@@ -60,10 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      // Buscar perfil no Supabase
+      // Buscar perfil no Supabase incluindo novos campos de beneficiário ativo
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, is_active_beneficiary, plan_type, plan_details')
         .eq('id', userId)
         .single();
 
@@ -75,8 +76,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setProfile(profileData);
 
-      // Garantir que o usuário tem um beneficiário RapiDoc
-      if (user?.email) {
+      // Verificar se é beneficiário ativo integrado ou buscar por CPF
+      if (profileData?.is_active_beneficiary) {
+        // Usuário é um beneficiário ativo - usar o próprio user ID como beneficiaryUuid
+        setBeneficiaryUuid(userId);
+      } else if (profileData?.cpf) {
+        // Buscar beneficiário por CPF no novo sistema
+        const beneficiary = await getBeneficiaryByCPF(profileData.cpf);
+        if (beneficiary) {
+          setBeneficiaryUuid(beneficiary.beneficiary_uuid);
+        } else if (user?.email) {
+          // Fallback para garantir beneficiário RapiDoc
+          const beneficiaryResult = await ensureBeneficiaryProfile(
+            userId,
+            user.email,
+            profileData?.full_name || 'Usuário Ailun',
+            profileData?.phone || '',
+            profileData.cpf,
+            profileData?.birth_date || '1990-01-01'
+          );
+
+          if (beneficiaryResult.success) {
+            setBeneficiaryUuid(beneficiaryResult.beneficiaryUuid);
+          } else {
+            console.error('Erro ao garantir beneficiário:', beneficiaryResult.error);
+          }
+        }
+      } else if (user?.email) {
+        // Usuário sem CPF - criar beneficiário padrão
         const beneficiaryResult = await ensureBeneficiaryProfile(
           userId,
           user.email,

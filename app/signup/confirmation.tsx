@@ -56,11 +56,28 @@ export default function ConfirmationScreen() {
 
         console.log('[ConfirmationScreen] Processando registro...');
 
+        console.log('[ConfirmationScreen] Dados do registro:', {
+          nome: registrationData.fullName,
+          cpf: registrationData.cpf,
+          email: registrationData.email,
+          servicos: {
+            especialistas: registrationData.includeSpecialists,
+            psicologia: registrationData.includePsychology,
+            nutricao: registrationData.includeNutrition
+          },
+          pagamento: registrationData.paymentMethod,
+          valor: registrationData.totalPrice
+        });
+
         // Processar registro
         const result = await processRegistration(registrationData);
 
         if (result.success) {
           console.log('[ConfirmationScreen] Registro concluído com sucesso!');
+          console.log('[ConfirmationScreen] UUID do beneficiário:', result.beneficiaryUuid);
+          console.log('[ConfirmationScreen] ID do cliente Asaas:', result.asaasCustomerId);
+          console.log('[ConfirmationScreen] Método de pagamento processado:', registrationData.paymentMethod);
+          
           setStatus('success');
           
           // Animar ícone de sucesso

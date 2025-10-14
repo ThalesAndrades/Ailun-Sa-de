@@ -10,6 +10,19 @@ export const RAPIDOC_CONFIG = {
       'clientId': this.CLIENT_ID,
       'Content-Type': this.CONTENT_TYPE,
     };
+  },
+
+  // Configurações de Rate Limiting
+  RATE_LIMIT: {
+    REQUESTS_PER_SECOND: 10,
+    BURST_LIMIT: 20
+  },
+
+  // Configurações de Cache
+  CACHE: {
+    SPECIALTIES_DURATION: 5 * 60 * 1000, // 5 minutos
+    AVAILABILITY_DURATION: 2 * 60 * 1000, // 2 minutos
+    REFERRALS_DURATION: 2 * 60 * 1000, // 2 minutos
   }
 };
 
