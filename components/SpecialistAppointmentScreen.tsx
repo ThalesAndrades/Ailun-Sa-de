@@ -8,7 +8,9 @@ import {
   FlatList, 
   StyleSheet,
   Modal,
-  Platform
+  Platform,
+  Animated,
+  Easing
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -54,6 +56,11 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
   const [availableTimes, setAvailableTimes] = useState<Availability[]>([]);
   const [selectedTime, setSelectedTime] = useState<Availability | null>(null);
 
+  // Animações
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.95));
+
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
       alert(`${title}: ${message}`);
@@ -67,6 +74,38 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
       fetchSpecialties();
     }
   }, [visible, step, beneficiaryUuid]);
+
+  // Animar entrada quando modal abre ou step muda
+  useEffect(() => {
+    if (visible) {
+      // Reset animations
+      fadeAnim.setValue(0);
+      slideAnim.setValue(50);
+      scaleAnim.setValue(0.95);
+
+      // Start animations
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, step]);
 
   const fetchSpecialties = async () => {
     setLoading(true);
@@ -225,32 +264,54 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
           )}
 
           {!loading && step === 1 && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Escolha a Especialidade</Text>
               <FlatList
                 data={specialties}
                 keyExtractor={(item) => item.uuid}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={styles.specialtyItem} 
-                    onPress={() => handleSelectSpecialty(item)}
+                renderItem={({ item, index }) => (
+                  <Animated.View
+                    style={{
+                      opacity: fadeAnim,
+                      transform: [{
+                        translateX: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-50, 0]
+                        })
+                      }]
+                    }}
                   >
-                    <MaterialIcons name="medical-services" size={24} color="#4ECDC4" />
-                    <Text style={styles.specialtyText}>{item.name}</Text>
-                    <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
-                  </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.specialtyItem} 
+                      onPress={() => handleSelectSpecialty(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.specialtyIconContainer}>
+                        <MaterialIcons name="medical-services" size={24} color="#4ECDC4" />
+                      </View>
+                      <Text style={styles.specialtyText}>{item.name}</Text>
+                      <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
+                    </TouchableOpacity>
+                  </Animated.View>
                 )}
                 showsVerticalScrollIndicator={false}
               />
-            </View>
+            </Animated.View>
           )}
 
           {!loading && step === 2 && selectedSpecialty && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Horários - {selectedSpecialty.name}</Text>
               <TouchableOpacity 
                 style={styles.backButton} 
                 onPress={() => setStep(1)}
+                activeOpacity={0.7}
               >
                 <MaterialIcons name="arrow-back" size={20} color="#4ECDC4" />
                 <Text style={styles.backButtonText}>Voltar para Especialidades</Text>
@@ -259,29 +320,57 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
               <FlatList
                 data={availableTimes}
                 keyExtractor={(item) => item.uuid}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={styles.timeItem} 
-                    onPress={() => handleSelectTime(item)}
+                renderItem={({ item, index }) => (
+                  <Animated.View
+                    style={{
+                      opacity: fadeAnim,
+                      transform: [{
+                        translateX: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [50, 0]
+                        })
+                      }]
+                    }}
                   >
-                    <View style={styles.timeInfo}>
-                      <Text style={styles.timeDate}>{item.date}</Text>
-                      <Text style={styles.timeHour}>{item.time}</Text>
-                    </View>
-                    <Text style={styles.professionalName}>{item.professionalName}</Text>
-                    <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
-                  </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.timeItem} 
+                      onPress={() => handleSelectTime(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.timeInfo}>
+                        <View style={styles.timeIconContainer}>
+                          <MaterialIcons name="event" size={20} color="#4ECDC4" />
+                        </View>
+                        <View>
+                          <Text style={styles.timeDate}>{item.date}</Text>
+                          <Text style={styles.timeHour}>{item.time}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.professionalInfo}>
+                        <MaterialIcons name="person" size={16} color="#666" />
+                        <Text style={styles.professionalName}>{item.professionalName}</Text>
+                      </View>
+                      <MaterialIcons name="arrow-forward-ios" size={16} color="#999" />
+                    </TouchableOpacity>
+                  </Animated.View>
                 )}
                 showsVerticalScrollIndicator={false}
               />
-            </View>
+            </Animated.View>
           )}
 
           {!loading && step === 3 && selectedSpecialty && selectedTime && (
-            <View style={styles.stepContainer}>
+            <Animated.View style={[styles.stepContainer, {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }]
+            }]}>
               <Text style={styles.stepTitle}>Confirmar Agendamento</Text>
               
-              <View style={styles.confirmationCard}>
+              <Animated.View style={[styles.confirmationCard, {
+                transform: [{
+                  scale: scaleAnim
+                }]
+              }]}>
                 <View style={styles.confirmationItem}>
                   <MaterialIcons name="medical-services" size={24} color="#4ECDC4" />
                   <View style={styles.confirmationText}>
@@ -305,23 +394,26 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
                     <Text style={styles.confirmationValue}>{selectedTime.professionalName}</Text>
                   </View>
                 </View>
-              </View>
+              </Animated.View>
 
               <TouchableOpacity 
                 style={styles.confirmButton} 
                 onPress={handleConfirmAppointment}
+                activeOpacity={0.8}
               >
+                <MaterialIcons name="check-circle" size={24} color="white" style={{ marginRight: 8 }} />
                 <Text style={styles.confirmButtonText}>Confirmar Agendamento</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.backButton} 
                 onPress={() => setStep(2)}
+                activeOpacity={0.7}
               >
                 <MaterialIcons name="arrow-back" size={20} color="#4ECDC4" />
                 <Text style={styles.backButtonText}>Voltar para Horários</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </View>
       </LinearGradient>
@@ -396,35 +488,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    padding: 16,
+    padding: 20,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  specialtyIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(78, 205, 196, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   specialtyText: {
     flex: 1,
     fontSize: 16,
+    fontWeight: '600',
     color: '#333',
-    marginLeft: 12,
+    marginLeft: 16,
   },
   timeItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    padding: 16,
+    padding: 20,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
   timeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  timeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(78, 205, 196, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   timeDate: {
@@ -436,16 +548,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  professionalInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   professionalName: {
-    flex: 1,
     fontSize: 14,
     color: '#666',
+    marginLeft: 4,
   },
   confirmationCard: {
     backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   confirmationItem: {
     flexDirection: 'row',
@@ -467,10 +589,17 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#4ECDC4',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
+    shadowColor: '#4ECDC4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   confirmButtonText: {
     color: 'white',
