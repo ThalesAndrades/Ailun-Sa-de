@@ -54,9 +54,9 @@ export default function FormInput({
         )}
       </View>
       
-      {error && (
+      {error ? (
         <Text style={styles.errorText}>{error}</Text>
-      )}
+      ) : null}
     </View>
   );
 }
