@@ -2,7 +2,6 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import 'react-native-reanimated/lib/reanimated2/js-reanimated/src/Reanimated2/core';
 import { CPFAuthProvider } from '../contexts/CPFAuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import * as Notifications from 'expo-notifications';
