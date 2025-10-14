@@ -28,6 +28,7 @@ export default function RootLayout() {
               <Stack.Screen name="signup/address" />
               <Stack.Screen name="signup/payment" />
               <Stack.Screen name="signup/confirmation" />
+              <Stack.Screen name="signup/terms-acceptance" />
               
               {/* Dashboard principal */}
               <Stack.Screen name="dashboard" />

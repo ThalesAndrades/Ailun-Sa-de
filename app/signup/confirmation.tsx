@@ -106,8 +106,8 @@ export default function ConfirmationScreen() {
   }, []);
 
   const handleGoToDashboard = () => {
-    // Redirecionar para o guia da plataforma no primeiro acesso
-    router.replace('/onboarding/platform-guide');
+    // Redirecionar para a tela de aceite de termos
+    router.replace('/signup/terms-acceptance');
   };
 
   const handleTryAgain = () => {
