@@ -6,8 +6,16 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+
+// Importar Device apenas se disponível
+let Device: any;
+try {
+  Device = require('expo-device');
+} catch (error) {
+  // Device não disponível no ambiente web
+  Device = null;
+}
 
 // Tipos de eventos auditáveis
 export enum AuditEventType {
@@ -92,12 +100,38 @@ export interface AuditLog {
 class AuditService {
   private supabase;
   private deviceInfo: any = null;
+  private isEnabled: boolean = false;
 
   constructor() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    this.supabase = createClient(supabaseUrl, supabaseKey);
-    this.initializeDeviceInfo();
+    try {
+      // Tentar múltiplas variáveis de ambiente para compatibilidade
+      const supabaseUrl = 
+        process.env.EXPO_PUBLIC_SUPABASE_URL || 
+        process.env.NEXT_PUBLIC_SUPABASE_URL || 
+        process.env.SUPABASE_URL || 
+        '';
+      
+      const supabaseKey = 
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+        process.env.SUPABASE_ANON_KEY || 
+        '';
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.warn('[AuditService] Configuração do Supabase não encontrada. Auditoria desabilitada.');
+        this.isEnabled = false;
+        return;
+      }
+      
+      this.supabase = createClient(supabaseUrl, supabaseKey);
+      this.isEnabled = true;
+      this.initializeDeviceInfo();
+      
+      console.log('[AuditService] Serviço inicializado com sucesso');
+    } catch (error) {
+      console.error('[AuditService] Erro ao inicializar:', error);
+      this.isEnabled = false;
+    }
   }
 
   /**
@@ -105,18 +139,32 @@ class AuditService {
    */
   private async initializeDeviceInfo() {
     try {
-      this.deviceInfo = {
-        deviceType: Device.deviceType ? Device.DeviceType[Device.deviceType] : 'Unknown',
-        platform: Platform.OS,
-        osVersion: Platform.Version,
-        modelName: Device.modelName,
-        brand: Device.brand,
-      };
+      if (Device && Device.deviceType) {
+        this.deviceInfo = {
+          deviceType: Device.DeviceType[Device.deviceType],
+          platform: Platform.OS,
+          osVersion: Platform.Version,
+          modelName: Device.modelName,
+          brand: Device.brand,
+        };
+      } else {
+        // Ambiente web ou Device não disponível
+        this.deviceInfo = {
+          deviceType: 'Web',
+          platform: Platform.OS,
+          osVersion: Platform.Version?.toString() || 'Unknown',
+          modelName: 'Browser',
+          brand: 'Web',
+        };
+      }
     } catch (error) {
       console.warn('[AuditService] Erro ao obter informações do dispositivo:', error);
       this.deviceInfo = {
         deviceType: 'Unknown',
         platform: Platform.OS,
+        osVersion: 'Unknown',
+        modelName: 'Unknown',
+        brand: 'Unknown',
       };
     }
   }
@@ -125,6 +173,12 @@ class AuditService {
    * Registra um evento de auditoria
    */
   async logEvent(data: AuditEventData): Promise<{ success: boolean; error?: string }> {
+    // Se o serviço não está habilitado, apenas log local
+    if (!this.isEnabled) {
+      console.log(`[AuditService] ${data.eventType}:`, data);
+      return { success: true };
+    }
+
     try {
       const logEntry = {
         event_type: data.eventType,
@@ -198,6 +252,11 @@ class AuditService {
    * Obtém logs de auditoria de um usuário
    */
   async getUserAuditTrail(userId: string, limit: number = 100): Promise<AuditLog[]> {
+    if (!this.isEnabled) {
+      console.warn('[AuditService] Serviço desabilitado - retornando array vazio');
+      return [];
+    }
+
     try {
       const { data, error } = await this.supabase
         .rpc('get_user_audit_trail', {
@@ -224,6 +283,11 @@ class AuditService {
     startDate?: Date,
     endDate?: Date
   ): Promise<any[]> {
+    if (!this.isEnabled) {
+      console.warn('[AuditService] Serviço desabilitado - retornando array vazio');
+      return [];
+    }
+
     try {
       const { data, error } = await this.supabase
         .rpc('get_audit_statistics', {
@@ -254,8 +318,25 @@ class AuditService {
   }
 }
 
+// Instância única do serviço com tratamento de erro
+let auditServiceInstance: AuditService | null = null;
+
+try {
+  auditServiceInstance = new AuditService();
+} catch (error) {
+  console.error('[AuditService] Falha na inicialização:', error);
+  // Criar uma instância mock que não faz nada
+  auditServiceInstance = {
+    logEvent: async () => ({ success: true }),
+    logSuccess: async () => {},
+    logFailure: async () => {},
+    getUserAuditTrail: async () => [],
+    getAuditStatistics: async () => [],
+  } as any;
+}
+
 // Exporta uma instância única do serviço
-export const auditService = new AuditService();
+export const auditService = auditServiceInstance!;
 
 // Exporta a classe para casos onde múltiplas instâncias são necessárias
 export default AuditService;
