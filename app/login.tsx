@@ -122,7 +122,7 @@ export default function LoginScreen() {
         if (result.success) {
           const storedPassword = await SecureStore.getItemAsync(lastUsedCPF);
           if (storedPassword) {
-            handleLogin(lastUsedCPF, storedPassword);
+            await performLogin(lastUsedCPF, storedPassword);
           }
         }
       }
@@ -191,20 +191,26 @@ export default function LoginScreen() {
   };
 
   const validateFields = (cpfValue: string, senhaValue: string) => {
+    console.log('[validateFields] Iniciando validação');
+    console.log('[validateFields] CPF recebido:', cpfValue, 'tipo:', typeof cpfValue);
+    console.log('[validateFields] Senha recebida:', senhaValue, 'tipo:', typeof senhaValue);
+    
     // Limpar erros anteriores
     setCpfError('');
     setSenhaError('');
     
     let isValid = true;
     
-    // Validar CPF - usar parâmetros ao invés do estado
+    // Garantir que os valores são strings
     const cpfString = String(cpfValue || '').trim();
+    const senhaString = String(senhaValue || '').trim();
     const numericCPF = cpfString.replace(/\D/g, '');
     
-    console.log('[validateFields] CPF original:', cpfString);
+    console.log('[validateFields] CPF como string:', cpfString);
     console.log('[validateFields] CPF numérico:', numericCPF);
     console.log('[validateFields] Tamanho do CPF numérico:', numericCPF.length);
     
+    // Validar CPF
     if (!cpfString) {
       setCpfError("CPF é obrigatório");
       triggerShake(cpfShakeAnim);
@@ -219,11 +225,10 @@ export default function LoginScreen() {
       isValid = false;
     }
 
-    // Validar Senha - usar parâmetros ao invés do estado
-    const senhaString = String(senhaValue || '').trim();
-    console.log('[validateFields] Senha:', senhaString);
+    console.log('[validateFields] Senha como string:', senhaString);
     console.log('[validateFields] Tamanho da senha:', senhaString.length);
     
+    // Validar Senha
     if (!senhaString) {
       setSenhaError("Senha é obrigatória");
       triggerShake(senhaShakeAnim);
@@ -256,34 +261,20 @@ export default function LoginScreen() {
     ]).start();
   };
 
-  const handleLogin = async (cpfValue = cpf, senhaValue = senha) => {
-    console.log('[LoginScreen] Iniciando handleLogin');
-    console.log('[LoginScreen] cpfValue:', cpfValue, 'tipo:', typeof cpfValue);
-    console.log('[LoginScreen] senhaValue:', senhaValue, 'tipo:', typeof senhaValue);
+  const performLogin = async (cpfValue: string, senhaValue: string) => {
+    console.log('[performLogin] Executando login com CPF:', cpfValue, 'e Senha:', senhaValue);
     
-    // Limpar erros anteriores
-    setCpfError('');
-    setSenhaError('');
-    
-    // Usar os valores atuais na validação
-    if (!validateFields(cpfValue, senhaValue)) {
-      console.log('[LoginScreen] Validação de campos falhou');
-      return;
-    }
-
-    setLoading(true);
-
     try {
-      // Garantir que cpfValue é uma string e limpar
+      // Garantir que são strings e limpar
       const cpfString = String(cpfValue).trim();
       const senhaString = String(senhaValue).trim();
       
       const numericCPF = cpfString.replace(/\D/g, '');
-      console.log('[LoginScreen] Chamando loginWithCPF com CPF:', numericCPF);
-      console.log('[LoginScreen] Chamando loginWithCPF com Senha:', senhaString);
+      console.log('[performLogin] CPF numérico final:', numericCPF);
+      console.log('[performLogin] Senha final:', senhaString);
       
       const result = await loginWithCPF(numericCPF, senhaString);
-      console.log('[LoginScreen] Resultado do login:', result);
+      console.log('[performLogin] Resultado do login:', result);
 
       if (result.success && result.data) {
         // Salvar credenciais apenas em plataformas nativas
@@ -328,6 +319,33 @@ export default function LoginScreen() {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
+    }
+  };
+
+  const handleLogin = async () => {
+    console.log('[handleLogin] Iniciando processo de login');
+    console.log('[handleLogin] Estado atual - CPF:', cpf, 'Senha:', senha);
+    
+    // Capturar os valores atuais do estado no momento da execução
+    const currentCPF = cpf;
+    const currentSenha = senha;
+    
+    console.log('[handleLogin] Valores capturados - CPF:', currentCPF, 'Senha:', currentSenha);
+    
+    // Limpar erros anteriores
+    setCpfError('');
+    setSenhaError('');
+    
+    // Validar campos com os valores atuais
+    if (!validateFields(currentCPF, currentSenha)) {
+      console.log('[handleLogin] Validação falhou');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      await performLogin(currentCPF, currentSenha);
     } finally {
       setLoading(false);
     }
