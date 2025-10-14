@@ -191,9 +191,13 @@ export default function LoginScreen() {
   };
 
   const validateFields = () => {
+    // Limpar erros anteriores
+    setCpfError('');
+    setSenhaError('');
+    
     let isValid = true;
     
-    // Validar CPF
+    // Validar CPF - mais flexível
     const cpfString = String(cpf || '').trim();
     const numericCPF = cpfString.replace(/\D/g, '');
     
@@ -205,13 +209,17 @@ export default function LoginScreen() {
       setCpfError("CPF é obrigatório");
       triggerShake(cpfShakeAnim);
       isValid = false;
-    } else if (numericCPF.length !== 11) {
-      setCpfError(`CPF deve ter 11 dígitos (atual: ${numericCPF.length})`);
+    } else if (numericCPF.length < 11) {
+      setCpfError(`CPF incompleto. Digite todos os 11 dígitos (atual: ${numericCPF.length})`);
+      triggerShake(cpfShakeAnim);
+      isValid = false;
+    } else if (numericCPF.length > 11) {
+      setCpfError(`CPF muito longo. Deve ter exatamente 11 dígitos (atual: ${numericCPF.length})`);
       triggerShake(cpfShakeAnim);
       isValid = false;
     }
 
-    // Validar Senha
+    // Validar Senha - mais flexível
     const senhaString = String(senha || '').trim();
     console.log('[validateFields] Senha:', senhaString);
     console.log('[validateFields] Tamanho da senha:', senhaString.length);
@@ -220,11 +228,17 @@ export default function LoginScreen() {
       setSenhaError("Senha é obrigatória");
       triggerShake(senhaShakeAnim);
       isValid = false;
-    } else if (senhaString.length !== 4) {
-      setSenhaError(`Senha deve ter 4 dígitos (atual: ${senhaString.length})`);
+    } else if (senhaString.length < 4) {
+      setSenhaError(`Senha incompleta. Digite todos os 4 dígitos (atual: ${senhaString.length})`);
+      triggerShake(senhaShakeAnim);
+      isValid = false;
+    } else if (senhaString.length > 4) {
+      setSenhaError(`Senha muito longa. Deve ter exatamente 4 dígitos (atual: ${senhaString.length})`);
       triggerShake(senhaShakeAnim);
       isValid = false;
     }
+
+    console.log('[validateFields] Resultado da validação:', isValid);
 
     if (!isValid && Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -247,6 +261,10 @@ export default function LoginScreen() {
     console.log('[LoginScreen] cpfValue:', cpfValue, 'tipo:', typeof cpfValue);
     console.log('[LoginScreen] senhaValue:', senhaValue, 'tipo:', typeof senhaValue);
     
+    // Limpar erros anteriores
+    setCpfError('');
+    setSenhaError('');
+    
     if (!validateFields()) {
       console.log('[LoginScreen] Validação de campos falhou');
       return;
@@ -255,12 +273,14 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Garantir que cpfValue é uma string
-      const cpfString = String(cpfValue || cpf);
-      const senhaString = String(senhaValue || senha);
+      // Garantir que cpfValue é uma string e limpar
+      const cpfString = String(cpfValue || cpf).trim();
+      const senhaString = String(senhaValue || senha).trim();
       
       const numericCPF = cpfString.replace(/\D/g, '');
       console.log('[LoginScreen] Chamando loginWithCPF com CPF:', numericCPF);
+      console.log('[LoginScreen] Chamando loginWithCPF com Senha:', senhaString);
+      
       const result = await loginWithCPF(numericCPF, senhaString);
       console.log('[LoginScreen] Resultado do login:', result);
 
@@ -284,7 +304,19 @@ export default function LoginScreen() {
           router.replace('/dashboard');
         }, 1500);
       } else {
-        showErrorAlert(result.error || 'Erro inesperado');
+        // Mostrar erro no campo apropriado
+        const errorMessage = result.error || 'Erro inesperado';
+        
+        if (errorMessage.toLowerCase().includes('cpf')) {
+          setCpfError(errorMessage);
+          triggerShake(cpfShakeAnim);
+        } else if (errorMessage.toLowerCase().includes('senha')) {
+          setSenhaError(errorMessage);
+          triggerShake(senhaShakeAnim);
+        } else {
+          showErrorAlert(errorMessage);
+        }
+        
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
@@ -694,4 +726,3 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 });
-

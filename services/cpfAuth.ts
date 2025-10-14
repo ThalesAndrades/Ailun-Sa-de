@@ -17,17 +17,41 @@ export interface AuthSession {
  * Valida se a senha corresponde aos 4 primeiros dígitos do CPF
  */
 const validatePassword = (cpf: string, password: string): boolean => {
-  const cleanCPF = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
-  const first4Digits = cleanCPF.substring(0, 4);
-  return password === first4Digits;
+  // Garantir que ambos são strings
+  const cpfString = String(cpf || '').replace(/\D/g, ''); 
+  const passwordString = String(password || '');
+  
+  if (cpfString.length < 4) {
+    console.log('[validatePassword] CPF muito curto:', cpfString.length);
+    return false;
+  }
+  
+  const first4Digits = cpfString.substring(0, 4);
+  const isValid = passwordString === first4Digits;
+  
+  console.log('[validatePassword] CPF:', cpfString);
+  console.log('[validatePassword] Primeiros 4 dígitos:', first4Digits);
+  console.log('[validatePassword] Senha fornecida:', passwordString);
+  console.log('[validatePassword] Senhas coincidem:', isValid);
+  
+  return isValid;
 };
 
 /**
  * Valida formato básico do CPF (11 dígitos)
  */
 const validateCPFFormat = (cpf: string): boolean => {
-  const cleaned = cpf.replace(/\D/g, '');
-  return cleaned.length === 11;
+  // Garantir que é string e limpar
+  const cpfString = String(cpf || '').trim();
+  const cleaned = cpfString.replace(/\D/g, '');
+  const isValid = cleaned.length === 11;
+  
+  console.log('[validateCPFFormat] CPF original:', cpfString);
+  console.log('[validateCPFFormat] CPF limpo:', cleaned);
+  console.log('[validateCPFFormat] Comprimento:', cleaned.length);
+  console.log('[validateCPFFormat] É válido:', isValid);
+  
+  return isValid;
 };
 
 /**
@@ -35,36 +59,62 @@ const validateCPFFormat = (cpf: string): boolean => {
  */
 export const loginWithCPF = async (cpf: string, password: string) => {
   try {
-    console.log('[Login] Iniciando login com CPF');
+    console.log('[loginWithCPF] Iniciando login');
+    console.log('[loginWithCPF] CPF recebido:', cpf, 'tipo:', typeof cpf);
+    console.log('[loginWithCPF] Senha recebida:', password, 'tipo:', typeof password);
     
-    // 1. Limpar CPF (remover pontos e traços)
-    const cleanCPF = cpf.replace(/\D/g, '');
-    console.log('[Login] CPF limpo:', cleanCPF);
+    // 1. Garantir que são strings e limpar CPF
+    const cpfString = String(cpf || '').trim();
+    const passwordString = String(password || '').trim();
+    const cleanCPF = cpfString.replace(/\D/g, '');
+    
+    console.log('[loginWithCPF] CPF string:', cpfString);
+    console.log('[loginWithCPF] CPF limpo:', cleanCPF);
+    console.log('[loginWithCPF] Senha string:', passwordString);
 
-    // 2. Validar formato do CPF
-    if (!validateCPFFormat(cleanCPF)) {
-      console.log('[Login] CPF inválido');
+    // 2. Validações básicas
+    if (!cpfString) {
+      console.log('[loginWithCPF] CPF vazio');
       return {
         success: false,
-        error: 'CPF inválido. Deve conter 11 dígitos.',
+        error: 'CPF é obrigatório.',
       };
     }
 
-    // 3. Validar senha (4 primeiros dígitos do CPF)
-    if (!validatePassword(cleanCPF, password)) {
-      console.log('[Login] Senha incorreta');
+    if (!passwordString) {
+      console.log('[loginWithCPF] Senha vazia');
+      return {
+        success: false,
+        error: 'Senha é obrigatória.',
+      };
+    }
+
+    // 3. Validar formato do CPF
+    if (!validateCPFFormat(cleanCPF)) {
+      console.log('[loginWithCPF] Formato de CPF inválido');
+      return {
+        success: false,
+        error: `CPF deve ter exatamente 11 dígitos. Atual: ${cleanCPF.length} dígitos.`,
+      };
+    }
+
+    // 4. Validar senha (4 primeiros dígitos do CPF)
+    if (!validatePassword(cleanCPF, passwordString)) {
+      console.log('[loginWithCPF] Senha incorreta');
       return {
         success: false,
         error: 'Senha incorreta. A senha deve ser os 4 primeiros dígitos do CPF.',
       };
     }
 
-    console.log('[Login] Buscando beneficiário na RapiDoc...');
-    // 4. Buscar beneficiário na RapiDoc
+    console.log('[loginWithCPF] Validações passaram, buscando beneficiário...');
+    
+    // 5. Buscar beneficiário na RapiDoc
     const beneficiaryResult = await getBeneficiaryByCPF(cleanCPF);
-    console.log('[Login] Resultado da busca:', beneficiaryResult);
+    console.log('[loginWithCPF] Resultado da busca de beneficiário:', beneficiaryResult);
 
     if (!beneficiaryResult.success) {
+      console.log('[loginWithCPF] Beneficiário não encontrado');
       return {
         success: false,
         error: beneficiaryResult.error || 'CPF não encontrado no sistema.',
@@ -72,16 +122,18 @@ export const loginWithCPF = async (cpf: string, password: string) => {
     }
 
     const beneficiary = beneficiaryResult.data;
+    console.log('[loginWithCPF] Beneficiário encontrado:', beneficiary);
 
-    // 5. Verificar se o beneficiário está ativo
+    // 6. Verificar se o beneficiário está ativo
     if (beneficiary.status && beneficiary.status !== 'active') {
+      console.log('[loginWithCPF] Beneficiário inativo:', beneficiary.status);
       return {
         success: false,
         error: 'Beneficiário inativo. Entre em contato com o suporte.',
       };
     }
 
-    // 6. Criar sessão local
+    // 7. Criar sessão local
     const session: AuthSession = {
       beneficiaryUuid: beneficiary.uuid,
       cpf: cleanCPF,
@@ -92,17 +144,19 @@ export const loginWithCPF = async (cpf: string, password: string) => {
       loginDate: new Date().toISOString(),
     };
 
+    console.log('[loginWithCPF] Criando sessão:', session);
     await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(session));
 
+    console.log('[loginWithCPF] Login realizado com sucesso');
     return {
       success: true,
       data: session,
     };
   } catch (error) {
-    console.error('Erro no login:', error);
+    console.error('[loginWithCPF] Erro no login:', error);
     return {
       success: false,
-      error: 'Erro ao realizar login. Tente novamente.',
+      error: 'Erro ao realizar login. Verifique sua conexão e tente novamente.',
     };
   }
 };
@@ -174,4 +228,3 @@ export const formatCPF = (cpf: string): string => {
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
 };
-
