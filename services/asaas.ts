@@ -9,9 +9,10 @@
  */
 
 import { supabase } from './supabase';
+import { ASAAS_CONFIG } from '../config/asaas.config';
 
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
-const ASAAS_API_URL = 'https://api.asaas.com/v3';
+const ASAAS_API_KEY = ASAAS_CONFIG.apiKey;
+const ASAAS_API_URL = ASAAS_CONFIG.apiUrl;
 
 interface AsaasCustomer {
   id: string;
