@@ -81,7 +81,7 @@ export interface UserPlanView {
 /**
  * Buscar beneficiário por CPF
  */
-export async function getBeneficiaryByCPF(cpf: string): Promise<Beneficiary | null> {
+export async function getBeneficiaryByCPF(cpf: string): Promise<{ success: boolean; data?: Beneficiary; error?: string }> {
   try {
     const cleanCPF = cpf.replace(/\D/g, '');
     
@@ -93,23 +93,23 @@ export async function getBeneficiaryByCPF(cpf: string): Promise<Beneficiary | nu
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // Nenhum registro encontrado
-        return null;
+        return { success: false, error: 'Beneficiário não encontrado.' };
       }
-      throw error;
+      console.error('[getBeneficiaryByCPF] Erro:', error);
+      return { success: false, error: error.message };
     }
 
-    return data;
-  } catch (error) {
+    return { success: true, data };
+  } catch (error: any) {
     console.error('[getBeneficiaryByCPF] Erro:', error);
-    return null;
+    return { success: false, error: error.message };
   }
 }
 
 /**
  * Buscar beneficiário por UUID da RapiDoc
  */
-export async function getBeneficiaryByUUID(beneficiaryUuid: string): Promise<Beneficiary | null> {
+export async function getBeneficiaryByUUID(beneficiaryUuid: string): Promise<{ success: boolean; data?: Beneficiary; error?: string }> {
   try {
     const { data, error } = await supabase
       .from('beneficiaries')
@@ -119,15 +119,16 @@ export async function getBeneficiaryByUUID(beneficiaryUuid: string): Promise<Ben
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return null;
+        return { success: false, error: 'Beneficiário não encontrado.' };
       }
-      throw error;
+      console.error('[getBeneficiaryByUUID] Erro:', error);
+      return { success: false, error: error.message };
     }
 
-    return data;
-  } catch (error) {
+    return { success: true, data };
+  } catch (error: any) {
     console.error('[getBeneficiaryByUUID] Erro:', error);
-    return null;
+    return { success: false, error: error.message };
   }
 }
 
@@ -179,7 +180,7 @@ export async function createBeneficiary(data: {
 /**
  * Buscar plano ativo do usuário
  */
-export async function getActivePlan(userId: string): Promise<UserPlanView | null> {
+export async function getActivePlan(userId: string): Promise<{ success: boolean; data?: UserPlanView; error?: string }> {
   try {
     const { data, error } = await supabase
       .from('v_user_plans')
@@ -190,15 +191,16 @@ export async function getActivePlan(userId: string): Promise<UserPlanView | null
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return null;
+        return { success: false, error: 'Nenhum plano ativo encontrado.' };
       }
-      throw error;
+      console.error('[getActivePlan] Erro:', error);
+      return { success: false, error: error.message };
     }
 
-    return data;
-  } catch (error) {
+    return { success: true, data };
+  } catch (error: any) {
     console.error('[getActivePlan] Erro:', error);
-    return null;
+    return { success: false, error: error.message };
   }
 }
 
@@ -207,7 +209,7 @@ export async function getActivePlan(userId: string): Promise<UserPlanView | null
  */
 export async function getActivePlanByBeneficiaryUUID(
   beneficiaryUuid: string
-): Promise<UserPlanView | null> {
+): Promise<{ success: boolean; data?: UserPlanView; error?: string }> {
   try {
     const { data, error } = await supabase
       .from('v_user_plans')
@@ -218,15 +220,16 @@ export async function getActivePlanByBeneficiaryUUID(
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return null;
+        return { success: false, error: 'Nenhum plano ativo encontrado para o beneficiário.' };
       }
-      throw error;
+      console.error('[getActivePlanByBeneficiaryUUID] Erro:', error);
+      return { success: false, error: error.message };
     }
 
-    return data;
-  } catch (error) {
+    return { success: true, data };
+  } catch (error: any) {
     console.error('[getActivePlanByBeneficiaryUUID] Erro:', error);
-    return null;
+    return { success: false, error: error.message };
   }
 }
 

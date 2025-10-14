@@ -3,8 +3,24 @@
  * Implementa rate limiting, interceptors e tratamento de erros
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
+
+export class RapidocHttpClientError extends Error {
+  public readonly status?: number;
+  public readonly statusText?: string;
+  public readonly url?: string;
+  public readonly method?: string;
+
+  constructor(message: string, status?: number, statusText?: string, url?: string, method?: string) {
+    super(message);
+    this.name = 'RapidocHttpClientError';
+    this.status = status;
+    this.statusText = statusText;
+    this.url = url;
+    this.method = method;
+  }
+}
 
 export class RapidocHttpClient {
   private client: AxiosInstance;
@@ -42,9 +58,8 @@ export class RapidocHttpClient {
         this.logResponse(response);
         return response;
       },
-      (error) => {
-        this.handleResponseError(error);
-        return Promise.reject(error);
+      (error: AxiosError) => {
+        return this.handleResponseError(error);
       }
     );
   }
@@ -78,7 +93,7 @@ export class RapidocHttpClient {
     });
   }
 
-  private handleResponseError(error: any): void {
+  private handleResponseError(error: AxiosError): Promise<never> {
     const errorInfo = {
       url: error.config?.url,
       method: error.config?.method,
@@ -89,6 +104,15 @@ export class RapidocHttpClient {
     };
 
     console.error('[RAPIDOC API] Error:', errorInfo);
+
+    const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido na comunicação com a API';
+    throw new RapidocHttpClientError(
+      errorMessage,
+      error.response?.status,
+      error.response?.statusText,
+      error.config?.url,
+      error.config?.method
+    );
 
     // Tratamento específico por código de erro
     switch (error.response?.status) {
@@ -118,21 +142,33 @@ export class RapidocHttpClient {
 
   public async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.client.get<T>(url, config);
+    if (!response.data) {
+      throw new RapidocHttpClientError('Resposta da API vazia', response.status, response.statusText, response.config.url, response.config.method);
+    }
     return response.data;
   }
 
   public async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.client.post<T>(url, data, config);
+    if (!response.data) {
+      throw new RapidocHttpClientError('Resposta da API vazia', response.status, response.statusText, response.config.url, response.config.method);
+    }
     return response.data;
   }
 
   public async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.client.put<T>(url, data, config);
+    if (!response.data) {
+      throw new RapidocHttpClientError('Resposta da API vazia', response.status, response.statusText, response.config.url, response.config.method);
+    }
     return response.data;
   }
 
   public async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.client.delete<T>(url, config);
+    if (!response.data) {
+      throw new RapidocHttpClientError('Resposta da API vazia', response.status, response.statusText, response.config.url, response.config.method);
+    }
     return response.data;
   }
 

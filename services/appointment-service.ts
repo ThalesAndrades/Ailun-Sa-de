@@ -3,8 +3,9 @@
  * Centraliza todas as operações de agendamento e integra com os demais serviços
  */
 
-import { rapidocHttpClient } from './http-client';
-import { AppointmentRequest, AppointmentData, ApiResponse } from '../types/rapidoc-types';
+import { rapidocHttpClient, RapidocHttpClientError } from './http-client';
+import { AppointmentRequest, AppointmentData } from '../types/rapidoc-types';
+import { ApiResponse } from '../types/api-types';
 import { specialtyService } from './specialty-service';
 import { availabilityService } from './availability-service';
 import { referralService } from './referral-service';
@@ -56,9 +57,10 @@ export class AppointmentService {
         error: response.message || 'Erro ao criar agendamento'
       };
     } catch (error: any) {
+      console.error('[AppointmentService] Erro ao criar agendamento:', error);
       return {
         success: false,
-        error: this.extractErrorMessage(error)
+        error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao criar agendamento'
       };
     }
   }
@@ -96,9 +98,10 @@ export class AppointmentService {
         error: response.message || 'Erro ao buscar agendamentos'
       };
     } catch (error: any) {
+      console.error('[AppointmentService] Erro ao criar agendamento:', error);
       return {
         success: false,
-        error: this.extractErrorMessage(error)
+        error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao criar agendamento'
       };
     }
   }
@@ -135,9 +138,10 @@ export class AppointmentService {
         error: response.message || 'Agendamento não encontrado'
       };
     } catch (error: any) {
+      console.error('[AppointmentService] Erro ao criar agendamento:', error);
       return {
         success: false,
-        error: this.extractErrorMessage(error)
+        error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao criar agendamento'
       };
     }
   }
@@ -167,9 +171,10 @@ export class AppointmentService {
         error: response.success ? undefined : response.message
       };
     } catch (error: any) {
+      console.error('[AppointmentService] Erro ao criar agendamento:', error);
       return {
         success: false,
-        error: this.extractErrorMessage(error)
+        error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao criar agendamento'
       };
     }
   }
@@ -210,9 +215,10 @@ export class AppointmentService {
         approveAdditionalPayment: true
       });
     } catch (error: any) {
+      console.error('[AppointmentService] Erro ao criar agendamento:', error);
       return {
         success: false,
-        error: this.extractErrorMessage(error)
+        error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao criar agendamento'
       };
     }
   }
@@ -241,8 +247,9 @@ export class AppointmentService {
         hasReferral: !!referral,
         referral
       };
-    } catch (error) {
-      return { success: false };
+    } catch (error: any) {
+      console.error('[AppointmentService] Erro ao verificar encaminhamento de especialidade:', error);
+      return { success: false, error: (error instanceof RapidocHttpClientError) ? error.message : 'Erro desconhecido ao verificar encaminhamento' };
     }
   }
 
@@ -270,16 +277,8 @@ export class AppointmentService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
   }
 
-  private extractErrorMessage(error: any): string {
-    if (error.response?.data?.message) {
-      return error.response.data.message;
-    }
-    if (error.message) {
-      return error.message;
-    }
-    return 'Erro desconhecido na comunicação com a API';
-  }
-}
+
 
 // Instância singleton
 export const appointmentService = new AppointmentService();
+

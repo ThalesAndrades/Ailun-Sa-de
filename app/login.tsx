@@ -22,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { loginWithCPF } from '../services/cpfAuthNew';
 import { MessageTemplates } from '../constants/messageTemplates';
+import { ErrorMessages, SuccessMessages } from '../constants/ErrorMessages';
 import {
   showTemplateMessage,
   showErrorAlert,
@@ -212,15 +213,15 @@ export default function LoginScreen() {
     
     // Validar CPF
     if (!cpfString) {
-      setCpfError("CPF é obrigatório");
+      setCpfError(ErrorMessages.AUTH.CPF_REQUIRED);
       triggerShake(cpfShakeAnim);
       isValid = false;
     } else if (numericCPF.length < 11) {
-      setCpfError(`CPF incompleto. Digite todos os 11 dígitos (atual: ${numericCPF.length})`);
+      setCpfError(ErrorMessages.AUTH.CPF_INVALID);
       triggerShake(cpfShakeAnim);
       isValid = false;
     } else if (numericCPF.length > 11) {
-      setCpfError(`CPF muito longo. Deve ter exatamente 11 dígitos (atual: ${numericCPF.length})`);
+      setCpfError(ErrorMessages.AUTH.CPF_INVALID);
       triggerShake(cpfShakeAnim);
       isValid = false;
     }
@@ -230,15 +231,15 @@ export default function LoginScreen() {
     
     // Validar Senha
     if (!senhaString) {
-      setSenhaError("Senha é obrigatória");
+      setSenhaError(ErrorMessages.VALIDATION.REQUIRED);
       triggerShake(senhaShakeAnim);
       isValid = false;
     } else if (senhaString.length < 4) {
-      setSenhaError(`Senha incompleta. Digite todos os 4 dígitos (atual: ${senhaString.length})`);
+      setSenhaError(ErrorMessages.VALIDATION.MIN_LENGTH(4));
       triggerShake(senhaShakeAnim);
       isValid = false;
     } else if (senhaString.length > 4) {
-      setSenhaError(`Senha muito longa. Deve ter exatamente 4 dígitos (atual: ${senhaString.length})`);
+      setSenhaError(ErrorMessages.VALIDATION.MAX_LENGTH(4));
       triggerShake(senhaShakeAnim);
       isValid = false;
     }
