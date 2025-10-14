@@ -120,15 +120,14 @@ export default function DashboardScreen() {
     }
   }, [isAuthenticated, authLoading]);
 
-  // Verificar se há plano ativo - corrigindo o erro de subscriptionData
+  // Verificar plano ativo e redirecionar se necessário
   useEffect(() => {
-    if (!planLoading && plan) {
-      // Verificar se o plano está ativo
-      if (plan.status && plan.status !== 'active') {
-        router.replace('/subscription/inactive');
-      }
+    // Aguardar o carregamento dos dados de assinatura
+    if (subscriptionData && !subscriptionData.hasActiveSubscription) {
+      // Redirecionar para tela de plano inativo
+      router.replace('/subscription/inactive');
     }
-  }, [plan, planLoading]);
+  }, [subscriptionData]);
 
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;

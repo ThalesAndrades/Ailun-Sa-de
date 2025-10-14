@@ -47,7 +47,7 @@ export function CPFAuthProvider({ children }: { children: ReactNode }) {
   const ensureBeneficiaryInSystem = async (sessionData: AuthSession) => {
     try {
       // Verificar se o beneficiário precisa ser registrado no sistema Supabase
-      // usando a tabela beneficiaries existente
+      // (para logs de consultas, notificações, etc.)
       const result = await ensureBeneficiaryProfile(
         sessionData.beneficiaryUuid, // Usar como userId
         sessionData.email,
