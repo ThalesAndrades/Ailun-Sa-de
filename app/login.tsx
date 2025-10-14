@@ -38,6 +38,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [cpfError, setCpfError] = useState('');
   const [senhaError, setSenhaError] = useState('');
+  const [cpfFocused, setCpfFocused] = useState(false);
+  const [senhaFocused, setSenhaFocused] = useState(false);
 
   // Animações
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -45,6 +47,11 @@ export default function LoginScreen() {
   const [buttonScaleAnim] = useState(new Animated.Value(1));
   const [cpfShakeAnim] = useState(new Animated.Value(0));
   const [senhaShakeAnim] = useState(new Animated.Value(0));
+  const [cpfFocusAnim] = useState(new Animated.Value(0));
+  const [senhaFocusAnim] = useState(new Animated.Value(0));
+  const [cardScaleAnim] = useState(new Animated.Value(0.95));
+  const [logoRotateAnim] = useState(new Animated.Value(0));
+  const [pulseAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
     Animated.parallel([
@@ -59,7 +66,37 @@ export default function LoginScreen() {
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
+      Animated.spring(cardScaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoRotateAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.out(Easing.back(1.5)),
+        useNativeDriver: true,
+      }),
     ]).start();
+
+    // Animação de pulso contínua para o botão
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
     // Tentar login biométrico ao iniciar
     checkBiometricAuth();
@@ -103,6 +140,42 @@ export default function LoginScreen() {
         .replace(/(\d{3})(\d{1,2})/, '$1-$2');
     }
     return cpf;
+  };
+
+  const handleCpfFocus = () => {
+    setCpfFocused(true);
+    Animated.timing(cpfFocusAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleCpfBlur = () => {
+    setCpfFocused(false);
+    Animated.timing(cpfFocusAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleSenhaFocus = () => {
+    setSenhaFocused(true);
+    Animated.timing(senhaFocusAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleSenhaBlur = () => {
+    setSenhaFocused(false);
+    Animated.timing(senhaFocusAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
   };
 
   const handleCPFChange = (value: string) => {
@@ -224,7 +297,14 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 40 }]}>
           <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-            <View style={styles.logoContainer}>
+            <Animated.View style={[styles.logoContainer, {
+              transform: [{
+                rotate: logoRotateAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '360deg']
+                })
+              }]
+            }]}>
               <View style={styles.logoCard}>
                 <Image
                   source="https://cdn-ai.onspace.ai/onspace/project/image/SZxF5tJTtjPgSg2rCnCKdZ/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
@@ -232,13 +312,13 @@ export default function LoginScreen() {
                   contentFit="contain"
                 />
               </View>
-            </View>
+            </Animated.View>
             <Text style={styles.title}>Ailun Saúde</Text>
             <Text style={styles.subtitle}>Cuidando da sua saúde com tecnologia</Text>
           </Animated.View>
 
-          <Animated.View style={[styles.formContainer, { opacity: fadeAnim }]}>
-            <View style={styles.card}>
+          <Animated.View style={[styles.formContainer, { opacity: fadeAnim, transform: [{ scale: cardScaleAnim }] }]}>
+            <Animated.View style={styles.card}>
               <Text style={styles.formTitle}>Fazer Login</Text>
               <Text style={styles.formSubtitle}>
                 Digite seus dados para acessar
@@ -246,33 +326,65 @@ export default function LoginScreen() {
 
               {/* CPF Input */}
               <View style={styles.inputContainer}>
-                <View style={[styles.inputWrapper, cpfError ? styles.inputError : {}]}>
+                <Animated.View style={[styles.inputWrapper, cpfError ? styles.inputError : {}, {
+                  borderColor: cpfFocusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['#e9ecef', '#00B4DB']
+                  }),
+                  borderWidth: cpfFocusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 2]
+                  }),
+                  shadowOpacity: cpfFocusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 0.15]
+                  })
+                }]}>
                   <MaterialIcons name="badge" size={24} color="#00B4DB" style={styles.inputIcon} />
                   <Animated.View style={{ transform: [{ translateX: cpfShakeAnim }] }}>
                     <TextInput
                       style={styles.input}
                       placeholder="CPF"
+                      placeholderTextColor="#999"
                       value={cpf}
                       onChangeText={handleCPFChange}
+                      onFocus={handleCpfFocus}
+                      onBlur={handleCpfBlur}
                       keyboardType="numeric"
                       maxLength={14}
                       editable={!loading}
                     />
                   </Animated.View>
-                </View>
+                </Animated.View>
                 {cpfError ? <Text style={styles.errorText}>{cpfError}</Text> : null}
               </View>
 
               {/* Senha Input */}
               <View style={styles.inputContainer}>
-                <View style={[styles.inputWrapper, senhaError ? styles.inputError : {}]}>
+                <Animated.View style={[styles.inputWrapper, senhaError ? styles.inputError : {}, {
+                  borderColor: senhaFocusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['#e9ecef', '#00B4DB']
+                  }),
+                  borderWidth: senhaFocusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 2]
+                  }),
+                  shadowOpacity: senhaFocusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 0.15]
+                  })
+                }]}>
                   <MaterialIcons name="lock" size={24} color="#00B4DB" style={styles.inputIcon} />
                   <Animated.View style={{ transform: [{ translateX: senhaShakeAnim }] }}>
                     <TextInput
                       style={styles.input}
                       placeholder="Senha (4 primeiros dígitos do CPF)"
+                      placeholderTextColor="#999"
                       value={senha}
                       onChangeText={setSenha}
+                      onFocus={handleSenhaFocus}
+                      onBlur={handleSenhaBlur}
                       secureTextEntry={!showPassword}
                       keyboardType="numeric"
                       maxLength={4}
@@ -291,27 +403,29 @@ export default function LoginScreen() {
                       color="#999"
                     />
                   </TouchableOpacity>
-                </View>
+                </Animated.View>
                 {senhaError ? <Text style={styles.errorText}>{senhaError}</Text> : null}
               </View>
 
               {/* Login Button */}
-              <TouchableOpacity
-                style={[styles.loginButton, loading && styles.loginButtonDisabled, { transform: [{ scale: buttonScaleAnim }] }]}
-                onPressIn={() => Animated.spring(buttonScaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
-                onPressOut={() => Animated.spring(buttonScaleAnim, { toValue: 1, useNativeDriver: true }).start()}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <>
-                    <MaterialIcons name="login" size={24} color="white" />
-                    <Text style={styles.loginButtonText}>Entrar</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <Animated.View style={{ transform: [{ scale: !loading ? pulseAnim : 1 }] }}>
+                <TouchableOpacity
+                  style={[styles.loginButton, loading && styles.loginButtonDisabled, { transform: [{ scale: buttonScaleAnim }] }]}
+                  onPressIn={() => Animated.spring(buttonScaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
+                  onPressOut={() => Animated.spring(buttonScaleAnim, { toValue: 1, useNativeDriver: true }).start()}
+                  onPress={handleLogin}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="login" size={24} color="white" />
+                      <Text style={styles.loginButtonText}>Entrar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
 
               {/* Help Links */}
               <View style={styles.helpContainer}>
@@ -325,7 +439,7 @@ export default function LoginScreen() {
                   <Text style={styles.helpLink}>Precisa de ajuda?</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           </Animated.View>
 
           {/* Footer */}
@@ -418,10 +532,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 12,
   },
   formTitle: {
     fontSize: 24,
@@ -448,6 +562,10 @@ const styles = StyleSheet.create({
     borderColor: '#e9ecef',
     paddingHorizontal: 16,
     height: 56,
+    shadowColor: '#00B4DB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputIcon: {
     marginRight: 12,
