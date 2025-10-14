@@ -12,6 +12,13 @@ export interface UserProfile {
   full_name?: string;
   phone?: string;
   birth_date?: string;
+  has_seen_onboarding?: boolean;
+  avatar_url?: string;
+  terms_accepted?: boolean;
+  terms_accepted_at?: string;
+  is_active_beneficiary?: boolean;
+  plan_type?: string;
+  plan_details?: any;
   created_at: string;
   updated_at: string;
 }

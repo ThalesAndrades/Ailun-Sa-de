@@ -2,10 +2,10 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useCPFAuth } from '../hooks/useCPFAuth';
+import { useAuth } from '../hooks/useAuth';
 
 export default function IndexScreen() {
-  const { isAuthenticated, loading, session } = useCPFAuth();
+  const { user, loading, profile } = useAuth();
 
   useEffect(() => {
     const handleNavigation = async () => {
@@ -13,12 +13,18 @@ export default function IndexScreen() {
       if (loading) return;
 
       // Se não está autenticado, ir para login
-      if (!isAuthenticated || !session) {
+      if (!user) {
         router.replace('/login');
         return;
       }
 
-      // Se está autenticado, ir para dashboard
+      // Verificar se precisa ver onboarding
+      if (profile && !profile.has_seen_onboarding) {
+        router.replace('/onboarding/platform-guide');
+        return;
+      }
+
+      // Se está autenticado e já viu onboarding, ir para dashboard
       router.replace('/dashboard');
     };
 
@@ -28,7 +34,7 @@ export default function IndexScreen() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, loading, session]);
+  }, [user, loading, profile]);
 
   return (
     <LinearGradient colors={['#00B4DB', '#0083B0']} style={styles.container}>
