@@ -1,5 +1,5 @@
 import React, { createContext, ReactNode, useState, useEffect } from 'react';
-import { getCurrentSession, logout as logoutService, AuthSession } from '../services/cpfAuth';
+import { getCurrentSession, logout as logoutService, AuthSession } from '../services/cpfAuthNew';
 import { ensureBeneficiaryProfile } from '../services/userProfile';
 
 export interface CPFAuthContextType {

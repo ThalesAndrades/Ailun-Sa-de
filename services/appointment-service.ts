@@ -1,25 +1,32 @@
 /**
  * Serviço de Agendamentos
- * Gerencia operações relacionadas a agendamentos na API RapiDoc
+ * Centraliza todas as operações de agendamento e integra com os demais serviços
  */
 
 import { rapidocHttpClient } from './http-client';
-import { AppointmentData, AppointmentRequest, ApiResponse } from '../types/rapidoc-types';
+import { AppointmentRequest, AppointmentData, ApiResponse } from '../types/rapidoc-types';
+import { specialtyService } from './specialty-service';
+import { availabilityService } from './availability-service';
+import { referralService } from './referral-service';
 
 export class AppointmentService {
   private readonly ENDPOINTS = {
-    APPOINTMENTS: '/appointments'
+    APPOINTMENTS: '/appointments',
+    APPOINTMENT_BY_ID: (id: string) => `/appointments/${id}`,
+    CANCEL_APPOINTMENT: (id: string) => `/appointments/${id}/cancel`
   };
 
   /**
-   * Cria um novo agendamento
+   * Cria um agendamento
    */
   async createAppointment(request: AppointmentRequest): Promise<{
     success: boolean;
     appointment?: AppointmentData;
+    appointmentUrl?: string;
     error?: string;
   }> {
     try {
+      // Validar parâmetros
       const validationError = this.validateAppointmentRequest(request);
       if (validationError) {
         return {
@@ -28,16 +35,19 @@ export class AppointmentService {
         };
       }
 
-      const response = await rapidocHttpClient.post<ApiResponse<AppointmentData>>(
+      console.log('[AppointmentService] Criando agendamento:', request);
+
+      const response = await rapidocHttpClient.post<ApiResponse>(
         this.ENDPOINTS.APPOINTMENTS,
         request
       );
 
       if (response.success) {
-        const appointment = response.appointment || response.data;
+        console.log('[AppointmentService] Agendamento criado com sucesso');
         return {
           success: true,
-          appointment
+          appointment: response.appointment,
+          appointmentUrl: response.appointmentUrl || response.url
         };
       }
 
@@ -54,20 +64,27 @@ export class AppointmentService {
   }
 
   /**
-   * Lista todos os agendamentos
+   * Busca agendamentos de um beneficiário
    */
-  async getAppointments(): Promise<{
+  async getAppointmentsByBeneficiary(beneficiaryUuid: string): Promise<{
     success: boolean;
     appointments?: AppointmentData[];
     error?: string;
   }> {
     try {
-      const response = await rapidocHttpClient.get<ApiResponse<AppointmentData[]>>(
-        this.ENDPOINTS.APPOINTMENTS
+      if (!this.isValidUuid(beneficiaryUuid)) {
+        return {
+          success: false,
+          error: 'UUID do beneficiário inválido'
+        };
+      }
+
+      const response = await rapidocHttpClient.get<ApiResponse>(
+        `${this.ENDPOINTS.APPOINTMENTS}?beneficiaryUuid=${beneficiaryUuid}`
       );
 
       if (response.success) {
-        const appointments = response.data || [];
+        const appointments = response.data || response.appointments || [];
         return {
           success: true,
           appointments: this.processAppointmentsData(appointments)
@@ -76,7 +93,7 @@ export class AppointmentService {
 
       return {
         success: false,
-        error: response.message || 'Erro ao carregar agendamentos'
+        error: response.message || 'Erro ao buscar agendamentos'
       };
     } catch (error: any) {
       return {
@@ -87,30 +104,29 @@ export class AppointmentService {
   }
 
   /**
-   * Obtém um agendamento específico por UUID
+   * Busca um agendamento específico
    */
-  async getAppointmentByUuid(uuid: string): Promise<{
+  async getAppointmentById(appointmentId: string): Promise<{
     success: boolean;
     appointment?: AppointmentData;
     error?: string;
   }> {
     try {
-      if (!this.isValidUuid(uuid)) {
+      if (!this.isValidUuid(appointmentId)) {
         return {
           success: false,
-          error: 'UUID do agendamento inválido'
+          error: 'ID do agendamento inválido'
         };
       }
 
-      const response = await rapidocHttpClient.get<ApiResponse<AppointmentData>>(
-        `${this.ENDPOINTS.APPOINTMENTS}/${uuid}`
+      const response = await rapidocHttpClient.get<ApiResponse>(
+        this.ENDPOINTS.APPOINTMENT_BY_ID(appointmentId)
       );
 
-      if (response.success) {
-        const appointment = response.appointment || response.data;
+      if (response.success && response.appointment) {
         return {
           success: true,
-          appointment
+          appointment: response.appointment
         };
       }
 
@@ -129,20 +145,21 @@ export class AppointmentService {
   /**
    * Cancela um agendamento
    */
-  async cancelAppointment(uuid: string): Promise<{
+  async cancelAppointment(appointmentId: string): Promise<{
     success: boolean;
     error?: string;
   }> {
     try {
-      if (!this.isValidUuid(uuid)) {
+      if (!this.isValidUuid(appointmentId)) {
         return {
           success: false,
-          error: 'UUID do agendamento inválido'
+          error: 'ID do agendamento inválido'
         };
       }
 
-      const response = await rapidocHttpClient.delete<ApiResponse>(
-        `${this.ENDPOINTS.APPOINTMENTS}/${uuid}`
+      const response = await rapidocHttpClient.post<ApiResponse>(
+        this.ENDPOINTS.CANCEL_APPOINTMENT(appointmentId),
+        {}
       );
 
       return {
@@ -157,6 +174,78 @@ export class AppointmentService {
     }
   }
 
+  /**
+   * Fluxo completo de agendamento de especialista
+   */
+  async scheduleSpecialistAppointment(
+    beneficiaryUuid: string,
+    specialtyUuid: string,
+    availabilityUuid: string,
+    referralUuid?: string
+  ): Promise<{
+    success: boolean;
+    appointment?: AppointmentData;
+    appointmentUrl?: string;  
+    error?: string;
+  }> {
+    try {
+      // Verificar se há encaminhamento necessário
+      if (!referralUuid) {
+        const referralCheck = await this.checkSpecialtyReferral(beneficiaryUuid, specialtyUuid);
+        if (!referralCheck.success) {
+          return {
+            success: false,
+            error: 'Encaminhamento médico necessário para esta especialidade'
+          };
+        }
+        referralUuid = referralCheck.referral?.uuid;
+      }
+
+      // Criar agendamento
+      return await this.createAppointment({
+        beneficiaryUuid,
+        availabilityUuid,
+        specialtyUuid,
+        beneficiaryMedicalReferralUuid: referralUuid,
+        approveAdditionalPayment: true
+      });
+    } catch (error: any) {
+      return {
+        success: false,
+        error: this.extractErrorMessage(error)
+      };
+    }
+  }
+
+  /**
+   * Verifica se beneficiário tem encaminhamento para especialidade
+   */
+  private async checkSpecialtyReferral(beneficiaryUuid: string, specialtyUuid: string): Promise<{
+    success: boolean;
+    referral?: any;
+    hasReferral?: boolean;
+  }> {
+    try {
+      const referralsResult = await referralService.getReferralsByBeneficiary(beneficiaryUuid);
+      
+      if (!referralsResult.success) {
+        return { success: false };
+      }
+
+      const referral = referralsResult.referrals?.find(r => 
+        r.specialtyUuid === specialtyUuid && r.status === 'active'
+      );
+
+      return {
+        success: true,
+        hasReferral: !!referral,
+        referral
+      };
+    } catch (error) {
+      return { success: false };
+    }
+  }
+
   private validateAppointmentRequest(request: AppointmentRequest): string | null {
     if (!request.beneficiaryUuid || !this.isValidUuid(request.beneficiaryUuid)) {
       return 'UUID do beneficiário inválido';
@@ -167,18 +256,13 @@ export class AppointmentService {
     if (!request.specialtyUuid || !this.isValidUuid(request.specialtyUuid)) {
       return 'UUID da especialidade inválido';
     }
-    if (request.beneficiaryMedicalReferralUuid && !this.isValidUuid(request.beneficiaryMedicalReferralUuid)) {
-      return 'UUID do encaminhamento médico inválido';
-    }
     return null;
   }
 
   private processAppointmentsData(appointments: AppointmentData[]): AppointmentData[] {
     return appointments.sort((a, b) => {
       // Ordenar por data (mais recentes primeiro)
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateB.getTime() - dateA.getTime();
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
   }
 
@@ -199,4 +283,3 @@ export class AppointmentService {
 
 // Instância singleton
 export const appointmentService = new AppointmentService();
-

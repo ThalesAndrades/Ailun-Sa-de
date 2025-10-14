@@ -1,386 +1,56 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Platform, Alert } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import { supabase, ConsultationLog, ActiveSession, SystemNotification } from '../services/supabase';
+import { useState } from 'react';
 import { useCPFAuth } from './useCPFAuth';
+import { consultationFlowService } from '../services/consultation-flow-integrated';
+import { Platform, Linking } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { showTemplateMessage } from '../utils/alertHelpers';
+import { MessageTemplates } from '../constants/messageTemplates';
 
-interface TemaRapidocResponse {
-  success: boolean;
-  sessionId?: string;
-  consultationUrl?: string;
-  estimatedWaitTime?: number;
-  professionalInfo?: {
-    name: string;
-    specialty: string;
-    rating: number;
-  };
-  message?: string;
-  error?: string;
-  data?: any;
-  requires_subscription?: boolean;
-}
-
-interface UseRapidocCPFReturn {
-  loading: boolean;
-  requestDoctorNow: () => Promise<void>;
-  requestSpecialist: (specialtyArea?: string) => Promise<void>;
-  requestPsychologist: () => Promise<void>;
-  requestNutritionist: () => Promise<void>;
-  consultationHistory: ConsultationLog[];
-  activeSessions: ActiveSession[];
-  notifications: SystemNotification[];
-  cancelConsultation: (consultationId: string) => Promise<void>;
-  markNotificationAsRead: (notificationId: string) => Promise<void>;
-  refreshData: () => Promise<void>;
-  checkSubscription: () => Promise<boolean>;
-  createSubscription: (subscriptionData: any) => Promise<void>;
-}
-
-export function useRapidocCPF(): UseRapidocCPFReturn {
+export function useRapidocCPF() {
+  const { beneficiaryUuid } = useCPFAuth();
   const [loading, setLoading] = useState(false);
-  const [consultationHistory, setConsultationHistory] = useState<ConsultationLog[]>([]);
-  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
-  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
-  const { session, beneficiaryUuid, isAuthenticated } = useCPFAuth();
 
-  const showAlert = useCallback((title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
-  }, []);
-
-  // Load user data using tema-orchestrator
-  const loadUserData = useCallback(async () => {
-    if (!beneficiaryUuid || !isAuthenticated) return;
-
-    try {
-      // Get consultation history via SQL direto (sem auth.users)
-      const { data: historyData } = await supabase
-        .from('consultation_logs')
-        .select('*')
-        .eq('beneficiary_uuid', beneficiaryUuid)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (historyData) {
-        setConsultationHistory(historyData);
-      }
-
-      // Get active sessions via tema-orchestrator
-      const { data: sessionsResponse } = await supabase.functions.invoke('tema-orchestrator', {
-        body: { 
-          action: 'get_active_sessions',
-          beneficiaryUuid 
-        }
-      });
-
-      if (sessionsResponse?.success && sessionsResponse.data) {
-        setActiveSessions(sessionsResponse.data);
-      }
-
-      // Get notifications via tema-orchestrator
-      const { data: notificationsResponse } = await supabase.functions.invoke('tema-orchestrator', {
-        body: { 
-          action: 'get_notifications',
-          beneficiaryUuid 
-        }
-      });
-
-      if (notificationsResponse?.success && notificationsResponse.data) {
-        setNotifications(notificationsResponse.data);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados do usuário:', error);
-    }
-  }, [beneficiaryUuid, isAuthenticated]);
-
-  // Load data when user is authenticated
-  useEffect(() => {
-    if (isAuthenticated && beneficiaryUuid) {
-      loadUserData();
-    }
-  }, [isAuthenticated, beneficiaryUuid, loadUserData]);
-
-  // Check subscription status via Asaas
-  const checkSubscription = useCallback(async (): Promise<boolean> => {
-    if (!beneficiaryUuid || !session) return false;
-
-    try {
-      const { data, error } = await supabase.functions.invoke('tema-orchestrator', {
-        body: { 
-          action: 'check_subscription',
-          customerData: {
-            customerEmail: session.email,
-            customerDocument: session.cpf
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Subscription check error:', error);
-        return false;
-      }
-
-      return data?.subscribed || false;
-    } catch (error) {
-      console.error('Subscription check error:', error);
-      return false;
-    }
-  }, [beneficiaryUuid, session]);
-
-  // Create subscription via tema-orchestrator
-  const createSubscription = useCallback(async (subscriptionData: any) => {
-    if (!beneficiaryUuid || !session) {
-      showAlert('Login Necessário', 'Faça login para criar uma assinatura');
+  const requestDoctorNow = async () => {
+    if (!beneficiaryUuid) {
+      showTemplateMessage(MessageTemplates.errors.notAuthenticated);
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('tema-orchestrator', {
-        body: { 
-          action: 'create_subscription',
-          subscriptionData: {
-            ...subscriptionData,
-            customerDocument: session.cpf,
-            customerEmail: session.email,
-            customerName: session.name,
-            customerPhone: session.phone,
-          }
-        }
-      });
-
-      if (error) {
-        showAlert('Erro', 'Não foi possível criar a assinatura');
-        return;
-      }
-
-      if (!data.success) {
-        showAlert('Erro', data.error || 'Erro ao criar assinatura');
-        return;
-      }
-
-      showAlert('Sucesso', 'Assinatura criada com sucesso!');
-      await loadUserData();
-    } catch (error) {
-      showAlert('Erro', 'Erro inesperado ao criar assinatura');
-    } finally {
-      setLoading(false);
-    }
-  }, [beneficiaryUuid, session, showAlert, loadUserData]);
-
-  // Call tema-orchestrator for consultations
-  const callTemaOrchestrator = useCallback(async (
-    action: string,
-    serviceType: 'doctor' | 'specialist' | 'psychologist' | 'nutritionist',
-    specialty?: string
-  ): Promise<TemaRapidocResponse> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('tema-orchestrator', {
-        body: {
-          action,
-          serviceType,
-          specialty,
-          beneficiaryUuid
-        }
-      });
-
-      if (error) {
-        console.error('Tema Orchestrator Error:', error);
-        return {
-          success: false,
-          error: error.message || 'Erro na comunicação com o serviço médico'
-        };
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Tema Orchestrator Service Error:', error);
-      return {
-        success: false,
-        error: 'Erro interno do serviço'
-      };
-    }
-  }, [beneficiaryUuid]);
-
-  const handleServiceResponse = useCallback(async (
-    response: TemaRapidocResponse, 
-    serviceName: string
-  ) => {
-    if (!response.success) {
-      if (response.requires_subscription) {
-        showAlert(
-          'Assinatura Necessária', 
-          'Você precisa de uma assinatura ativa para acessar os serviços médicos. Deseja assinar agora?'
-        );
-        return;
-      }
-
-      showAlert('Erro no Serviço', response.error || `Não foi possível conectar ao serviço de ${serviceName}`);
-      return;
-    }
-
-    // Reload data after success
-    await loadUserData();
-
-    if (response.data?.session?.consultationUrl) {
-      // Open consultation URL
-      try {
+      showTemplateMessage(MessageTemplates.immediate.connecting);
+      
+      const result = await consultationFlowService.startImmediateDoctorFlow(beneficiaryUuid);
+      
+      if (result.success && result.url) {
+        showTemplateMessage(MessageTemplates.immediate.success);
+        
+        // Abrir URL da consulta
         if (Platform.OS === 'web') {
-          window.open(response.data.session.consultationUrl, '_blank');
+          window.open(result.url, '_blank');
         } else {
-          await WebBrowser.openBrowserAsync(response.data.session.consultationUrl);
+          try {
+            await WebBrowser.openBrowserAsync(result.url);
+          } catch (error) {
+            await Linking.openURL(result.url);
+          }
         }
-      } catch (error) {
-        showAlert('Erro', 'Não foi possível abrir a consulta');
-      }
-    } else {
-      // Show consultation information
-      const waitTimeText = response.estimatedWaitTime 
-        ? `\n\nTempo estimado: ${response.estimatedWaitTime} minutos`
-        : '';
-      
-      const professionalText = response.professionalInfo
-        ? `\n\nProfissional: ${response.professionalInfo.name}\nEspecialidade: ${response.professionalInfo.specialty}\nAvaliação: ${response.professionalInfo.rating}/5`
-        : '';
-
-      const message = response.message || `Sua solicitação de ${serviceName} foi processada com sucesso!`;
-
-      showAlert(
-        'Consulta Solicitada',
-        `${message}${waitTimeText}${professionalText}`
-      );
-    }
-  }, [showAlert, loadUserData]);
-
-  const requestDoctorNow = useCallback(async () => {
-    if (!isAuthenticated || !beneficiaryUuid) {
-      showAlert('Login Necessário', 'Faça login para acessar os serviços médicos');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await callTemaOrchestrator('start_consultation', 'doctor');
-      await handleServiceResponse(response, 'Médico Agora');
-    } catch (error) {
-      showAlert('Erro', 'Erro inesperado ao solicitar consulta médica');
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, beneficiaryUuid, callTemaOrchestrator, handleServiceResponse, showAlert]);
-
-  const requestSpecialist = useCallback(async (specialtyArea = 'Clínica Geral') => {
-    if (!isAuthenticated || !beneficiaryUuid) {
-      showAlert('Login Necessário', 'Faça login para acessar os serviços médicos');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await callTemaOrchestrator('start_consultation', 'specialist', specialtyArea);
-      await handleServiceResponse(response, `Especialista em ${specialtyArea}`);
-    } catch (error) {
-      showAlert('Erro', 'Erro inesperado ao solicitar consulta com especialista');
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, beneficiaryUuid, callTemaOrchestrator, handleServiceResponse, showAlert]);
-
-  const requestPsychologist = useCallback(async () => {
-    if (!isAuthenticated || !beneficiaryUuid) {
-      showAlert('Login Necessário', 'Faça login para acessar os serviços médicos');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await callTemaOrchestrator('start_consultation', 'psychologist');
-      await handleServiceResponse(response, 'Psicólogo');
-    } catch (error) {
-      showAlert('Erro', 'Erro inesperado ao solicitar consulta psicológica');
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, beneficiaryUuid, callTemaOrchestrator, handleServiceResponse, showAlert]);
-
-  const requestNutritionist = useCallback(async () => {
-    if (!isAuthenticated || !beneficiaryUuid) {
-      showAlert('Login Necessário', 'Faça login para acessar os serviços médicos');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await callTemaOrchestrator('start_consultation', 'nutritionist');
-      await handleServiceResponse(response, 'Nutricionista');
-    } catch (error) {
-      showAlert('Erro', 'Erro inesperado ao solicitar consulta nutricional');
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, beneficiaryUuid, callTemaOrchestrator, handleServiceResponse, showAlert]);
-
-  const cancelConsultation = useCallback(async (consultationId: string) => {
-    if (!isAuthenticated) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('consultation_logs')
-        .update({ 
-          status: 'cancelled',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', consultationId)
-        .eq('beneficiary_uuid', beneficiaryUuid);
-
-      if (error) {
-        showAlert('Erro', 'Erro ao cancelar consulta');
       } else {
-        showAlert('Sucesso', 'Consulta cancelada com sucesso');
-        await loadUserData();
+        showTemplateMessage({
+          ...MessageTemplates.immediate.error,
+          message: result.error || MessageTemplates.immediate.error.message
+        });
       }
     } catch (error) {
-      showAlert('Erro', 'Erro inesperado ao cancelar consulta');
+      console.error('Erro ao solicitar médico imediato:', error);
+      showTemplateMessage(MessageTemplates.immediate.error);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, beneficiaryUuid, showAlert, loadUserData]);
-
-  const markNotificationAsRead = useCallback(async (notificationId: string) => {
-    try {
-      await supabase
-        .from('system_notifications')
-        .update({ read: true })
-        .eq('id', notificationId)
-        .eq('beneficiary_uuid', beneficiaryUuid);
-      
-      await loadUserData();
-    } catch (error) {
-      console.error('Erro ao marcar notificação como lida:', error);
-    }
-  }, [beneficiaryUuid, loadUserData]);
-
-  const refreshData = useCallback(async () => {
-    await loadUserData();
-  }, [loadUserData]);
+  };
 
   return {
     loading,
-    requestDoctorNow,
-    requestSpecialist,
-    requestPsychologist,
-    requestNutritionist,
-    consultationHistory,
-    activeSessions,
-    notifications,
-    cancelConsultation,
-    markNotificationAsRead,
-    refreshData,
-    checkSubscription,
-    createSubscription,
+    requestDoctorNow
   };
 }
