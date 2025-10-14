@@ -317,6 +317,11 @@ export async function completeConsultation(
 }
 
 /**
+ * Cancelar consulta (alias para cancelImmediateConsultation)
+ */
+export const cancelConsultation = cancelImmediateConsultation;
+
+/**
  * Obter histórico de consultas do beneficiário
  */
 export async function getConsultationHistory(

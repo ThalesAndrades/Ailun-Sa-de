@@ -84,9 +84,28 @@ export default function PreConsultationScreen() {
         {
           text: 'Sim, Cancelar',
           style: 'destructive',
-          onPress: () => {
-            // TODO: Chamar API para cancelar a consulta
-            router.back();
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              // Chamar API para cancelar a consulta
+              const consultationId = params.consultationId as string;
+              if (consultationId) {
+                const { cancelConsultation } = await import('../../services/rapidoc-consultation-service');
+                const result = await cancelConsultation(consultationId);
+                if (result.success) {
+                  Alert.alert('Consulta Cancelada', 'Sua consulta foi cancelada com sucesso.');
+                } else {
+                  Alert.alert('Erro', result.error || 'Não foi possível cancelar a consulta.');
+                }
+              }
+              router.back();
+            } catch (error) {
+              console.error('Erro ao cancelar consulta:', error);
+              Alert.alert('Erro', 'Ocorreu um erro ao cancelar a consulta.');
+              router.back();
+            } finally {
+              setIsLoading(false);
+            }
           },
         },
       ]

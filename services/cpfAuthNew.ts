@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
+import { RapidocApiAdapter } from './rapidoc-api-adapter';
 
 const AUTH_KEY = '@ailun_auth';
-const RAPIDOC_BASE_URL = RAPIDOC_CONFIG.baseUrl;
-const RAPIDOC_CONTENT_TYPE = RAPIDOC_CONFIG.contentType;
+
 
 export interface AuthSession {
   beneficiaryUuid: string;
@@ -40,51 +39,17 @@ const getBeneficiaryByCPF = async (cpf: string): Promise<{ success: boolean; dat
   try {
     console.log('[Auth] Buscando beneficiário por CPF:', cpf);
 
-    const response = await fetch(`${RAPIDOC_BASE_URL}/beneficiaries`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${RAPIDOC_CONFIG.token}`,
-        'clientId': RAPIDOC_CONFIG.clientId,
-        'Content-Type': RAPIDOC_CONTENT_TYPE,
-      },
-    });
+    const result = await RapidocApiAdapter.getBeneficiaryByCPF(cpf);
 
-    console.log('[Auth] Status da resposta:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Auth] Erro na resposta:', errorText);
+    if (!result.success || !result.data) {
+      console.log('[Auth] Erro ao buscar beneficiário:', result.error);
       return {
         success: false,
-        error: `Erro na API: ${response.status} - ${errorText}`,
+        error: result.error || 'CPF não encontrado no sistema.',
       };
     }
 
-    const data = await response.json();
-    console.log('[Auth] Resposta da API:', { success: data.success, message: data.message, count: data.beneficiaries?.length });
-
-    if (!data.success) {
-      return {
-        success: false,
-        error: data.message || 'Erro ao buscar beneficiário',
-      };
-    }
-
-    // A API retorna um array de beneficiários
-    const beneficiaries = data.beneficiaries || [];
-    console.log('[Auth] Total de beneficiários recebidos:', beneficiaries.length);
-    
-    // Buscar o beneficiário pelo CPF
-    const beneficiary = beneficiaries.find((b: Beneficiary) => b.cpf === cpf);
-
-    if (!beneficiary) {
-      console.log('[Auth] CPF não encontrado na lista de beneficiários');
-      return {
-        success: false,
-        error: 'CPF não encontrado no sistema.',
-      };
-    }
-
+    const beneficiary = result.data as Beneficiary;
     console.log('[Auth] Beneficiário encontrado:', { name: beneficiary.name, isActive: beneficiary.isActive });
 
     if (!beneficiary.isActive) {
@@ -100,9 +65,14 @@ const getBeneficiaryByCPF = async (cpf: string): Promise<{ success: boolean; dat
     };
   } catch (error: any) {
     console.error('[Auth] Erro ao buscar beneficiário:', error);
+    console.error('[Auth] Tipo do erro:', error.constructor.name);
+    console.error('[Auth] Mensagem do erro:', error.message);
+    console.error('[Auth] Stack do erro:', error.stack);
+    
+    // Verificar se é um erro de rede (CORS, DNS, etc.)
     return {
       success: false,
-      error: 'Erro de conexão com o servidor. Verifique sua internet.',
+      error: `Erro de comunicação com a Rapidoc: ${error.message || 'Verifique sua conexão com a internet.'}`,
     };
   }
 };

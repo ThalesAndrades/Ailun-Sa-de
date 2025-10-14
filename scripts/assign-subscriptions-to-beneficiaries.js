@@ -12,8 +12,8 @@ const axios = require("axios");
 const { RAPIDOC_CONFIG } = require("../config/rapidoc-config");
 
 // Configuração do Supabase
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const SUPABASE_URL = "https://bmtieinegditdeijyslu.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtdGllaW5lZ2RpdGRlaWp5c2x1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTA2MTIsImV4cCI6MjA3NTQ2NjYxMn0.6kIwU2VEVUaI1WGb5Wz37AVNuay4nkroJrWT-WYZUWI";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /**

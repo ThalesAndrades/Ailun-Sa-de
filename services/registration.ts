@@ -6,6 +6,8 @@
 import { supabase } from './supabase';
 import { createAsaasCustomer, createSubscription } from './asaas';
 import { createBeneficiary } from './beneficiary-service';
+import { auditService, AuditEventType, AuditEventStatus } from './audit-service';
+import { createSubscriptionPlan } from './subscription-plan-service';
 
 export interface RegistrationData {
   // Dados Pessoais
@@ -66,6 +68,19 @@ export async function processRegistration(
 ): Promise<RegistrationResult> {
   try {
     console.log('[processRegistration] Iniciando registro:', data.email);
+    
+    // Registrar evento de início de cadastro
+    await auditService.logEvent({
+      eventType: AuditEventType.SIGNUP_STARTED,
+      userEmail: data.email,
+      status: AuditEventStatus.PENDING,
+      eventData: {
+        fullName: data.fullName,
+        cpf: data.cpf,
+        serviceType: data.serviceType,
+        memberCount: data.memberCount,
+      },
+    });
 
     // 1. Criar beneficiário na RapiDoc
     console.log('[processRegistration] Criando beneficiário na RapiDoc...');
@@ -85,11 +100,32 @@ export async function processRegistration(
     const beneficiaryUuid = beneficiaryResult.data.uuid;
     console.log('[processRegistration] Beneficiário criado:', beneficiaryUuid);
 
-    // 2. Criar perfil do usuário no Supabase
+    // 2. Criar usuário no Supabase Auth
+    console.log('[processRegistration] Criando usuário no Supabase Auth...');
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.cpf.replace(/\D/g, ''), // Senha temporária = CPF sem formatação
+      options: {
+        data: {
+          full_name: data.fullName,
+          cpf: data.cpf,
+        },
+      },
+    });
+
+    if (authError || !authData.user) {
+      throw new Error(`Erro ao criar usuário: ${authError?.message || 'Usuário não criado'}`);
+    }
+
+    const userId = authData.user.id;
+    console.log('[processRegistration] Usuário criado:', userId);
+
+    // 3. Criar perfil do usuário no Supabase
     console.log('[processRegistration] Criando perfil no Supabase...');
     const { error: profileError } = await supabase
       .from('user_profiles')
       .insert({
+        user_id: userId,
         beneficiary_uuid: beneficiaryUuid,
         full_name: data.fullName,
         cpf: data.cpf.replace(/\D/g, ''),
@@ -118,7 +154,9 @@ export async function processRegistration(
       throw new Error(`Erro ao criar perfil: ${profileError.message}`);
     }
 
-    // 3. Criar cliente no Asaas
+    console.log('[processRegistration] Perfil criado com sucesso');
+
+    // 4. Criar cliente no Asaas
     console.log('[processRegistration] Criando cliente no Asaas...');
     const asaasCustomer = await createAsaasCustomer({
       name: data.fullName,
@@ -135,7 +173,20 @@ export async function processRegistration(
 
     console.log('[processRegistration] Cliente Asaas criado:', asaasCustomer.id);
 
-    // 4. Processar pagamento baseado no método escolhido
+    // 5. Registrar evento de início de pagamento
+    await auditService.logEvent({
+      eventType: AuditEventType.PAYMENT_INITIATED,
+      userId,
+      userEmail: data.email,
+      status: AuditEventStatus.PENDING,
+      eventData: {
+        paymentMethod: data.paymentMethod,
+        totalPrice: data.totalPrice,
+        asaasCustomerId: asaasCustomer.id,
+      },
+    });
+
+    // 6. Processar pagamento baseado no método escolhido
     let paymentResult: any = {};
 
     if (data.paymentMethod === 'credit_card' && data.creditCard) {
@@ -199,7 +250,53 @@ export async function processRegistration(
       };
     }
 
+    // 7. Criar plano de assinatura no Supabase
+    console.log('[processRegistration] Criando plano de assinatura no Supabase...');
+    const planResult = await createSubscriptionPlan({
+      userId,
+      beneficiaryId: beneficiaryUuid,
+      serviceType: data.serviceType,
+      includeSpecialists: data.includeSpecialists,
+      includePsychology: data.includePsychology,
+      includeNutrition: data.includeNutrition,
+      memberCount: data.memberCount,
+      monthlyPrice: data.totalPrice,
+      discountPercentage: data.discountPercentage,
+      asaasCustomerId: asaasCustomer.id,
+      asaasSubscriptionId: paymentResult.asaasSubscriptionId,
+      status: data.paymentMethod === 'credit_card' ? 'active' : 'pending',
+    });
+
+    if (!planResult.success) {
+      console.warn('[processRegistration] Erro ao criar plano, mas registro foi concluído:', planResult.error);
+    }
+
     console.log('[processRegistration] Registro concluído com sucesso!');
+
+    // Registrar evento de cadastro concluído
+    await auditService.logEvent({
+      eventType: AuditEventType.SIGNUP_COMPLETED,
+      userId,
+      userEmail: data.email,
+      status: AuditEventStatus.SUCCESS,
+      eventData: {
+        beneficiaryUuid,
+        asaasCustomerId: asaasCustomer.id,
+        serviceType: data.serviceType,
+        paymentMethod: data.paymentMethod,
+      },
+    });
+
+    // Registrar evento de pagamento bem-sucedido (se aplicável)
+    if (data.paymentMethod === 'credit_card') {
+      await auditService.logEvent({
+        eventType: AuditEventType.PAYMENT_SUCCESS,
+        userId,
+        userEmail: data.email,
+        status: AuditEventStatus.SUCCESS,
+        eventData: paymentResult,
+      });
+    }
 
     return {
       success: true,
@@ -210,6 +307,20 @@ export async function processRegistration(
 
   } catch (error: any) {
     console.error('[processRegistration] Erro no registro:', error);
+    
+    // Registrar evento de falha no cadastro
+    await auditService.logEvent({
+      eventType: AuditEventType.SIGNUP_FAILED,
+      userEmail: data.email,
+      status: AuditEventStatus.FAILURE,
+      errorMessage: error.message,
+      errorStack: error.stack,
+      eventData: {
+        fullName: data.fullName,
+        cpf: data.cpf,
+        serviceType: data.serviceType,
+      },
+    });
     
     return {
       success: false,
