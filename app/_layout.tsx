@@ -57,6 +57,10 @@ export default function RootLayout() {
           <Stack.Screen name="splash" />
           <Stack.Screen name="tutorial" />
           <Stack.Screen name="payment" />
+          <Stack.Screen name="subscription" />
+          <Stack.Screen name="payment-card" />
+          <Stack.Screen name="payment-pix" />
+          <Stack.Screen name="payment-history" />
           <Stack.Screen name="onboarding/step1" />
           <Stack.Screen name="onboarding/step2" />
           <Stack.Screen name="onboarding/step3" />

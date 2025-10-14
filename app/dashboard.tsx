@@ -12,9 +12,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useRapidocCPF } from '../hooks/useRapidocCPF';
 import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
 import { useCPFAuth } from '../hooks/useCPFAuth';
+import { useSubscription, formatSubscriptionStatus } from '../hooks/useSubscription';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
 import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
 import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
@@ -36,7 +38,8 @@ interface ServiceButton {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { loading, requestDoctorNow } = useRapidocCPF();
-  const { user } = useCPFAuth();
+  const { user, beneficiaryUuid } = useCPFAuth();
+  const { subscriptionData } = useSubscription(beneficiaryUuid || '');
   const { 
     hasUnreadNotifications, 
     unreadCount, 
@@ -64,6 +67,10 @@ export default function DashboardScreen() {
     
     showTemplateMessage(MessageTemplates.immediate.starting);
     await requestDoctorNow();
+  };
+
+  const handleSubscription = () => {
+    router.push('/subscription');
   };
 
   const services: ServiceButton[] = [
@@ -137,6 +144,10 @@ export default function DashboardScreen() {
     );
   };
 
+  // Verificar status da assinatura
+  const hasActiveSubscription = subscriptionData?.hasActiveSubscription;
+  const subscriptionStatusInfo = formatSubscriptionStatus(subscriptionData?.status || 'NO_SUBSCRIPTION');
+
   return (
     <LinearGradient 
       colors={['#00B4DB', '#0083B0']} 
@@ -154,6 +165,21 @@ export default function DashboardScreen() {
             <Text style={styles.welcomeText}>Como podemos ajudar hoje?</Text>
           </View>
           <View style={styles.headerRight}>
+            {/* Botão de Assinatura */}
+            <TouchableOpacity 
+              style={[
+                styles.subscriptionButton, 
+                hasActiveSubscription && styles.subscriptionButtonActive
+              ]} 
+              onPress={handleSubscription}
+            >
+              <MaterialIcons 
+                name={hasActiveSubscription ? "stars" : "star"} 
+                size={20} 
+                color={hasActiveSubscription ? "#FFD700" : "white"} 
+              />
+            </TouchableOpacity>
+            
             <TouchableOpacity 
               style={[styles.headerButton, hasUnreadNotifications && styles.headerButtonWithBadge]} 
               onPress={handleNotifications}
@@ -186,6 +212,29 @@ export default function DashboardScreen() {
             <Text style={styles.quickAccessSubtitle}>
               Conecte-se instantaneamente com profissionais de saúde
             </Text>
+
+            {/* Status da Assinatura */}
+            <TouchableOpacity 
+              style={[
+                styles.subscriptionStatus,
+                hasActiveSubscription ? styles.subscriptionStatusActive : styles.subscriptionStatusInactive
+              ]}
+              onPress={handleSubscription}
+            >
+              <MaterialIcons 
+                name={hasActiveSubscription ? "check-circle" : "info"} 
+                size={20} 
+                color={hasActiveSubscription ? "#4CAF50" : "#FF9800"} 
+              />
+              <Text style={[
+                styles.subscriptionStatusText,
+                { color: hasActiveSubscription ? "#4CAF50" : "#FF9800" }
+              ]}>
+                Assinatura: {subscriptionStatusInfo.text}
+              </Text>
+              <MaterialIcons name="arrow-forward" size={16} color="#666" />
+            </TouchableOpacity>
+
             {hasUnreadNotifications && (
               <TouchableOpacity 
                 style={styles.notificationAlert}
@@ -262,6 +311,10 @@ export default function DashboardScreen() {
               <View style={styles.featureItem}>
                 <MaterialIcons name="verified" size={20} color="#00B4DB" />
                 <Text style={styles.featureText}>Profissionais certificados</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <MaterialIcons name="credit-card" size={20} color="#00B4DB" />
+                <Text style={styles.featureText}>Pagamentos seguros via Asaas</Text>
               </View>
               <View style={styles.featureItem}>
                 <MaterialIcons name="notifications_active" size={20} color="#00B4DB" />
@@ -344,6 +397,18 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
   },
+  subscriptionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  subscriptionButtonActive: {
+    backgroundColor: 'rgba(255, 215, 0, 0.3)',
+  },
   headerButton: {
     width: 44,
     height: 44,
@@ -397,6 +462,26 @@ const styles = StyleSheet.create({
   quickAccessSubtitle: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 16,
+  },
+  subscriptionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  subscriptionStatusActive: {
+    backgroundColor: '#E8F5E8',
+  },
+  subscriptionStatusInactive: {
+    backgroundColor: '#FFF3E0',
+  },
+  subscriptionStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
   },
   notificationAlert: {
     flexDirection: 'row',
@@ -404,7 +489,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff3e0',
     padding: 12,
     borderRadius: 8,
-    marginTop: 12,
   },
   notificationAlertText: {
     fontSize: 14,
