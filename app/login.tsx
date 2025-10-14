@@ -124,7 +124,7 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient 
-      colors={['#667eea', '#764ba2']} 
+      colors={['#00B4DB', '#0083B0']} 
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -138,7 +138,7 @@ export default function LoginScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <MaterialIcons name="health-and-safety" size={64} color="white" />
+              <MaterialIcons name="health-and-safety" size={64} color="#00B4DB" />
             </View>
             <Text style={styles.title}>AiLun Saúde</Text>
             <Text style={styles.subtitle}>Sua saúde em primeiro lugar</Text>
@@ -155,7 +155,7 @@ export default function LoginScreen() {
               {/* CPF Input */}
               <View style={styles.inputContainer}>
                 <View style={styles.inputWrapper}>
-                  <MaterialIcons name="badge" size={24} color="#667eea" style={styles.inputIcon} />
+                  <MaterialIcons name="badge" size={24} color="#00B4DB" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="CPF"
@@ -173,7 +173,7 @@ export default function LoginScreen() {
               {/* Senha Input */}
               <View style={styles.inputContainer}>
                 <View style={styles.inputWrapper}>
-                  <MaterialIcons name="lock" size={24} color="#667eea" style={styles.inputIcon} />
+                  <MaterialIcons name="lock" size={24} color="#00B4DB" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="Senha (4 primeiros dígitos do CPF)"
@@ -283,11 +283,16 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
   },
   title: {
     fontSize: 32,
@@ -306,13 +311,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
     shadowRadius: 16,
-    elevation: 8,
+    elevation: 12,
   },
   formTitle: {
     fontSize: 24,
@@ -352,14 +357,14 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   loginButton: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#00B4DB',
     borderRadius: 12,
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#667eea',
+    shadowColor: '#00B4DB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -381,7 +386,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   helpLink: {
-    color: '#667eea',
+    color: '#00B4DB',
     fontSize: 14,
     fontWeight: '500',
   },
