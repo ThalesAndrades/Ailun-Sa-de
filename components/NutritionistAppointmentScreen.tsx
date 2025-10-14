@@ -154,7 +154,7 @@ export default function NutritionistAppointmentScreen({ visible, onClose }: Nutr
         </View>
 
         <View style={styles.content}>
-          {loading && (
+          {Boolean(loading) && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#FFB74D" />
               <Text style={styles.loadingText}>Carregando...</Text>

@@ -1,14 +1,15 @@
+
 /**
  * Serviço para Vinculação de Beneficiários a Planos
  * Automatiza o processo de buscar beneficiários na RapiDoc e criar planos no Supabase
  */
 
 import { beneficiaryService } from './beneficiary-service';
-import { 
-  getBeneficiaryByCPF, 
-  createBeneficiary, 
+import {
+  getBeneficiaryByCPF,
+  createBeneficiary,
   createSubscriptionPlan,
-  getActivePlan 
+  getActivePlan
 } from './beneficiary-plan-service';
 
 export interface VinculacaoResult {
@@ -68,7 +69,7 @@ export async function vincularBeneficiarioAPlano(
   forcarAtualizacao: boolean = false
 ): Promise<VinculacaoResult> {
   try {
-    console.log(`🚀 Iniciando vinculação - CPF: ${cpf}, Plano: ${tipoPlano}`);
+    // Iniciando vinculação de beneficiário
 
     // 1. Validar dados de entrada
     const dadosPlano = PLANOS_DISPONIVEIS[tipoPlano];
@@ -89,15 +90,15 @@ export async function vincularBeneficiarioAPlano(
     }
 
     // 2. Verificar se beneficiário existe no Supabase
-    console.log('🔍 Verificando beneficiário no sistema local...');
+    // Verificando beneficiário no sistema local
     let beneficiarioLocal = await getBeneficiaryByCPF(cpfLimpo);
 
     // 3. Se não existe localmente, buscar na RapiDoc e criar
     if (!beneficiarioLocal) {
-      console.log('📡 Beneficiário não encontrado localmente, buscando na RapiDoc...');
-      
+      // Beneficiário não encontrado localmente, buscando na RapiDoc
+
       const resultadoRapiDoc = await beneficiaryService.getBeneficiaryByCPF(cpfLimpo);
-      
+
       if (!resultadoRapiDoc.success || !resultadoRapiDoc.beneficiary) {
         return {
           success: false,
@@ -107,9 +108,9 @@ export async function vincularBeneficiarioAPlano(
       }
 
       const beneficiarioRapiDoc = resultadoRapiDoc.beneficiary;
-      
+
       // Criar beneficiário no Supabase
-      console.log('📝 Criando beneficiário no sistema local...');
+      // Criando beneficiário no sistema local
       const resultadoCriacao = await createBeneficiary({
         user_id: beneficiarioRapiDoc.uuid, // Usar UUID da RapiDoc como user_id
         beneficiary_uuid: beneficiarioRapiDoc.uuid,
@@ -131,16 +132,16 @@ export async function vincularBeneficiarioAPlano(
       }
 
       beneficiarioLocal = resultadoCriacao.data;
-      console.log('✅ Beneficiário criado no sistema local');
+      // Beneficiário criado no sistema local
     }
 
     // 4. Verificar plano ativo existente
-    console.log('🔍 Verificando plano ativo existente...');
+    // Verificando plano ativo existente
     const planoExistente = await getActivePlan(beneficiarioLocal.user_id);
 
     if (planoExistente && !forcarAtualizacao) {
       if (planoExistente.service_type === dadosPlano.tipo) {
-        console.log('✅ Beneficiário já possui plano do tipo correto');
+        // Beneficiário já possui plano do tipo correto
         return {
           success: true,
           beneficiario: beneficiarioLocal,
@@ -157,7 +158,7 @@ export async function vincularBeneficiarioAPlano(
     }
 
     // 5. Criar novo plano
-    console.log('📦 Criando novo plano...');
+    // Criando novo plano
     const resultadoPlano = await createSubscriptionPlan({
       user_id: beneficiarioLocal.user_id,
       beneficiary_id: beneficiarioLocal.id,
@@ -181,7 +182,7 @@ export async function vincularBeneficiarioAPlano(
       };
     }
 
-    console.log('🎉 Vinculação concluída com sucesso!');
+    // Vinculação concluída com sucesso
     return {
       success: true,
       beneficiario: beneficiarioLocal,
@@ -203,23 +204,23 @@ export async function vincularBeneficiarioAPlano(
  * Vincula especificamente o Thales Andrades ao plano GS Ativo
  */
 export async function vincularThalesGSAtivo(): Promise<VinculacaoResult> {
-  console.log('🎯 Executando vinculação específica: Thales Andrades → GS Ativo');
-  
+  // Executando vinculação específica: Thales Andrades → GS Ativo
+
   const resultado = await vincularBeneficiarioAPlano('05034153912', 'GS_ATIVO');
-  
+
   if (resultado.success) {
-    console.log('✅ Thales Andrades vinculado ao plano GS Ativo com sucesso!');
-    console.log('📋 Detalhes:', {
+    // Thales Andrades vinculado ao plano GS Ativo com sucesso
+    const detalhes = {
       nome: resultado.beneficiario?.full_name,
       cpf: resultado.beneficiario?.cpf,
       plano: resultado.plano?.plan_name,
       valor: resultado.plano?.total_price,
       uuid_rapidoc: resultado.beneficiario?.beneficiary_uuid
-    });
+    }; // Added missing closing brace here
   } else {
     console.error('❌ Falha na vinculação do Thales:', resultado.error);
   }
-  
+
   return resultado;
 }
 
@@ -237,20 +238,20 @@ export function listarPlanosDisponiveis(): DadosPlano[] {
  * Função utilitária para executar via console
  */
 export async function executarVinculacao() {
-  console.log('🚀 SISTEMA DE VINCULAÇÃO DE BENEFICIÁRIOS');
-  console.log('==========================================');
-  
+  // Sistema de vinculação de beneficiários iniciado
+
   try {
     const resultado = await vincularThalesGSAtivo();
-    
+
     if (resultado.success) {
-      console.log('\n🎊 SUCESSO! Vinculação realizada.');
-      console.log('📊 Resumo:');
-      console.log(`👤 Beneficiário: ${resultado.beneficiario?.full_name}`);
-      console.log(`📋 CPF: ${resultado.beneficiario?.cpf}`);
-      console.log(`📦 Plano: ${resultado.plano?.plan_name}`);
-      console.log(`💰 Valor: R$ ${resultado.plano?.total_price}`);
-      console.log(`🔑 UUID RapiDoc: ${resultado.beneficiario?.beneficiary_uuid}`);
+      // Vinculação realizada com sucesso
+      const resumo = {
+        beneficiario: resultado.beneficiario?.full_name,
+        cpf: resultado.beneficiario?.cpf,
+        plano: resultado.plano?.plan_name,
+        valor: resultado.plano?.total_price,
+        uuid: resultado.beneficiario?.beneficiary_uuid
+      };
     } else {
       console.log('\n❌ FALHA na vinculação:');
       console.log(`🚨 Erro: ${resultado.error}`);

@@ -191,7 +191,7 @@ export default function PsychologyAppointmentScreen({ visible, onClose }: Psycho
         </View>
 
         <View style={styles.content}>
-          {loading && (
+          {Boolean(loading) && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#A8E6CF" />
               <Text style={styles.loadingText}>Carregando...</Text>
