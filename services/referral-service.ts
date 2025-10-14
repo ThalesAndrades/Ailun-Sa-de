@@ -26,14 +26,14 @@ export class ReferralService {
     try {
       // Verificar cache
       if (!forceRefresh && this.isCacheValid()) {
-        console.log('[ReferralService] Retornando encaminhamentos do cache');
+        // Retornando encaminhamentos do cache
         return {
           success: true,
           referrals: this.referralsCache!
         };
       }
 
-      console.log('[ReferralService] Buscando encaminhamentos da API');
+      // Buscando encaminhamentos da API
       const response = await rapidocHttpClient.get<ApiResponse<MedicalReferral[]>>(
         this.ENDPOINTS.REFERRALS
       );
@@ -44,7 +44,7 @@ export class ReferralService {
         this.referralsCache = referrals;
         this.cacheTimestamp = Date.now();
 
-        console.log(`[ReferralService] ${referrals.length} encaminhamentos carregados e armazenados em cache`);
+        // Encaminhamentos carregados e armazenados em cache
 
         return {
           success: true,
@@ -127,7 +127,7 @@ export class ReferralService {
    * Limpa o cache de encaminhamentos
    */
   clearCache(): void {
-    console.log('[ReferralService] Cache limpo');
+    // Cache limpo
     this.referralsCache = null;
     this.cacheTimestamp = 0;
   }

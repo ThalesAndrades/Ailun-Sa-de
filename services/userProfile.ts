@@ -6,7 +6,8 @@ export interface UserProfile {
   full_name?: string;
   phone?: string;
   birth_date?: string;
-  has_seen_onboarding: boolean;
+	  has_seen_onboarding?: boolean;
+	  avatar_url?: string;
   terms_accepted?: boolean;
   terms_accepted_at?: string;
   created_at: string;
@@ -61,7 +62,7 @@ export async function ensureBeneficiaryProfile(
       throw insertError;
     }
 
-    console.log('Profile criado para beneficiário:', fullName);
+    // Profile criado para beneficiário
     return { 
       success: true, 
       beneficiaryUuid: userId 

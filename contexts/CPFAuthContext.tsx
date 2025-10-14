@@ -58,7 +58,7 @@ export function CPFAuthProvider({ children }: { children: ReactNode }) {
       );
 
       if (result.success) {
-        console.log('Beneficiário garantido no sistema:', result.beneficiaryUuid);
+        // Beneficiário garantido no sistema
       } else {
         console.error('Erro ao garantir beneficiário:', result.error);
       }

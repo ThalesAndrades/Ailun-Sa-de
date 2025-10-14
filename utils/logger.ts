@@ -1,105 +1,132 @@
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
+/**
+ * Sistema de Logging para Produção
+ * Substitui console.log/console.error em produção por sistema controlado
+ */
+
+const IS_PRODUCTION = process.env.EXPO_PUBLIC_APP_ENV === 'production' || 
+                     process.env.EXPO_PUBLIC_DISABLE_LOGS === 'true';
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
-  timestamp: string;
   level: LogLevel;
-  service: string;
   message: string;
   data?: any;
-  error?: Error;
+  timestamp: Date;
+  source?: string;
 }
 
-export class Logger {
+class Logger {
   private logs: LogEntry[] = [];
-  private readonly MAX_LOGS = 1000;
-  private currentLevel: LogLevel = LogLevel.INFO;
+  private maxLogs = 1000; // Limite de logs mantidos em memória
 
-  setLevel(level: LogLevel): void {
-    this.currentLevel = level;
-  }
-
-  debug(service: string, message: string, data?: any): void {
-    this.log(LogLevel.DEBUG, service, message, data);
-  }
-
-  info(service: string, message: string, data?: any): void {
-    this.log(LogLevel.INFO, service, message, data);
-  }
-
-  warn(service: string, message: string, data?: any): void {
-    this.log(LogLevel.WARN, service, message, data);
-  }
-
-  error(service: string, message: string, error?: Error, data?: any): void {
-    this.log(LogLevel.ERROR, service, message, data, error);
-  }
-
-  private log(level: LogLevel, service: string, message: string, data?: any, error?: Error): void {
-    if (level < this.currentLevel) {
-      return;
-    }
-
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
+  private addLog(level: LogLevel, message: string, data?: any, source?: string) {
+    const logEntry: LogEntry = {
       level,
-      service,
       message,
       data,
-      error,
+      timestamp: new Date(),
+      source
     };
-    this.logs.push(entry);
 
-    // Manter apenas os últimos logs
-    if (this.logs.length > this.MAX_LOGS) {
+    this.logs.push(logEntry);
+
+    // Manter apenas os logs mais recentes
+    if (this.logs.length > this.maxLogs) {
       this.logs.shift();
     }
 
-    // Output no console
-    this.outputToConsole(entry);
-  }
-
-  private outputToConsole(entry: LogEntry): void {
-    const levelNames = ["DEBUG", "INFO", "WARN", "ERROR"];
-    const levelName = levelNames[entry.level];
-    const message = `[${entry.timestamp}] [${levelName}] [${entry.service}] ${entry.message}`;
-
-    switch (entry.level) {
-      case LogLevel.DEBUG:
-        console.debug(message, entry.data);
-        break;
-      case LogLevel.INFO:
-        console.info(message, entry.data);
-        break;
-      case LogLevel.WARN:
-        console.warn(message, entry.data);
-        break;
-      case LogLevel.ERROR:
-        console.error(message, entry.error || entry.data);
-        break;
+    // Em desenvolvimento, sempre mostrar no console
+    if (!IS_PRODUCTION) {
+      const timestamp = logEntry.timestamp.toISOString();
+      const prefix = source ? `[${source}]` : '';
+      
+      switch (level) {
+        case 'debug':
+          console.log(`🐛 ${timestamp} ${prefix} ${message}`, data || '');
+          break;
+        case 'info':
+          console.info(`ℹ️ ${timestamp} ${prefix} ${message}`, data || '');
+          break;
+        case 'warn':
+          console.warn(`⚠️ ${timestamp} ${prefix} ${message}`, data || '');
+          break;
+        case 'error':
+          console.error(`❌ ${timestamp} ${prefix} ${message}`, data || '');
+          break;
+      }
     }
   }
 
+  debug(message: string, data?: any, source?: string) {
+    this.addLog('debug', message, data, source);
+  }
+
+  info(message: string, data?: any, source?: string) {
+    this.addLog('info', message, data, source);
+  }
+
+  warn(message: string, data?: any, source?: string) {
+    this.addLog('warn', message, data, source);
+  }
+
+  error(message: string, data?: any, source?: string) {
+    this.addLog('error', message, data, source);
+    
+    // Em produção, sempre mostrar erros críticos
+    if (IS_PRODUCTION) {
+      console.error(`[AiLun Saúde] ${message}`, data || '');
+    }
+  }
+
+  // Obter logs para debug ou envio para serviços externos
   getLogs(level?: LogLevel): LogEntry[] {
-    if (level !== undefined) {
-      return this.logs.filter((log) => log.level >= level);
+    if (level) {
+      return this.logs.filter(log => log.level === level);
     }
     return [...this.logs];
   }
 
-  clearLogs(): void {
+  // Limpar logs
+  clearLogs() {
     this.logs = [];
   }
 
+  // Exportar logs como string para debug
   exportLogs(): string {
-    return JSON.stringify(this.logs, null, 2);
+    return this.logs
+      .map(log => {
+        const timestamp = log.timestamp.toISOString();
+        const data = log.data ? ` | Data: ${JSON.stringify(log.data)}` : '';
+        const source = log.source ? ` [${log.source}]` : '';
+        return `${log.level.toUpperCase()} | ${timestamp}${source} | ${log.message}${data}`;
+      })
+      .join('\n');
   }
 }
 
-// Instância singleton
+// Instância única do logger
 export const logger = new Logger();
 
+// Substituir console global em produção (opcional)
+if (IS_PRODUCTION) {
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const originalError = console.error;
+
+  console.log = (message: any, ...args: any[]) => {
+    logger.info(String(message), args.length > 0 ? args : undefined);
+  };
+
+  console.warn = (message: any, ...args: any[]) => {
+    logger.warn(String(message), args.length > 0 ? args : undefined);
+  };
+
+  console.error = (message: any, ...args: any[]) => {
+    logger.error(String(message), args.length > 0 ? args : undefined);
+  };
+
+  // Manter console.info inalterado para logs de sistema essenciais
+}
+
+export default logger;

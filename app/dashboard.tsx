@@ -15,9 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useCPFAuth } from '../hooks/useCPFAuth';
+import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
+import { useSubscription } from '../hooks/useSubscription';
 import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
@@ -40,8 +41,9 @@ interface ServiceButton {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { user, beneficiaryUuid, isAuthenticated, loading: authLoading, logout } = useCPFAuth();
+  const { user, profile, beneficiaryUuid, loading: authLoading, signOut } = useAuth();
   const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);
+  const { subscriptionData, loading: subscriptionLoading } = useSubscription(beneficiaryUuid || '');
   const { loading: consultationLoading, requestImmediate } = useRapidocConsultation();
   const { 
     hasUnreadNotifications, 
@@ -134,30 +136,30 @@ export default function DashboardScreen() {
 
   // Auto-refresh notifications
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       const interval = setInterval(() => {
         refreshNotifications();
       }, 30000); // 30 segundos
 
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, refreshNotifications]);
+  }, [user, refreshNotifications]);
 
   // Redirect para login se não autenticado
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !user) {
       router.replace('/login');
     }
-  }, [isAuthenticated, authLoading]);
+  }, [user, authLoading]);
 
   // Verificar plano ativo e redirecionar se necessário
   useEffect(() => {
     // Aguardar o carregamento dos dados de assinatura
-    if (subscriptionData && !subscriptionData.hasActiveSubscription) {
+    if (!subscriptionLoading && subscriptionData && !subscriptionData.hasActiveSubscription) {
       // Redirecionar para tela de plano inativo
       router.replace('/subscription/inactive');
     }
-  }, [subscriptionData]);
+  }, [subscriptionData, subscriptionLoading]);
 
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
@@ -292,7 +294,7 @@ export default function DashboardScreen() {
     showConfirmationAlert(
       'Tem certeza que deseja sair do aplicativo?',
       async () => {
-        await logout();
+        await signOut();
         showTemplateMessage({
           title: '👋 Até Logo',
           message: 'Logout realizado com sucesso!',
@@ -320,7 +322,7 @@ export default function DashboardScreen() {
   }
 
   // Se não autenticado, não renderizar nada (será redirecionado)
-  if (!isAuthenticated) {
+  if (!user) {
     return null;
   }
 
@@ -336,9 +338,15 @@ export default function DashboardScreen() {
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>
-              {user ? getGreetingMessage(user.name.split(' ')[0]) : 'Olá!'}
+              {profile?.full_name ? getGreetingMessage(profile.full_name.split(' ')[0]) : 'Olá!'}
             </Text>
             <Text style={styles.welcomeText}>Como podemos ajudar hoje?</Text>
+            {profile?.is_active_beneficiary && (
+              <View style={styles.beneficiaryBadge}>
+                <MaterialIcons name="verified" size={16} color="#fff" />
+                <Text style={styles.beneficiaryText}>Beneficiário Ativo</Text>
+              </View>
+            )}
           </View>
           <View style={styles.headerRight}>
             {/* Botão de Assinatura */}
@@ -595,6 +603,22 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  beneficiaryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  beneficiaryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   headerRight: {
     flexDirection: 'row',
