@@ -9,7 +9,6 @@ import {
   Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -78,11 +77,10 @@ export default function WelcomeScreen() {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/images/logo-ailun.png')}
-              style={styles.logo}
-              contentFit="contain"
-            />
+            <View style={styles.logoCircle}>
+              <MaterialIcons name="health-and-safety" size={60} color="#fff" />
+            </View>
+            <Text style={styles.logoText}>AiLun</Text>
           </View>
 
           {/* Título */}
@@ -144,9 +142,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
-  logo: {
+  logoCircle: {
     width: 120,
     height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  logoText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 1,
   },
   title: {
     fontSize: 32,
@@ -231,4 +240,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
