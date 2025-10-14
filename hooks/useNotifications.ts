@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { Subscription } from 'expo-modules-core';
 import {
   registerForPushNotifications,
@@ -28,11 +29,23 @@ export function useNotifications(beneficiaryUuid?: string) {
   const notificationListener = useRef<Subscription>();
   const responseListener = useRef<Subscription>();
 
-  // Registrar para notificações push
+  // Registrar para notificações push (apenas em dispositivos móveis)
   useEffect(() => {
-    registerForPushNotifications().then((token) => {
-      setExpoPushToken(token);
-    });
+    if (Platform.OS === 'web') {
+      console.log('Push notifications não são necessárias na web');
+      return;
+    }
+
+    registerForPushNotifications()
+      .then((token) => {
+        if (token) {
+          setExpoPushToken(token);
+          console.log('Token push registrado:', token);
+        }
+      })
+      .catch((error) => {
+        console.error('Erro ao registrar push notifications:', error);
+      });
 
     // Listener para notificações recebidas enquanto o app está aberto
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
@@ -75,7 +88,11 @@ export function useNotifications(beneficiaryUuid?: string) {
       if (result.success && result.data) {
         setNotifications(result.data);
         setUnreadCount(result.data.length);
-        await setNotificationBadge(result.data.length);
+        
+        // Só tentar definir badge em dispositivos móveis
+        if (Platform.OS !== 'web') {
+          await setNotificationBadge(result.data.length);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
@@ -94,7 +111,11 @@ export function useNotifications(beneficiaryUuid?: string) {
           prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
-        await setNotificationBadge(Math.max(0, unreadCount - 1));
+        
+        // Só tentar definir badge em dispositivos móveis
+        if (Platform.OS !== 'web') {
+          await setNotificationBadge(Math.max(0, unreadCount - 1));
+        }
       }
     } catch (error) {
       console.error('Erro ao marcar notificação como lida:', error);
@@ -141,4 +162,3 @@ export function useNotifications(beneficiaryUuid?: string) {
     clearBadge,
   };
 }
-
