@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NotFoundScreen() {
@@ -10,10 +9,21 @@ export default function NotFoundScreen() {
 
   const handleGoHome = () => {
     try {
-      router.replace('/dashboard');
+      // Usar diferentes estratégias de navegação dependendo do ambiente
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      } else {
+        // Para mobile, tentar importar router dinamicamente
+        import('expo-router').then(({ router }) => {
+          router.replace('/dashboard');
+        }).catch(() => {
+          // Fallback silencioso
+        });
+      }
     } catch {
-      // Fallback em caso de erro de navegação
-      router.replace('/');
+      // Fallback silencioso para evitar crashes
     }
   };
 
