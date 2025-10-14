@@ -3,8 +3,8 @@
  * Sistema de pagamentos e assinaturas
  * 
  * Modelo de Negócio:
- * - Assinatura mensal: R$ 89,90
- * - Métodos: Cartão de crédito e PIX
+ * - Assinatura mensal com preço dinâmico baseado no plano escolhido
+ * - Métodos: Cartão de crédito, PIX e Boleto
  * - Renovação automática
  */
 
@@ -12,9 +12,6 @@ import { supabase } from './supabase';
 
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
 const ASAAS_API_URL = 'https://api.asaas.com/v3';
-
-// Valor da assinatura mensal
-const SUBSCRIPTION_VALUE = 89.90;
 
 interface AsaasCustomer {
   id: string;
@@ -184,11 +181,13 @@ export async function getAsaasCustomerByCPF(cpf: string): Promise<AsaasCustomer 
 }
 
 /**
- * Criar assinatura mensal (R$ 89,90)
+ * Criar assinatura mensal com valor dinâmico
  */
 export async function createSubscription(data: {
   customerId: string;
   billingType: 'CREDIT_CARD' | 'PIX';
+  value: number;
+  description?: string;
   creditCard?: CreditCardData;
   creditCardHolderInfo?: CreditCardHolderInfo;
   beneficiaryUuid?: string;
@@ -196,10 +195,10 @@ export async function createSubscription(data: {
   const subscriptionData: any = {
     customer: data.customerId,
     billingType: data.billingType,
-    value: SUBSCRIPTION_VALUE,
+    value: data.value,
     nextDueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Amanhã
     cycle: 'MONTHLY',
-    description: 'Assinatura AiLun Saúde - Acesso completo aos serviços de telemedicina',
+    description: data.description || 'Assinatura AiLun Saúde - Acesso aos serviços de telemedicina',
     externalReference: data.beneficiaryUuid,
   };
 
@@ -235,7 +234,7 @@ export async function createSubscription(data: {
         beneficiary_uuid: data.beneficiaryUuid,
         asaas_subscription_id: subscription.id,
         subscription_status: 'ACTIVE',
-        subscription_value: SUBSCRIPTION_VALUE,
+        subscription_value: data.value,
         subscription_billing_type: data.billingType,
         updated_at: new Date().toISOString(),
       });

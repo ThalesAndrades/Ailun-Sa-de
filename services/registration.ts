@@ -196,6 +196,8 @@ export async function processRegistration(
       const subscription = await createSubscription({
         customerId: asaasCustomer.id,
         billingType: 'CREDIT_CARD',
+        value: data.totalPrice,
+        description: `Assinatura AiLun Saúde - ${data.serviceType} - ${data.fullName}`,
         creditCard: data.creditCard,
         creditCardHolderInfo: {
           name: data.fullName,

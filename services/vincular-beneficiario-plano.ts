@@ -2,6 +2,7 @@
 /**
  * Serviço para Vinculação de Beneficiários a Planos
  * Automatiza o processo de buscar beneficiários na RapiDoc e criar planos no Supabase
+ * Utiliza cálculo dinâmico de preços baseado no plano-calculator
  */
 
 import { beneficiaryService } from './beneficiary-service';
@@ -11,6 +12,7 @@ import {
   createSubscriptionPlan,
   getActivePlan
 } from './beneficiary-plan-service';
+import { calculatePlan, PlanConfig } from '../utils/plan-calculator';
 
 export interface VinculacaoResult {
   success: boolean;
@@ -27,7 +29,6 @@ export interface DadosPlano {
   incluiEspecialistas: boolean;
   incluiPsicologia: boolean;
   incluiNutricao: boolean;
-  preco: number;
 }
 
 const PLANOS_DISPONIVEIS: Record<string, DadosPlano> = {
@@ -38,7 +39,6 @@ const PLANOS_DISPONIVEIS: Record<string, DadosPlano> = {
     incluiEspecialistas: true,
     incluiPsicologia: false,
     incluiNutricao: false,
-    preco: 89.90
   },
   'GSP_COMPLETO': {
     nome: 'GSP Completo',
@@ -47,7 +47,6 @@ const PLANOS_DISPONIVEIS: Record<string, DadosPlano> = {
     incluiEspecialistas: true,
     incluiPsicologia: true,
     incluiNutricao: true,
-    preco: 129.90
   },
   'G_BASICO': {
     nome: 'G Básico',
@@ -56,7 +55,6 @@ const PLANOS_DISPONIVEIS: Record<string, DadosPlano> = {
     incluiEspecialistas: false,
     incluiPsicologia: false,
     incluiNutricao: false,
-    preco: 49.90
   }
 };
 
@@ -157,8 +155,17 @@ export async function vincularBeneficiarioAPlano(
       }
     }
 
-    // 5. Criar novo plano
+    // 5. Criar novo plano com cálculo dinâmico de preço
     // Criando novo plano
+    const planConfig: PlanConfig = {
+      includeSpecialists: dadosPlano.incluiEspecialistas,
+      includePsychology: dadosPlano.incluiPsicologia,
+      includeNutrition: dadosPlano.incluiNutricao,
+      memberCount: 1,
+    };
+    
+    const calculatedPlan = calculatePlan(planConfig);
+    
     const resultadoPlano = await createSubscriptionPlan({
       user_id: beneficiarioLocal.user_id,
       beneficiary_id: beneficiarioLocal.id,
@@ -169,9 +176,9 @@ export async function vincularBeneficiarioAPlano(
       include_psychology: dadosPlano.incluiPsicologia,
       include_nutrition: dadosPlano.incluiNutricao,
       member_count: 1,
-      discount_percentage: 0,
-      base_price: dadosPlano.preco,
-      total_price: dadosPlano.preco
+      discount_percentage: calculatedPlan.discountPercentage,
+      base_price: calculatedPlan.basePrice,
+      total_price: calculatedPlan.totalPrice
     });
 
     if (!resultadoPlano.success || !resultadoPlano.data) {
