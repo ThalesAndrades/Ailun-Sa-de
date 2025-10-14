@@ -45,6 +45,7 @@ export const ErrorMessages = {
     NO_DOCTORS_AVAILABLE: 'No momento, não há médicos disponíveis. Por favor, tente novamente em alguns minutos ou agende uma consulta.',
     SCHEDULE_FAILED: 'Não conseguimos agendar sua consulta. Por favor, tente novamente.',
     INVALID_SPECIALTY: 'A especialidade selecionada não é válida. Por favor, escolha outra.',
+    SPECIALTY_NOT_FOUND: 'Especialidade não encontrada. Por favor, tente novamente.',
     NO_SLOTS_AVAILABLE: 'Não há horários disponíveis para esta especialidade no momento. Por favor, tente outro dia ou especialidade.',
     CONSULTATION_NOT_FOUND: 'Não encontramos esta consulta. Por favor, verifique e tente novamente.',
     ALREADY_IN_CONSULTATION: 'Você já está em uma consulta ativa. Por favor, finalize-a antes de iniciar outra.',
