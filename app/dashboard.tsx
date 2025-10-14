@@ -7,7 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
-  Platform
+  Platform,
+  Animated,
+  Easing
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -52,6 +54,51 @@ export default function DashboardScreen() {
   const [psychologyModal, setPsychologyModal] = useState(false);
   const [appointmentsModal, setAppointmentsModal] = useState(false);
   const [notificationsModal, setNotificationsModal] = useState(false);
+
+  // Animações
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.9));
+  const [cardAnimations] = useState([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0)
+  ]);
+
+  // Animações de entrada
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Animar cards em sequência
+    cardAnimations.forEach((anim, index) => {
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 500,
+        delay: index * 100,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+  }, []);
 
   // Auto-refresh notifications
   useEffect(() => {
@@ -157,7 +204,7 @@ export default function DashboardScreen() {
         style={[styles.scrollContainer, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
+        <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>
               {user ? getGreetingMessage(user.name.split(' ')[0]) : 'Olá!'}
@@ -201,9 +248,9 @@ export default function DashboardScreen() {
               <MaterialIcons name="logout" size={24} color="white" />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={styles.content}>
+        <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
           <View style={styles.quickAccessCard}>
             <View style={styles.quickAccessHeader}>
               <MaterialIcons name="speed" size={24} color="#00B4DB" />
@@ -249,14 +296,33 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.servicesGrid}>
-            {services.map((service) => (
-              <TouchableOpacity
+            {services.map((service, index) => (
+              <Animated.View
                 key={service.id}
-                style={[styles.serviceCard, loading && service.id === 'doctor' && styles.serviceCardDisabled]}
-                onPress={service.onPress}
-                activeOpacity={0.8}
-                disabled={loading && service.id === 'doctor'}
+                style={{
+                  opacity: cardAnimations[index],
+                  transform: [
+                    {
+                      translateY: cardAnimations[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0]
+                      })
+                    },
+                    {
+                      scale: cardAnimations[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.9, 1]
+                      })
+                    }
+                  ]
+                }}
               >
+                <TouchableOpacity
+                  style={[styles.serviceCard, loading && service.id === 'doctor' && styles.serviceCardDisabled]}
+                  onPress={service.onPress}
+                  activeOpacity={0.8}
+                  disabled={loading && service.id === 'doctor'}
+                >
                 <LinearGradient
                   colors={service.gradient}
                   style={styles.serviceGradient}
@@ -282,7 +348,8 @@ export default function DashboardScreen() {
                     <MaterialIcons name="arrow-forward" size={20} color="white" />
                   </View>
                 </LinearGradient>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </Animated.View>
             ))}
           </View>
 
@@ -334,7 +401,7 @@ export default function DashboardScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Modals */}
@@ -401,10 +468,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   subscriptionButtonActive: {
     backgroundColor: 'rgba(255, 215, 0, 0.3)',
@@ -413,11 +485,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerButtonWithBadge: {
     backgroundColor: 'rgba(255, 152, 0, 0.3)',
@@ -443,10 +520,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   quickAccessCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 20,
+    padding: 24,
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   quickAccessHeader: {
     flexDirection: 'row',
@@ -501,13 +583,13 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     marginBottom: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   serviceCardDisabled: {
     opacity: 0.7,
@@ -515,16 +597,21 @@ const styles = StyleSheet.create({
   serviceGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
   serviceIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   serviceContent: {
     flex: 1,
