@@ -16,7 +16,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
 import { getBeneficiaryByCPF, canUseService } from '../services/beneficiary-plan-service';
 import { checkSubscriptionStatus } from '../services/asaas';
 import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
@@ -72,35 +71,6 @@ export default function DashboardScreen() {
     new Animated.Value(0),
     new Animated.Value(0)
   ]);
-
-  // Verificar aceite de termos
-  useEffect(() => {
-    const checkTermsAcceptance = async () => {
-      if (isAuthenticated && user) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('terms_accepted')
-            .eq('id', user.id)
-            .single();
-
-          if (error) {
-            console.error('[Dashboard] Erro ao verificar aceite de termos:', error);
-            return;
-          }
-
-          // Se o usuário não aceitou os termos, redirecionar para a tela de aceite
-          if (data && !data.terms_accepted) {
-            router.replace('/signup/terms-acceptance');
-          }
-        } catch (err) {
-          console.error('[Dashboard] Erro inesperado ao verificar termos:', err);
-        }
-      }
-    };
-
-    checkTermsAcceptance();
-  }, [isAuthenticated, user]);
 
   // Animações de entrada
   useEffect(() => {

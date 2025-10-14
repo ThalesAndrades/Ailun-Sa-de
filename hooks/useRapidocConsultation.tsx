@@ -68,24 +68,10 @@ export function useRapidocConsultation() {
         }),
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('[RapidocConsultation] Erro ao parsear JSON da resposta:', jsonError);
-        throw new Error(`Erro de comunicação com a API Rapidoc: ${response.status} ${response.statusText}`);
-      }
+      const data = await response.json();
 
-      if (!response.ok) {
-        const apiErrorMessage = data.message || data.error || 'Erro desconhecido da API Rapidoc';
-        console.error(`[RapidocConsultation] Erro da API (${response.status}):`, apiErrorMessage);
-        throw new Error(`Erro da API Rapidoc: ${apiErrorMessage} (Código: ${response.status})`);
-      }
-
-      if (!data.success) {
-        const apiErrorMessage = data.message || data.error || 'Operação não bem-sucedida na API Rapidoc';
-        console.error('[RapidocConsultation] Operação não bem-sucedida:', apiErrorMessage);
-        throw new Error(`Operação Rapidoc falhou: ${apiErrorMessage}`);
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Erro ao solicitar consulta');
       }
 
       // Se for serviço limitado (psicologia/nutrição), incrementar uso
@@ -101,8 +87,7 @@ export function useRapidocConsultation() {
       };
 
     } catch (err: any) {
-      console.error('[RapidocConsultation] Erro geral na solicitação de consulta:', err);
-      const errorMessage = err.message || 'Ocorreu um erro inesperado ao solicitar a consulta.';
+      const errorMessage = err.message || 'Erro ao solicitar consulta';
       setError(errorMessage);
       return {
         success: false,

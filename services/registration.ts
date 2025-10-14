@@ -8,7 +8,6 @@ import { createAsaasCustomer, createSubscription } from './asaas';
 import { createBeneficiary } from './beneficiary-service';
 import { auditService, AuditEventType, AuditEventStatus } from './audit-service';
 import { createSubscriptionPlan } from './subscription-plan-service';
-import { ASAAS_CONFIG } from '../config/asaas.config';
 
 export interface RegistrationData {
   // Dados Pessoais
@@ -197,8 +196,6 @@ export async function processRegistration(
       const subscription = await createSubscription({
         customerId: asaasCustomer.id,
         billingType: 'CREDIT_CARD',
-        value: data.totalPrice,
-        description: `Assinatura AiLun Saúde - ${data.serviceType} - ${data.fullName}`,
         creditCard: data.creditCard,
         creditCardHolderInfo: {
           name: data.fullName,
@@ -341,12 +338,8 @@ async function createPixPayment(data: {
   description: string;
   beneficiaryUuid: string;
 }): Promise<any> {
-  const ASAAS_API_KEY = ASAAS_CONFIG.apiKey;
-  const ASAAS_API_URL = ASAAS_CONFIG.apiUrl;
-  
-  if (!ASAAS_API_KEY) {
-    throw new Error('Chave API do Asaas não configurada');
-  }
+  const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
+  const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
   const response = await fetch(`${ASAAS_API_URL}/payments`, {
     method: 'POST',
@@ -394,12 +387,8 @@ async function createBoletoPayment(data: {
   description: string;
   beneficiaryUuid: string;
 }): Promise<any> {
-  const ASAAS_API_KEY = ASAAS_CONFIG.apiKey;
-  const ASAAS_API_URL = ASAAS_CONFIG.apiUrl;
-  
-  if (!ASAAS_API_KEY) {
-    throw new Error('Chave API do Asaas não configurada');
-  }
+  const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
+  const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
   // Data de vencimento: 3 dias úteis
   const dueDate = new Date();
@@ -439,12 +428,8 @@ export async function checkPaymentStatus(paymentId: string): Promise<{
   payment?: any;
 }> {
   try {
-    const ASAAS_API_KEY = ASAAS_CONFIG.apiKey;
-    const ASAAS_API_URL = ASAAS_CONFIG.apiUrl;
-    
-    if (!ASAAS_API_KEY) {
-      throw new Error('Chave API do Asaas não configurada');
-    }
+    const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
+    const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
     const response = await fetch(`${ASAAS_API_URL}/payments/${paymentId}`, {
       headers: {

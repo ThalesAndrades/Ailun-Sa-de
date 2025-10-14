@@ -37,6 +37,3 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
-
-# Uploaded content backups (redundant files)
-uploaded_zip_content/

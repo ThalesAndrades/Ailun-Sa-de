@@ -16,9 +16,9 @@ export class RapidocApiAdapter {
   }
 
   private static async request<T>(endpoint: string, options: RequestInit = {}, retries = 0): Promise<RapidocApiResult<T>> {
-    const url = `${RAPIDOC_CONFIG.baseUrl}${endpoint}`;
+    const url = `${RAPIDOC_CONFIG.BASE_URL}${endpoint}`;
     const defaultOptions: RequestInit = {
-      headers: RAPIDOC_CONFIG.headers,
+      headers: RAPIDOC_CONFIG.HEADERS,
       ...options,
     };
 
@@ -46,7 +46,7 @@ export class RapidocApiAdapter {
       console.error(`[RapidocApiAdapter] Erro de conexão com a Rapidoc (tentativa ${retries + 1}/${this.MAX_RETRIES}): ${error.message}`);
       
       // Implementar retry para erros de rede
-      if (retries < this.MAX_RETRIES) {
+      if (retries < this.MAX_RETRIES - 1) {
         const delay = this.RETRY_DELAY_MS * (retries + 1); // Backoff exponencial
         console.log(`[RapidocApiAdapter] Tentando novamente em ${delay}ms...`);
         await this.sleep(delay);
@@ -61,29 +61,28 @@ export class RapidocApiAdapter {
   }
 
   public static async getBeneficiaryByCPF(cpf: string): Promise<RapidocApiResult<any>> {
-    const cleanCPF = cpf.replace(/\D/g, '');
-    const endpoint = `/beneficiaries?cpf=${cleanCPF}`;
-    const result = await this.request<{ success: boolean; data: any[]; message?: string }>(endpoint, {
+    // A API de beneficiários da Rapidoc retorna todos os beneficiários e o filtro é feito localmente.
+    // Isso pode ser otimizado se a API da Rapidoc suportar filtro por CPF diretamente.
+    const result = await this.request<{ success: boolean; beneficiaries: any[]; message?: string }>("/beneficiaries", {
       method: "GET",
     });
 
-    if (!result.success) {
+    if (!result.success || !result.data?.success) {
       return {
         success: false,
-        error: result.error || "Erro ao buscar beneficiário por CPF na Rapidoc.",
+        error: result.error || result.data?.message || "Erro ao buscar lista de beneficiários.",
         status: result.status,
       };
     }
 
-    if (!result.data || result.data.length === 0) {
+    const beneficiary = result.data.beneficiaries.find((b: any) => b.cpf === cpf);
+
+    if (!beneficiary) {
       return {
         success: false,
         error: "CPF não encontrado no sistema Rapidoc.",
       };
     }
-
-    // Assumimos que a API retorna um array, e pegamos o primeiro resultado
-    const beneficiary = result.data[0];
 
     return {
       success: true,
