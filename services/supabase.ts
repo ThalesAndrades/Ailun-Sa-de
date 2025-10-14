@@ -5,6 +5,9 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Exportar também como supabaseClient para compatibilidade
+export const supabaseClient = supabase;
+
 // Tipos para os dados do usuário
 export interface UserProfile {
   id: string;
