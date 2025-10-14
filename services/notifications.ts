@@ -37,7 +37,7 @@ export interface ScheduledNotification {
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
     if (!Device.isDevice) {
-      console.log('Notificações push só funcionam em dispositivos físicos');
+      // Notificações push só funcionam em dispositivos físicos
       return null;
     }
 
@@ -52,13 +52,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('Permissão para notificações negada');
+      // Permissão para notificações negada
       return null;
     }
 
     // Obter token do Expo Push Notification
     const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push token:', token);
+    // Push token obtido com sucesso
 
     // Configurar canal de notificação para Android
     if (Platform.OS === 'android') {
@@ -144,7 +144,7 @@ export async function scheduleLocalNotification(
       trigger: triggerDate,
     });
 
-    console.log(`Notificação agendada para ${triggerDate.toLocaleString()}: ${notificationId}`);
+    // Notificação agendada com sucesso
     return notificationId;
   } catch (error) {
     console.error('Erro ao agendar notificação:', error);
@@ -158,7 +158,7 @@ export async function scheduleLocalNotification(
 export async function cancelScheduledNotification(notificationId: string): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-    console.log(`Notificação ${notificationId} cancelada`);
+    // Notificação cancelada
   } catch (error) {
     console.error('Erro ao cancelar notificação:', error);
     throw error;
@@ -171,7 +171,7 @@ export async function cancelScheduledNotification(notificationId: string): Promi
 export async function cancelAllScheduledNotifications(): Promise<void> {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('Todas as notificações agendadas foram canceladas');
+    // Todas as notificações canceladas
   } catch (error) {
     console.error('Erro ao cancelar todas as notificações:', error);
     throw error;
@@ -313,7 +313,7 @@ export async function scheduleAppointmentReminder(
 
     // Verificar se a data é futura
     if (reminderDate <= new Date()) {
-      console.log('Data do lembrete já passou, não agendando');
+      // Data do lembrete já passou
       return null;
     }
 

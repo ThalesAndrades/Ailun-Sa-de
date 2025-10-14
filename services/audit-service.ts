@@ -1,5 +1,5 @@
 /**
- * Serviço de Auditoria para AiLun Saúde
+ * Serviço de Auditoria para AiLun Saúde - Versão Produção
  * 
  * Este serviço fornece funcionalidades para registrar eventos críticos do sistema,
  * permitindo rastreamento, análise e conformidade com requisitos de auditoria.
@@ -118,7 +118,7 @@ class AuditService {
         '';
       
       if (!supabaseUrl || !supabaseKey) {
-        console.warn('[AuditService] Configuração do Supabase não encontrada. Auditoria desabilitada.');
+        // Configuração do Supabase não encontrada - Auditoria desabilitada
         this.isEnabled = false;
         return;
       }
@@ -127,9 +127,9 @@ class AuditService {
       this.isEnabled = true;
       this.initializeDeviceInfo();
       
-      console.log('[AuditService] Serviço inicializado com sucesso');
+      // AuditService inicializado com sucesso
     } catch (error) {
-      console.error('[AuditService] Erro ao inicializar:', error);
+      // Erro ao inicializar AuditService
       this.isEnabled = false;
     }
   }
@@ -158,7 +158,7 @@ class AuditService {
         };
       }
     } catch (error) {
-      console.warn('[AuditService] Erro ao obter informações do dispositivo:', error);
+      // Erro ao obter informações do dispositivo
       this.deviceInfo = {
         deviceType: 'Unknown',
         platform: Platform.OS,
@@ -175,7 +175,7 @@ class AuditService {
   async logEvent(data: AuditEventData): Promise<{ success: boolean; error?: string }> {
     // Se o serviço não está habilitado, apenas log local
     if (!this.isEnabled) {
-      console.log(`[AuditService] ${data.eventType}:`, data);
+      // Log de auditoria offline registrado
       return { success: true };
     }
 
@@ -202,13 +202,13 @@ class AuditService {
         .insert(logEntry);
 
       if (error) {
-        console.error('[AuditService] Erro ao registrar evento:', error);
+        // Erro ao registrar evento de auditoria
         return { success: false, error: error.message };
       }
 
       return { success: true };
     } catch (error: any) {
-      console.error('[AuditService] Erro inesperado ao registrar evento:', error);
+      // Erro inesperado ao registrar evento de auditoria
       return { success: false, error: error.message };
     }
   }
@@ -253,7 +253,7 @@ class AuditService {
    */
   async getUserAuditTrail(userId: string, limit: number = 100): Promise<AuditLog[]> {
     if (!this.isEnabled) {
-      console.warn('[AuditService] Serviço desabilitado - retornando array vazio');
+      // Serviço de auditoria desabilitado
       return [];
     }
 
@@ -265,13 +265,13 @@ class AuditService {
         });
 
       if (error) {
-        console.error('[AuditService] Erro ao obter trilha de auditoria:', error);
+        // Erro ao obter trilha de auditoria
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('[AuditService] Erro inesperado ao obter trilha de auditoria:', error);
+      // Erro inesperado ao obter trilha de auditoria
       return [];
     }
   }
@@ -284,7 +284,7 @@ class AuditService {
     endDate?: Date
   ): Promise<any[]> {
     if (!this.isEnabled) {
-      console.warn('[AuditService] Serviço desabilitado - retornando array vazio');
+      // Serviço de estatísticas desabilitado
       return [];
     }
 
@@ -296,13 +296,13 @@ class AuditService {
         });
 
       if (error) {
-        console.error('[AuditService] Erro ao obter estatísticas:', error);
+        // Erro ao obter estatísticas de auditoria
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('[AuditService] Erro inesperado ao obter estatísticas:', error);
+      // Erro inesperado ao obter estatísticas
       return [];
     }
   }
@@ -324,7 +324,7 @@ let auditServiceInstance: AuditService | null = null;
 try {
   auditServiceInstance = new AuditService();
 } catch (error) {
-  console.error('[AuditService] Falha na inicialização:', error);
+  // Falha na inicialização do AuditService
   // Criar uma instância mock que não faz nada
   auditServiceInstance = {
     logEvent: async () => ({ success: true }),
@@ -340,4 +340,3 @@ export const auditService = auditServiceInstance!;
 
 // Exporta a classe para casos onde múltiplas instâncias são necessárias
 export default AuditService;
-
