@@ -190,15 +190,15 @@ export default function LoginScreen() {
     }
   };
 
-  const validateFields = () => {
+  const validateFields = (cpfValue: string, senhaValue: string) => {
     // Limpar erros anteriores
     setCpfError('');
     setSenhaError('');
     
     let isValid = true;
     
-    // Validar CPF - mais flexível
-    const cpfString = String(cpf || '').trim();
+    // Validar CPF - usar parâmetros ao invés do estado
+    const cpfString = String(cpfValue || '').trim();
     const numericCPF = cpfString.replace(/\D/g, '');
     
     console.log('[validateFields] CPF original:', cpfString);
@@ -219,8 +219,8 @@ export default function LoginScreen() {
       isValid = false;
     }
 
-    // Validar Senha - mais flexível
-    const senhaString = String(senha || '').trim();
+    // Validar Senha - usar parâmetros ao invés do estado
+    const senhaString = String(senhaValue || '').trim();
     console.log('[validateFields] Senha:', senhaString);
     console.log('[validateFields] Tamanho da senha:', senhaString.length);
     
@@ -265,7 +265,8 @@ export default function LoginScreen() {
     setCpfError('');
     setSenhaError('');
     
-    if (!validateFields()) {
+    // Usar os valores atuais na validação
+    if (!validateFields(cpfValue, senhaValue)) {
       console.log('[LoginScreen] Validação de campos falhou');
       return;
     }
@@ -274,8 +275,8 @@ export default function LoginScreen() {
 
     try {
       // Garantir que cpfValue é uma string e limpar
-      const cpfString = String(cpfValue || cpf).trim();
-      const senhaString = String(senhaValue || senha).trim();
+      const cpfString = String(cpfValue).trim();
+      const senhaString = String(senhaValue).trim();
       
       const numericCPF = cpfString.replace(/\D/g, '');
       console.log('[LoginScreen] Chamando loginWithCPF com CPF:', numericCPF);
