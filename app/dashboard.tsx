@@ -23,8 +23,10 @@ import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
 import { useSubscription } from '../hooks/useSubscription';
 import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
+import { useRealTimeIntegrations } from '../hooks/useRealTimeIntegrations';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
 import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
+import { ConnectionStatus } from '../components/ConnectionStatus';
 import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
 import NutritionistAppointmentScreen from '../components/NutritionistAppointmentScreen';
 import PsychologyAppointmentScreen from '../components/PsychologyAppointmentScreen';
@@ -54,6 +56,7 @@ export default function DashboardScreen() {
     unreadCount, 
     refreshNotifications 
   } = useIntegratedNotifications();
+  const realTimeIntegrations = useRealTimeIntegrations();
   
   // Modal states
   const [specialistModal, setSpecialistModal] = useState(false);
@@ -192,32 +195,48 @@ export default function DashboardScreen() {
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
     
-    // Verificar status da assinatura
-    if (subscriptionStatus && !subscriptionStatus.hasActiveSubscription) {
-      showTemplateMessage({
-        title: '⚠️ Assinatura Inativa',
-        message: 'Sua assinatura está inativa. Por favor, regularize seu pagamento para continuar usando os serviços.',
-        type: 'warning'
+    // Usar integração em tempo real
+    try {
+      const result = await realTimeIntegrations.requestConsultation({
+        beneficiaryUuid,
+        serviceType: 'clinical',
+        priority: 'normal',
       });
-      router.push('/subscription');
-      return;
-    }
 
-    // Verificar se pode usar o serviço
-    if (beneficiaryData?.beneficiary_uuid) {
-      const serviceCheck = await canUseService(beneficiaryData.beneficiary_uuid, 'clinical');
-      if (!serviceCheck.canUse) {
+      if (result.success) {
         showTemplateMessage({
-          title: 'Serviço Indisponível',
-          message: serviceCheck.reason || 'Você não pode usar este serviço no momento.',
+          title: '🏥 Consulta Solicitada',
+          message: result.estimatedWaitTime 
+            ? `Tempo estimado: ${result.estimatedWaitTime} minutos`
+            : 'Conectando você ao médico...',
+          type: 'success'
+        });
+        
+        if (result.sessionUrl) {
+          router.push({
+            pathname: '/consultation/webview',
+            params: { 
+              url: result.sessionUrl,
+              consultationId: result.consultationId 
+            }
+          });
+        } else {
+          router.push('/consultation/request-immediate');
+        }
+      } else {
+        showTemplateMessage({
+          title: '⚠️ Consulta Indisponível',
+          message: result.error || 'Não foi possível solicitar a consulta no momento.',
           type: 'warning'
         });
-        return;
       }
+    } catch (error: any) {
+      showTemplateMessage({
+        title: '❌ Erro na Solicitação',
+        message: 'Tente novamente em alguns instantes.',
+        type: 'error'
+      });
     }
-    
-    // Navegar para tela de solicitação de consulta imediata
-    router.push('/consultation/request-immediate');
   };
 
   const handleSpecialists = async () => {
@@ -403,6 +422,9 @@ export default function DashboardScreen() {
             )}
           </View>
           <View style={styles.headerRight}>
+            {/* Status de Conexão */}
+            <ConnectionStatus compact={true} />
+            
             {/* Botão de Assinatura */}
             <TouchableOpacity 
               style={[
@@ -498,6 +520,9 @@ export default function DashboardScreen() {
                 )}
               </View>
             )}
+
+            {/* Status de Conectividade das Integrações */}
+            <ConnectionStatus showDetails={true} />
 
             {hasUnreadNotifications && (
               <TouchableOpacity 

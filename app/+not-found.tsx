@@ -11,19 +11,18 @@ export default function NotFoundScreen() {
     try {
       // Usar diferentes estratégias de navegação dependendo do ambiente
       if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.location) {
           window.location.href = '/';
         }
       } else {
-        // Para mobile, tentar importar router dinamicamente
-        import('expo-router').then(({ router }) => {
-          router.replace('/dashboard');
-        }).catch(() => {
-          // Fallback silencioso
-        });
+        // Para mobile, redirecionar usando window.location como fallback
+        if (typeof window !== 'undefined' && window.location) {
+          window.location.href = '/dashboard';
+        }
       }
-    } catch {
+    } catch (error) {
       // Fallback silencioso para evitar crashes
+      console.log('Erro na navegação:', error);
     }
   };
 
