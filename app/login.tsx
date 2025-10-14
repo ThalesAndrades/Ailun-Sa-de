@@ -9,19 +9,25 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
+  Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import { loginWithCPF } from '../services/cpfAuth';
 import { MessageTemplates } from '../constants/messageTemplates';
-import { 
-  showTemplateMessage, 
-  showSuccessAlert, 
+import {
+  showTemplateMessage,
   showErrorAlert,
-  showInvalidCPFAlert 
+  showInvalidCPFAlert
 } from '../utils/alertHelpers';
+
+const CPF_KEY = 'last_used_cpf';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -29,8 +35,55 @@ export default function LoginScreen() {
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [cpfError, setCpfError] = useState('');
+  const [senhaError, setSenhaError] = useState('');
 
-  // Formatação do CPF
+  // Animações
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(30));
+  const [buttonScaleAnim] = useState(new Animated.Value(1));
+  const [cpfShakeAnim] = useState(new Animated.Value(0));
+  const [senhaShakeAnim] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Tentar login biométrico ao iniciar
+    checkBiometricAuth();
+  }, []);
+
+  const checkBiometricAuth = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    const lastUsedCPF = await SecureStore.getItemAsync(CPF_KEY);
+
+    if (hasHardware && isEnrolled && lastUsedCPF) {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Login com Biometria',
+        cancelLabel: 'Usar Senha',
+      });
+
+      if (result.success) {
+        const storedPassword = await SecureStore.getItemAsync(lastUsedCPF);
+        if (storedPassword) {
+          handleLogin(lastUsedCPF, storedPassword);
+        }
+      }
+    }
+  };
+
   const formatCPF = (value: string) => {
     const numericValue = value.replace(/\D/g, '');
     if (numericValue.length <= 11) {
@@ -45,62 +98,80 @@ export default function LoginScreen() {
   const handleCPFChange = (value: string) => {
     const formatted = formatCPF(value);
     setCpf(formatted);
-    
-    // Auto-fill senha com os 4 primeiros dígitos
+    if (cpfError) setCpfError('');
+
     const numericCPF = value.replace(/\D/g, '');
     if (numericCPF.length >= 4) {
       setSenha(numericCPF.substring(0, 4));
+      if (senhaError) setSenhaError('');
     }
   };
 
-  const validateCPF = (cpfValue: string): boolean => {
-    const numericCPF = cpfValue.replace(/\D/g, '');
-    return numericCPF.length === 11;
-  };
-
-  const handleLogin = async () => {
+  const validateFields = () => {
+    let isValid = true;
     if (!cpf.trim()) {
-      showTemplateMessage(MessageTemplates.validation.requiredField('CPF'));
-      return;
-    }
-
-    if (!validateCPF(cpf)) {
-      showInvalidCPFAlert();
-      return;
+      setCpfError("CPF é obrigatório");
+      triggerShake(cpfShakeAnim);
+      isValid = false;
+    } else if (cpf.replace(/\D/g, '').length !== 11) {
+      setCpfError("CPF deve ter 11 dígitos");
+      triggerShake(cpfShakeAnim);
+      isValid = false;
     }
 
     if (!senha.trim()) {
-      showTemplateMessage(MessageTemplates.validation.requiredField('Senha'));
-      return;
+      setSenhaError("Senha é obrigatória");
+      triggerShake(senhaShakeAnim);
+      isValid = false;
+    } else if (senha.length !== 4) {
+      setSenhaError("Senha deve ter 4 dígitos");
+      triggerShake(senhaShakeAnim);
+      isValid = false;
     }
+
+    if (!isValid) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+    return isValid;
+  };
+
+  const triggerShake = (shakeAnim: Animated.Value) => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleLogin = async (cpfValue = cpf, senhaValue = senha) => {
+    if (!validateFields()) return;
 
     setLoading(true);
 
     try {
-      const numericCPF = cpf.replace(/\D/g, '');
-      const result = await loginWithCPF(numericCPF, senha);
+      const numericCPF = cpfValue.replace(/\D/g, '');
+      const result = await loginWithCPF(numericCPF, senhaValue);
 
-      if (result.success && result.user) {
-        // Mostrar mensagem de sucesso
-        showTemplateMessage(MessageTemplates.auth.loginSuccess(result.user.name));
-        
-        // Navegar para dashboard após um pequeno delay
+      if (result.success && result.data) {
+        await SecureStore.setItemAsync(CPF_KEY, numericCPF);
+        await SecureStore.setItemAsync(numericCPF, senhaValue);
+
+        showTemplateMessage(MessageTemplates.auth.loginSuccess(result.data.name));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
         setTimeout(() => {
           router.replace('/dashboard');
         }, 1500);
       } else {
-        // Mostrar erro específico
-        if (result.error?.includes('beneficiário não encontrado')) {
-          showErrorAlert('CPF não encontrado no sistema. Verifique se você está cadastrado.');
-        } else if (result.error?.includes('senha incorreta')) {
-          showTemplateMessage(MessageTemplates.auth.loginError);
-        } else {
-          showErrorAlert(result.error || 'Erro inesperado ao fazer login');
-        }
+        showErrorAlert(result.error || 'Erro inesperado');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (error: any) {
       console.error('Erro no login:', error);
       showTemplateMessage(MessageTemplates.errors.network);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
     }
@@ -123,29 +194,21 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient 
-      colors={['#00B4DB', '#0083B0']} 
-      style={styles.container}
-    >
+    <LinearGradient colors={['#667eea', '#764ba2']} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
       >
-        <ScrollView 
-          contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 40 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.header}>
+        <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 40 }]}>
+          <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.logoContainer}>
-              <MaterialIcons name="health-and-safety" size={64} color="#00B4DB" />
+              <MaterialIcons name="health-and-safety" size={64} color="white" />
             </View>
             <Text style={styles.title}>AiLun Saúde</Text>
             <Text style={styles.subtitle}>Sua saúde em primeiro lugar</Text>
-          </View>
+          </Animated.View>
 
-          {/* Form */}
-          <View style={styles.formContainer}>
+          <Animated.View style={[styles.formContainer, { opacity: fadeAnim }]}>
             <View style={styles.card}>
               <Text style={styles.formTitle}>Fazer Login</Text>
               <Text style={styles.formSubtitle}>
@@ -154,54 +217,60 @@ export default function LoginScreen() {
 
               {/* CPF Input */}
               <View style={styles.inputContainer}>
-                <View style={styles.inputWrapper}>
-                  <MaterialIcons name="badge" size={24} color="#00B4DB" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="CPF"
-                    value={cpf}
-                    onChangeText={handleCPFChange}
-                    keyboardType="numeric"
-                    maxLength={14}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!loading}
-                  />
+                <View style={[styles.inputWrapper, cpfError ? styles.inputError : {}]}>
+                  <MaterialIcons name="badge" size={24} color="#667eea" style={styles.inputIcon} />
+                  <Animated.View style={{ transform: [{ translateX: cpfShakeAnim }] }}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="CPF"
+                      value={cpf}
+                      onChangeText={handleCPFChange}
+                      keyboardType="numeric"
+                      maxLength={14}
+                      editable={!loading}
+                    />
+                  </Animated.View>
                 </View>
+                {cpfError ? <Text style={styles.errorText}>{cpfError}</Text> : null}
               </View>
 
               {/* Senha Input */}
               <View style={styles.inputContainer}>
-                <View style={styles.inputWrapper}>
-                  <MaterialIcons name="lock" size={24} color="#00B4DB" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Senha (4 primeiros dígitos do CPF)"
-                    value={senha}
-                    onChangeText={setSenha}
-                    secureTextEntry={!showPassword}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!loading}
-                  />
+                <View style={[styles.inputWrapper, senhaError ? styles.inputError : {}]}>
+                  <MaterialIcons name="lock" size={24} color="#667eea" style={styles.inputIcon} />
+                  <Animated.View style={{ transform: [{ translateX: senhaShakeAnim }] }}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Senha (4 primeiros dígitos do CPF)"
+                      value={senha}
+                      onChangeText={setSenha}
+                      secureTextEntry={!showPassword}
+                      keyboardType="numeric"
+                      maxLength={4}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!loading}
+                    />
+                  </Animated.View>
                   <TouchableOpacity
                     style={styles.eyeIcon}
                     onPress={() => setShowPassword(!showPassword)}
                   >
-                    <MaterialIcons 
-                      name={showPassword ? 'visibility' : 'visibility-off'} 
-                      size={24} 
-                      color="#999" 
+                    <MaterialIcons
+                      name={showPassword ? 'visibility' : 'visibility-off'}
+                      size={24}
+                      color="#999"
                     />
                   </TouchableOpacity>
                 </View>
+                {senhaError ? <Text style={styles.errorText}>{senhaError}</Text> : null}
               </View>
 
               {/* Login Button */}
               <TouchableOpacity
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                style={[styles.loginButton, loading && styles.loginButtonDisabled, { transform: [{ scale: buttonScaleAnim }] }]}
+                onPressIn={() => Animated.spring(buttonScaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
+                onPressOut={() => Animated.spring(buttonScaleAnim, { toValue: 1, useNativeDriver: true }).start()}
                 onPress={handleLogin}
                 disabled={loading}
               >
@@ -220,15 +289,15 @@ export default function LoginScreen() {
                 <TouchableOpacity onPress={handleForgotPassword}>
                   <Text style={styles.helpLink}>Esqueceu a senha?</Text>
                 </TouchableOpacity>
-                
+
                 <View style={styles.helpSeparator} />
-                
+
                 <TouchableOpacity onPress={handleHelp}>
                   <Text style={styles.helpLink}>Precisa de ajuda?</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Footer */}
           <View style={styles.footer}>
@@ -283,16 +352,11 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 120,
     height: 120,
-    borderRadius: 20,
-    backgroundColor: 'white',
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 12,
   },
   title: {
     fontSize: 32,
@@ -311,13 +375,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 8,
   },
   formTitle: {
     fontSize: 24,
@@ -357,14 +421,14 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   loginButton: {
-    backgroundColor: '#00B4DB',
+    backgroundColor: '#667eea',
     borderRadius: 12,
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#00B4DB',
+    shadowColor: '#667eea',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -386,7 +450,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   helpLink: {
-    color: '#00B4DB',
+    color: '#667eea',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -431,8 +495,18 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   footerText: {
-    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
     textAlign: 'center',
   },
+  inputError: {
+    borderColor: '#e74c3c',
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 12,
+  },
 });
+
