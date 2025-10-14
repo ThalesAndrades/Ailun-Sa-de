@@ -59,7 +59,7 @@ export async function ensureBeneficiaryProfile(
       throw insertError;
     }
 
-    console.log('Profile criado para beneficiário:', fullName);
+    // Profile criado para beneficiário
     return { 
       success: true, 
       beneficiaryUuid: userId 

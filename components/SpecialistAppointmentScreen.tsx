@@ -256,12 +256,12 @@ export default function SpecialistAppointmentScreen({ visible, onClose }: Specia
         </View>
 
         <View style={styles.content}>
-          {loading && (
+          {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4ECDC4" />
               <Text style={styles.loadingText}>Carregando...</Text>
             </View>
-          )}
+          ) : null}
 
           {!loading && step === 1 && (
             <Animated.View style={[styles.stepContainer, {

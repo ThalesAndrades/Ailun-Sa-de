@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCPFAuth } from '../hooks/useCPFAuth';
 import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
+import { useSubscription } from '../hooks/useSubscription';
 import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
@@ -41,6 +42,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user, beneficiaryUuid, isAuthenticated, loading: authLoading, logout } = useCPFAuth();
   const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);
+  const { subscriptionData, loading: subscriptionLoading } = useSubscription(beneficiaryUuid || '');
   const { loading: consultationLoading, requestImmediate } = useRapidocConsultation();
   const { 
     hasUnreadNotifications, 
@@ -123,11 +125,11 @@ export default function DashboardScreen() {
   // Verificar plano ativo e redirecionar se necessário
   useEffect(() => {
     // Aguardar o carregamento dos dados de assinatura
-    if (subscriptionData && !subscriptionData.hasActiveSubscription) {
+    if (!subscriptionLoading && subscriptionData && !subscriptionData.hasActiveSubscription) {
       // Redirecionar para tela de plano inativo
       router.replace('/subscription/inactive');
     }
-  }, [subscriptionData]);
+  }, [subscriptionData, subscriptionLoading]);
 
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
