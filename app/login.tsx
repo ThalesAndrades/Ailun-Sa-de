@@ -65,22 +65,31 @@ export default function LoginScreen() {
   }, []);
 
   const checkBiometricAuth = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    const lastUsedCPF = await SecureStore.getItemAsync(CPF_KEY);
+    try {
+      // SecureStore não funciona em ambiente web
+      if (Platform.OS === 'web') {
+        return;
+      }
 
-    if (hasHardware && isEnrolled && lastUsedCPF) {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Login com Biometria',
-        cancelLabel: 'Usar Senha',
-      });
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      const lastUsedCPF = await SecureStore.getItemAsync(CPF_KEY);
 
-      if (result.success) {
-        const storedPassword = await SecureStore.getItemAsync(lastUsedCPF);
-        if (storedPassword) {
-          handleLogin(lastUsedCPF, storedPassword);
+      if (hasHardware && isEnrolled && lastUsedCPF) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Login com Biometria',
+          cancelLabel: 'Usar Senha',
+        });
+
+        if (result.success) {
+          const storedPassword = await SecureStore.getItemAsync(lastUsedCPF);
+          if (storedPassword) {
+            handleLogin(lastUsedCPF, storedPassword);
+          }
         }
       }
+    } catch (error) {
+      console.log('Erro ao verificar autenticação biométrica:', error);
     }
   };
 
@@ -129,7 +138,7 @@ export default function LoginScreen() {
       isValid = false;
     }
 
-    if (!isValid) {
+    if (!isValid && Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
     return isValid;
@@ -155,23 +164,36 @@ export default function LoginScreen() {
       const result = await loginWithCPF(numericCPF, senhaValue);
 
       if (result.success && result.data) {
-        await SecureStore.setItemAsync(CPF_KEY, numericCPF);
-        await SecureStore.setItemAsync(numericCPF, senhaValue);
+        // Salvar credenciais apenas em plataformas nativas
+        if (Platform.OS !== 'web') {
+          try {
+            await SecureStore.setItemAsync(CPF_KEY, numericCPF);
+            await SecureStore.setItemAsync(numericCPF, senhaValue);
+          } catch (error) {
+            console.log('Erro ao salvar credenciais:', error);
+          }
+        }
 
         showTemplateMessage(MessageTemplates.auth.loginSuccess(result.data.name));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
 
         setTimeout(() => {
           router.replace('/dashboard');
         }, 1500);
       } else {
         showErrorAlert(result.error || 'Erro inesperado');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
       }
     } catch (error: any) {
       console.error('Erro no login:', error);
       showTemplateMessage(MessageTemplates.errors.network);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setLoading(false);
     }
