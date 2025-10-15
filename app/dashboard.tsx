@@ -23,7 +23,6 @@ import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
 import { useSubscription } from '../hooks/useSubscription';
 import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
-import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
 import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
 import { ConnectionStatus } from '../components/ConnectionStatus';
