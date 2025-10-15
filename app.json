@@ -45,6 +45,11 @@
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
+    "notification": {
+      "iosDisplayInForeground": true,
+      "androidMode": "default",
+      "androidCollapsedTitle": "#{unread_notifications} novas notificações"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",

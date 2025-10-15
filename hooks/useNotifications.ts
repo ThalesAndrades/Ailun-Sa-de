@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Subscription } from 'expo-modules-core';
 import {
@@ -30,30 +31,42 @@ export function useNotifications(beneficiaryUuid?: string) {
 
   // Registrar para notificações push
   useEffect(() => {
-    registerForPushNotifications().then((token) => {
-      setExpoPushToken(token);
-    });
+    // Só tentar registrar notificações push em plataformas nativas
+    if (Platform.OS !== 'web') {
+      registerForPushNotifications().then((token) => {
+        setExpoPushToken(token);
+      }).catch((error) => {
+        console.log('[useNotifications] Erro ao registrar push notifications:', error);
+        setExpoPushToken(null);
+      });
+    } else {
+      console.log('[useNotifications] Web platform - push notifications desabilitadas');
+      setExpoPushToken(null);
+    }
 
-    // Listener para notificações recebidas enquanto o app está aberto
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Notificação recebida:', notification);
-      // Atualizar lista de notificações
-      if (beneficiaryUuid) {
-        loadUnreadNotifications();
-      }
-    });
+    // Configurar listeners apenas para plataformas nativas
+    if (Platform.OS !== 'web') {
+      // Listener para notificações recebidas enquanto o app está aberto
+      notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+        console.log('Notificação recebida:', notification);
+        // Atualizar lista de notificações
+        if (beneficiaryUuid) {
+          loadUnreadNotifications();
+        }
+      });
 
-    // Listener para quando o usuário interage com a notificação
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Usuário interagiu com notificação:', response);
-      const data = response.notification.request.content.data;
-      
-      // Aqui você pode navegar para a tela específica baseado no tipo
-      if (data.type === 'appointment' || data.type === 'reminder') {
-        // Navegar para tela de detalhes da consulta
-        console.log('Navegar para consulta:', data.appointmentUuid);
-      }
-    });
+      // Listener para quando o usuário interage com a notificação
+      responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log('Usuário interagiu com notificação:', response);
+        const data = response.notification.request.content.data;
+        
+        // Aqui você pode navegar para a tela específica baseado no tipo
+        if (data.type === 'appointment' || data.type === 'reminder') {
+          // Navegar para tela de detalhes da consulta
+          console.log('Navegar para consulta:', data.appointmentUuid);
+        }
+      });
+    }
 
     return () => {
       if (notificationListener.current) {

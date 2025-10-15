@@ -36,8 +36,15 @@ export interface ScheduledNotification {
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
+    // Verificar se é plataforma web
+    if (Platform.OS === 'web') {
+      console.log('[Notifications] Push notifications não suportadas na web - usando fallback');
+      return null;
+    }
+
     if (!Device.isDevice) {
       // Notificações push só funcionam em dispositivos físicos
+      console.log('[Notifications] Executando em simulador - push notifications desabilitadas');
       return null;
     }
 
