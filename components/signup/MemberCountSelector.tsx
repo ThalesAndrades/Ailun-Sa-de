@@ -3,187 +3,212 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface MemberCountSelectorProps {
-  count: number;
-  onCountChange: (count: number) => void;
-  maxCount?: number;
+  memberCount: number;
+  onMemberCountChange: (count: number) => void;
+  maxMembers?: number;
 }
 
 export default function MemberCountSelector({
-  count,
-  onCountChange,
-  maxCount = 10,
+  memberCount,
+  onMemberCountChange,
+  maxMembers = 10,
 }: MemberCountSelectorProps) {
   const increment = () => {
-    if (count < maxCount) {
-      onCountChange(count + 1);
+    if (memberCount < maxMembers) {
+      onMemberCountChange(memberCount + 1);
     }
   };
 
   const decrement = () => {
-    if (count > 1) {
-      onCountChange(count - 1);
+    if (memberCount > 1) {
+      onMemberCountChange(memberCount - 1);
     }
   };
 
-  const getDiscountBadge = () => {
-    const additionalMembers = count - 1;
-    if (additionalMembers === 1) return '10% OFF';
-    if (additionalMembers === 2) return '20% OFF';
-    if (additionalMembers >= 3) return '30% OFF';
-    return null;
+  const getDiscountText = () => {
+    if (memberCount === 1) return '';
+    if (memberCount === 2) return '5% de desconto';
+    if (memberCount <= 4) return '10% de desconto';
+    if (memberCount <= 6) return '15% de desconto';
+    return '20% de desconto';
   };
 
-  const discountBadge = getDiscountBadge();
+  const getDiscountPercent = () => {
+    if (memberCount === 1) return 0;
+    if (memberCount === 2) return 5;
+    if (memberCount <= 4) return 10;
+    if (memberCount <= 6) return 15;
+    return 20;
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Quantas pessoas vão usar o plano?</Text>
-      <Text style={styles.sectionDescription}>
-        Adicione membros da família e ganhe descontos progressivos
-      </Text>
-
-      <View style={styles.selectorContainer}>
+      <View style={styles.selectorRow}>
         <TouchableOpacity
-          style={[styles.button, count === 1 && styles.buttonDisabled]}
+          style={[styles.button, memberCount <= 1 && styles.buttonDisabled]}
           onPress={decrement}
-          disabled={count === 1}
+          disabled={memberCount <= 1}
           activeOpacity={0.7}
         >
           <MaterialIcons
             name="remove"
-            size={28}
-            color={count === 1 ? '#ccc' : '#00B4DB'}
+            size={24}
+            color={memberCount <= 1 ? '#ccc' : '#00B4DB'}
           />
         </TouchableOpacity>
 
         <View style={styles.countContainer}>
-          <Text style={styles.countNumber}>{count}</Text>
+          <Text style={styles.countNumber}>{memberCount}</Text>
           <Text style={styles.countLabel}>
-            {count === 1 ? 'pessoa' : 'pessoas'}
+            {memberCount === 1 ? 'membro' : 'membros'}
           </Text>
-          {discountBadge && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{discountBadge}</Text>
-            </View>
-          )}
         </View>
 
         <TouchableOpacity
-          style={[styles.button, count === maxCount && styles.buttonDisabled]}
+          style={[styles.button, memberCount >= maxMembers && styles.buttonDisabled]}
           onPress={increment}
-          disabled={count === maxCount}
+          disabled={memberCount >= maxMembers}
           activeOpacity={0.7}
         >
           <MaterialIcons
             name="add"
-            size={28}
-            color={count === maxCount ? '#ccc' : '#00B4DB'}
+            size={24}
+            color={memberCount >= maxMembers ? '#ccc' : '#00B4DB'}
           />
         </TouchableOpacity>
       </View>
 
-      {count > 1 && (
-        <View style={styles.benefitsContainer}>
-          <MaterialIcons name="info" size={20} color="#00B4DB" />
-          <Text style={styles.benefitsText}>
-            {count - 1} {count === 2 ? 'membro adicional' : 'membros adicionais'} ={' '}
-            <Text style={styles.benefitsHighlight}>
-              {getDiscountBadge()} de desconto
-            </Text>
-          </Text>
+      {/* Indicador de desconto */}
+      {getDiscountPercent() > 0 && (
+        <View style={styles.discountBadge}>
+          <MaterialIcons name="local-offer" size={16} color="#FFB74D" />
+          <Text style={styles.discountText}>{getDiscountText()}</Text>
         </View>
       )}
+
+      {/* Escala de descontos */}
+      <View style={styles.discountScale}>
+        <Text style={styles.scaleTitle}>Descontos por quantidade de membros:</Text>
+        
+        <View style={styles.scaleRow}>
+          <View style={[styles.scaleItem, memberCount === 1 && styles.scaleItemActive]}>
+            <Text style={[styles.scaleMembers, memberCount === 1 && styles.scaleTextActive]}>1</Text>
+            <Text style={[styles.scaleDiscount, memberCount === 1 && styles.scaleTextActive]}>0%</Text>
+          </View>
+          
+          <View style={[styles.scaleItem, memberCount === 2 && styles.scaleItemActive]}>
+            <Text style={[styles.scaleMembers, memberCount === 2 && styles.scaleTextActive]}>2</Text>
+            <Text style={[styles.scaleDiscount, memberCount === 2 && styles.scaleTextActive]}>5%</Text>
+          </View>
+          
+          <View style={[styles.scaleItem, memberCount >= 3 && memberCount <= 4 && styles.scaleItemActive]}>
+            <Text style={[styles.scaleMembers, memberCount >= 3 && memberCount <= 4 && styles.scaleTextActive]}>3-4</Text>
+            <Text style={[styles.scaleDiscount, memberCount >= 3 && memberCount <= 4 && styles.scaleTextActive]}>10%</Text>
+          </View>
+          
+          <View style={[styles.scaleItem, memberCount >= 5 && memberCount <= 6 && styles.scaleItemActive]}>
+            <Text style={[styles.scaleMembers, memberCount >= 5 && memberCount <= 6 && styles.scaleTextActive]}>5-6</Text>
+            <Text style={[styles.scaleDiscount, memberCount >= 5 && memberCount <= 6 && styles.scaleTextActive]}>15%</Text>
+          </View>
+          
+          <View style={[styles.scaleItem, memberCount >= 7 && styles.scaleItemActive]}>
+            <Text style={[styles.scaleMembers, memberCount >= 7 && styles.scaleTextActive]}>7+</Text>
+            <Text style={[styles.scaleDiscount, memberCount >= 7 && styles.scaleTextActive]}>20%</Text>
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 24,
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  },
-  selectorContainer: {
+  selectorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 16,
   },
   button: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#f0f9ff',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    justifyContent: 'center',
+    borderWidth: 1,
     borderColor: '#00B4DB',
   },
   buttonDisabled: {
     backgroundColor: '#f5f5f5',
-    borderColor: '#e0e0e0',
+    borderColor: '#ccc',
   },
   countContainer: {
     alignItems: 'center',
     marginHorizontal: 40,
-    minWidth: 100,
   },
   countNumber: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: '700',
     color: '#00B4DB',
   },
   countLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
     marginTop: 4,
   },
   discountBadge: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  discountText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-  benefitsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f9ff',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
+    backgroundColor: '#fff3e0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginBottom: 20,
   },
-  benefitsText: {
+  discountText: {
     fontSize: 14,
-    color: '#666',
-    marginLeft: 12,
-    flex: 1,
+    fontWeight: '600',
+    color: '#FF8F00',
+    marginLeft: 4,
   },
-  benefitsHighlight: {
-    fontWeight: '700',
-    color: '#4CAF50',
+  discountScale: {
+    width: '100%',
+  },
+  scaleTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  scaleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  scaleItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginHorizontal: 2,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  scaleItemActive: {
+    backgroundColor: '#00B4DB',
+  },
+  scaleMembers: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 2,
+  },
+  scaleDiscount: {
+    fontSize: 11,
+    color: '#666',
+  },
+  scaleTextActive: {
+    color: '#fff',
   },
 });
-
