@@ -1,381 +1,255 @@
-# Welcome to AiLun Saude
+# AiLun Saúde - README
 
-**AiLun Saude** é uma plataforma de saúde digital que conecta pacientes com profissionais de saúde através de consultas online, gerenciamento de informações médicas e assinaturas de planos de saúde.
+## 🏥 Aplicativo de Telemedicina Completo
 
-## 🏥 Sobre o Projeto
+**AiLun Saúde** é um aplicativo moderno de telemedicina que oferece consultas médicas online, agendamentos com especialistas e um sistema completo de gestão de saúde.
 
-O aplicativo AiLun Saude, construído com **React Native** e **Expo**, oferece uma experiência completa de cuidados com a saúde, integrando:
+### 🚀 Versão Atual: 2.1.0
 
-- 🩺 **Consultas médicas online** (clínico geral, especialistas, psicólogos, nutricionistas)
-- 📋 **Gerenciamento de informações de saúde**
-- 📞 **Contatos de emergência**
-- 💳 **Assinaturas e pagamentos**
-- 🔔 **Notificações em tempo real**
-- 📊 **Histórico de consultas**
+## ✨ Principais Funcionalidades
 
-## 🚀 Tecnologias Principais
+### 🩺 Consultas Médicas
+- **Médico Agora**: Consultas imediatas com clínicos gerais
+- **Especialistas**: Cardiologistas, dermatologistas, neurologistas e mais
+- **Psicólogos**: Cuidado da saúde mental
+- **Nutricionistas**: Planos alimentares personalizados
 
-- **React Native**: 0.79.4
-- **React**: 19.0.0
-- **Expo**: ~53.0.12
-- **Expo Router**: ~5.1.0
-- **Supabase**: ^2.50.0 (Backend completo)
-- **TypeScript**: ~5.8.3
+### 📱 Recursos do Aplicativo
+- Interface moderna e intuitiva
+- Navegação fluida entre telas
+- Notificações em tempo real
+- Histórico completo de consultas
+- Perfil do usuário personalizado
+- Sistema de pagamentos integrado
 
-## 📦 Estrutura do Projeto
+### 🔗 Integrações
+- **RapiDoc**: Plataforma de telemedicina para consultas
+- **Supabase**: Backend completo com autenticação e dados
+- **Asaas**: Processamento de pagamentos
+- **Resend**: Sistema de emails transacionais
 
+## 🛠️ Tecnologias
+
+### Framework Principal
+- **React Native 0.79.3** - Framework mobile multiplataforma
+- **Expo 54** - Plataforma de desenvolvimento
+- **TypeScript 5.8.3** - Tipagem estática
+- **Expo Router 6.0.12** - Navegação baseada em arquivos
+
+### Backend e Serviços
+- **Supabase** - Backend-as-a-Service com PostgreSQL
+- **RapiDoc API** - Serviços de telemedicina
+- **Asaas** - Gateway de pagamentos
+- **Resend** - Emails transacionais
+
+### UI e Experiência
+- **React Native Paper** - Componentes Material Design
+- **Expo Linear Gradient** - Gradientes suaves
+- **React Native Reanimated** - Animações fluidas
+- **Expo Vector Icons** - Ícones consistentes
+
+## 🏗️ Arquitetura
+
+### Estrutura de Pastas
 ```
-Ailun-Sa-de/
-├── app/                    # Telas e navegação (Expo Router)
-│   ├── (tabs)/            # Navegação por abas
-│   ├── onboarding/        # Fluxo de boas-vindas
-│   ├── login.tsx          # Tela de login
-│   └── dashboard.tsx      # Dashboard principal
-├── services/              # Serviços e integrações
-│   ├── supabase.ts       # Cliente Supabase e tipos
-│   ├── auth.ts           # Autenticação
-│   ├── database.ts       # Operações de banco de dados
-│   ├── storage.ts        # Upload/download de arquivos
-│   └── orchestrator.ts   # Orquestração de consultas
-├── hooks/                 # React Hooks personalizados
-│   └── useAuth.ts        # Hook de autenticação
-├── supabase/             # Configuração do Supabase
-│   ├── functions/        # Edge Functions
-│   │   ├── orchestrator/ # Orquestração de consultas
-│   │   ├── rapidoc/      # Integração RapiDoc
-│   │   └── tema-orchestrator/ # Assinaturas Asaas
-│   └── schema.sql        # Schema do banco de dados
-├── docs/                  # Documentação
-│   ├── SUPABASE_INTEGRATION.md  # Guia de uso do Supabase
-│   ├── SUPABASE_SETUP.md        # Configuração do Dashboard
-│   └── EDGE_FUNCTIONS.md        # Documentação das Edge Functions
-├── scripts/              # Scripts utilitários
-│   └── test-supabase.js  # Teste de conexão
-└── constants/            # Constantes e configurações
+📁 ailun-saude/
+├── 📁 app/                    # Páginas do aplicativo (Expo Router)
+│   ├── 📁 (tabs)/            # Navegação por abas
+│   ├── 📁 onboarding/        # Telas de apresentação
+│   ├── 📁 signup/            # Fluxo de cadastro
+│   ├── 📁 consultation/      # Consultas médicas
+│   ├── 📁 profile/           # Perfil do usuário
+│   └── 📁 payment/           # Pagamentos
+├── 📁 components/            # Componentes reutilizáveis
+├── 📁 services/             # Integrações com APIs
+├── 📁 hooks/                # Hooks personalizados
+├── 📁 contexts/             # Contextos React
+├── 📁 constants/            # Constantes e configurações
+├── 📁 utils/                # Utilitários e helpers
+└── 📁 types/                # Definições TypeScript
 ```
 
-## 🔧 Instalação e Configuração
+### Padrão de Arquitetura
+**Services → Hooks → Components → Pages**
 
-### 1. Clonar o Repositório
+- **Services**: Lógica de negócio e integrações
+- **Hooks**: Estado e efeitos colaterais
+- **Components**: Interface do usuário
+- **Pages**: Telas do aplicativo
 
+## 🚀 Como Executar
+
+### Pré-requisitos
+- **Node.js 18+**
+- **npm 8+** ou **yarn**
+- **Expo CLI** (`npm install -g @expo/cli`)
+
+### Instalação
 ```bash
-git clone https://github.com/ThalesAndrades/Ailun-Sa-de.git
-cd Ailun-Sa-de
-```
+# Clonar o repositório
+git clone https://github.com/ailun-saude/ailun-app.git
 
-### 2. Instalar Dependências
-
-```bash
+# Instalar dependências
+cd ailun-app
 npm install
-# ou
-pnpm install
-# ou
-yarn install
+
+# Configurar variáveis de ambiente
+cp .env.example .env
+# Editar .env com suas configurações
 ```
-
-### 3. Configurar Variáveis de Ambiente
-
-O arquivo `.env` já está configurado com as credenciais do Supabase:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://bmtieinegditdeijyslu.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-### 4. Configurar o Supabase
-
-Siga o guia completo em [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md) para:
-
-1. Criar as tabelas do banco de dados
-2. Configurar buckets de Storage
-3. Configurar Edge Functions
-4. Configurar autenticação
-
-**Atalho rápido:**
-```bash
-# 1. Acesse o SQL Editor no Supabase Dashboard
-# 2. Execute o arquivo supabase/schema.sql
-# 3. Crie os buckets: avatars e medical-documents
-```
-
-### 5. Testar a Integração
-
-```bash
-node scripts/test-supabase.js
-```
-
-Você deve ver:
-```
-✅ Autenticação: OK
-✅ Banco de Dados: OK
-✅ Storage: OK
-```
-
-## 🎯 Executar o Projeto
 
 ### Desenvolvimento
-
 ```bash
-npm run start         # Iniciar servidor Expo
-npm run android       # Abrir no Android
-npm run ios           # Abrir no iOS
-npm run web           # Abrir no navegador
+# Iniciar servidor de desenvolvimento
+npm start
+
+# Executar em dispositivo específico
+npm run android    # Android
+npm run ios        # iOS
+npm run web        # Web browser
 ```
 
-### Limpar Cache
-
+### Builds de Produção
 ```bash
-npm run reset-project
+# Build para todas as plataformas
+npm run build:all
+
+# Build específico
+npm run build:android
+npm run build:ios
+
+# Deploy
+npm run submit:android
+npm run submit:ios
 ```
 
-### Lint
+## 🔧 Configuração
 
-```bash
-npm run lint
+### Variáveis de Ambiente
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+# Supabase
+EXPO_PUBLIC_SUPABASE_URL=sua_url_supabase
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave_publica
+
+# RapiDoc
+RAPIDOC_BASE_URL=https://api.rapidoc.com
+RAPIDOC_CLIENT_ID=seu_client_id
+RAPIDOC_TOKEN=seu_token
+
+# Asaas
+ASAAS_API_KEY=sua_chave_asaas
+
+# Resend
+RESEND_API_KEY=sua_chave_resend
 ```
 
-## 🔐 Autenticação
+### Configuração do Supabase
+1. Criar projeto no [Supabase](https://supabase.com)
+2. Executar migrations em `supabase/migrations/`
+3. Configurar Row Level Security (RLS)
+4. Adicionar chaves ao `.env`
 
-### Exemplo de Login
+### Configuração do RapiDoc
+1. Obter credenciais da API RapiDoc
+2. Configurar endpoints em `config/rapidoc.config.ts`
+3. Testar conectividade
 
-```typescript
-import { useAuth } from './hooks/useAuth';
+## 📋 Scripts Disponíveis
 
-function LoginScreen() {
-  const { signIn, loading } = useAuth();
+### Desenvolvimento
+- `npm start` - Inicia servidor Expo
+- `npm run dev` - Modo development client
+- `npm run web` - Executa no browser
 
-  const handleLogin = async () => {
-    const result = await signIn('usuario@email.com', 'senha123');
-    if (result.success) {
-      // Navegar para dashboard
-    }
-  };
+### Testes
+- `npm test` - Executa testes unitários
+- `npm run test:watch` - Testes em modo watch
+- `npm run typecheck` - Verificação de tipos
 
-  return (
-    <Button title="Entrar" onPress={handleLogin} disabled={loading} />
-  );
-}
-```
+### Build e Deploy
+- `npm run build:all` - Build para todas plataformas
+- `npm run submit:android` - Deploy Android
+- `npm run submit:ios` - Deploy iOS
+- `npm run update` - Over-the-air update
 
-### Exemplo de Registro
+### Qualidade
+- `npm run lint` - Análise de código
+- `npm run typecheck` - Verificação TypeScript
 
-```typescript
-import { signUp } from './services/auth';
+## 🔐 Segurança
 
-const result = await signUp('novo@email.com', 'senha123');
-if (result.success) {
-  console.log('Usuário criado!');
-}
-```
+### Autenticação
+- **PKCE Flow** para segurança OAuth
+- **JWT Tokens** com refresh automático
+- **Secure Storage** para tokens sensíveis
 
-## 🏥 Consultas Médicas
+### Proteção de Dados
+- **Row Level Security** no Supabase
+- **Criptografia** de dados sensíveis
+- **Auditoria** de eventos críticos
 
-### Iniciar Consulta
+### APIs
+- **Rate Limiting** para prevenir abuso
+- **HTTPS** obrigatório para todas comunicações
+- **Validação** de entrada em todos endpoints
 
-```typescript
-import { startConsultation } from './services/orchestrator';
+## 📊 Monitoramento
 
-const result = await startConsultation('doctor');
+### Health Checks
+- Verificação automática de integrações
+- Status das APIs em tempo real
+- Alertas de degradação de serviço
 
-if (result.success) {
-  const { consultationUrl, professionalInfo } = result.data.session;
-  console.log('URL da consulta:', consultationUrl);
-  console.log('Profissional:', professionalInfo.name);
-}
-```
+### Logging
+- **Structured Logging** com contexto
+- **Error Tracking** com stack traces
+- **Performance Monitoring** de APIs
 
-### Tipos de Consulta Disponíveis
+### Analytics
+- Eventos de usuário
+- Métricas de performance
+- Relatórios de uso
 
-- `'doctor'` - Clínico Geral
-- `'specialist'` - Especialista (Cardiologia, Dermatologia, etc.)
-- `'psychologist'` - Psicólogo
-- `'nutritionist'` - Nutricionista
+## 🤝 Contribuição
 
-## 💳 Assinaturas
+### Padrões de Código
+- **TypeScript** obrigatório
+- **ESLint** para qualidade de código
+- **Prettier** para formatação
+- **Conventional Commits** para mensagens
 
-### Criar Assinatura
+### Processo de Desenvolvimento
+1. Fork do repositório
+2. Criar branch: `feature/nova-funcionalidade`
+3. Implementar com testes
+4. Executar `npm run typecheck` e `npm run lint`
+5. Criar Pull Request
 
-```typescript
-import { createSubscription } from './services/orchestrator';
-
-const result = await createSubscription({
-  customerName: 'João Silva',
-  customerEmail: 'joao@email.com',
-  customerPhone: '11987654321',
-  customerDocument: '12345678900',
-});
-
-if (result.success) {
-  console.log('Valor: R$', result.data.value); // R$ 89,90/mês
-  console.log('Boleto:', result.data.payment_url);
-}
-```
-
-## 📱 Funcionalidades Principais
-
-### 1. Perfil do Usuário
-
-```typescript
-import { getUserProfile, upsertUserProfile } from './services/database';
-
-// Buscar perfil
-const profile = await getUserProfile(userId);
-
-// Atualizar perfil
-await upsertUserProfile(userId, {
-  full_name: 'João Silva',
-  phone: '(11) 98765-4321',
-  birth_date: '1990-01-15',
-});
-```
-
-### 2. Informações de Saúde
-
-```typescript
-import { upsertHealthInfo } from './services/database';
-
-await upsertHealthInfo(userId, {
-  weight: 75,
-  height: 175,
-  blood_type: 'O+',
-  allergies: 'Penicilina',
-});
-```
-
-### 3. Upload de Documentos
-
-```typescript
-import { uploadMedicalDocument } from './services/storage';
-
-const result = await uploadMedicalDocument(userId, fileUri, 'exame.pdf');
-if (result.success) {
-  console.log('Documento salvo:', result.path);
-}
-```
-
-### 4. Notificações em Tempo Real
-
-```typescript
-import { supabase } from './services/supabase';
-
-const subscription = supabase
-  .channel('notifications')
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'system_notifications',
-    filter: `user_id=eq.${userId}`,
-  }, (payload) => {
-    console.log('Nova notificação:', payload.new);
-  })
-  .subscribe();
-```
-
-## 📚 Documentação Completa
-
-- **[Integração do Supabase](docs/SUPABASE_INTEGRATION.md)** - Guia completo de uso
-- **[Configuração do Supabase](docs/SUPABASE_SETUP.md)** - Setup do Dashboard
-- **[Edge Functions](docs/EDGE_FUNCTIONS.md)** - Documentação das funções
-- **[README Supabase](SUPABASE_README.md)** - Resumo da integração
-
-## 🛠️ Dependências Principais
-
-### Core
-- `@supabase/supabase-js` - Cliente Supabase
-- `@react-native-async-storage/async-storage` - Armazenamento local
-- `expo-router` - Navegação baseada em arquivos
-
-### UI/UX
-- `react-native-paper` - Componentes Material Design
-- `@expo/vector-icons` - Ícones
-- `lottie-react-native` - Animações
-- `lucide-react-native` - Ícones modernos
-
-### Mídia
-- `expo-image-picker` - Seleção de imagens
-- `expo-document-picker` - Seleção de documentos
-- `expo-camera` - Acesso à câmera
-
-### Comunicação
-- `expo-notifications` - Notificações push
-- `expo-location` - Geolocalização
-- `@react-native-community/netinfo` - Status da rede
-
-### Pagamentos
-- `@stripe/stripe-react-native` - Integração Stripe (futuro)
-
-## 🔒 Segurança
-
-- ✅ **Row Level Security (RLS)** habilitado em todas as tabelas
-- ✅ **Autenticação JWT** via Supabase Auth
-- ✅ **Políticas de acesso** por usuário
-- ✅ **Validação de dados** no backend (Edge Functions)
-- ✅ **HTTPS** obrigatório para todas as requisições
-
-## 🧪 Testes
-
-```bash
-# Testar conexão com Supabase
-node scripts/test-supabase.js
-
-# Executar testes (quando disponíveis)
-npm test
-```
-
-## 🚀 Deploy
-
-### Edge Functions
-
-```bash
-# Instalar Supabase CLI
-npm install -g supabase
-
-# Deploy de todas as funções
-supabase functions deploy
-```
-
-### Aplicativo Mobile
-
-```bash
-# Build para Android
-eas build --platform android
-
-# Build para iOS
-eas build --platform ios
-```
-
-## 🤝 Contribuindo
-
-1. Fork o repositório
-2. Crie uma branch (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
+### Issues e Bugs
+- Usar templates de issue
+- Incluir logs e steps to reproduce
+- Testar em múltiplas plataformas
 
 ## 📄 Licença
 
-Este projeto é privado. Para colaboração, entre em contato com a AiLun Tecnologia.
+Este projeto é propriedade da **AiLun Saúde** e está licenciado sob termos proprietários.
 
-## 📧 Contato
+Para uso comercial, entre em contato: contato@ailun.com.br
 
-**AiLun Tecnologia**  
-CNPJ: 60.740.536/0001-75  
-Email: contato@ailun.com.br
+## 📞 Suporte
 
----
+### Documentação
+- [Guia de Desenvolvimento](./docs/development.md)
+- [API Reference](./docs/api.md)
+- [Troubleshooting](./docs/troubleshooting.md)
 
-## 🎉 Status do Projeto
-
-- ✅ Autenticação implementada
-- ✅ Banco de dados configurado
-- ✅ Storage configurado
-- ✅ Edge Functions implementadas
-- ✅ Integração RapiDoc
-- ✅ Integração Asaas
-- 🚧 Interface do usuário (em desenvolvimento)
-- 🚧 Testes automatizados (planejado)
+### Contato
+- **Email**: dev@ailun.com.br
+- **Suporte**: suporte@ailun.com.br
+- **Website**: https://ailun.com.br
 
 ---
 
-**Desenvolvido com ❤️ pela equipe AiLun Tecnologia**
-
+**Desenvolvido com ❤️ pela equipe AiLun Saúde**

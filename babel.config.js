@@ -8,7 +8,7 @@ module.exports = function (api) {
   
   return {
     presets: [
-      ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
+      'babel-preset-expo',
     ],
     plugins: [
       [
@@ -27,8 +27,6 @@ module.exports = function (api) {
           },
         },
       ],
-      // Plugin para melhor suporte a React 18
-      ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }],
       // Plugin para suporte a optional chaining e nullish coalescing
       '@babel/plugin-proposal-optional-chaining',
       '@babel/plugin-proposal-nullish-coalescing-operator',
