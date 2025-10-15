@@ -13,7 +13,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FormInput from '../../components/signup/FormInput';
 import ProgressIndicator from '../../components/signup/ProgressIndicator';
-import { isValidCpf, isValidBrazilianDate } from '../../utils/validators';
+import { isValidCPF, isValidBrazilianDate } from '../../utils/validators';
 
 export default function PersonalDataScreen() {
   const insets = useSafeAreaInsets();
@@ -72,7 +72,7 @@ export default function PersonalDataScreen() {
     }
 
     // Validar CPF
-    if (!isValidCpf(cpf)) {
+    if (!isValidCPF(cpf)) {
       setCpfError('CPF inválido');
       isValid = false;
     }
@@ -97,7 +97,7 @@ export default function PersonalDataScreen() {
     }
   };
 
-  const isFormValid = name.trim().length >= 3 && isValidCpf(cpf) && isValidBrazilianDate(birthdate);
+  const isFormValid = name.trim().length >= 3 && isValidCPF(cpf) && isValidBrazilianDate(birthdate);
 
   return (
     <LinearGradient colors={['#00B4DB', '#0083B0']} style={styles.gradient}>
@@ -144,7 +144,7 @@ export default function PersonalDataScreen() {
               placeholder="000.000.000-00"
               keyboardType="numeric"
               maxLength={14}
-              isValid={isValidCpf(cpf)}
+              isValid={isValidCPF(cpf)}
             />
 
             <FormInput

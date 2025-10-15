@@ -66,61 +66,97 @@ export interface RegistrationResult {
 export async function processRegistration(
   data: RegistrationData
 ): Promise<RegistrationResult> {
+  console.log('[processRegistration] ===== INICIANDO REGISTRO =====');
+  console.log('[processRegistration] Email:', data.email);
+  console.log('[processRegistration] Método de pagamento:', data.paymentMethod);
+  
   try {
-    console.log('[processRegistration] Iniciando registro:', data.email);
+    // Validar dados obrigatórios antes de enviar
+    if (!data.fullName || !data.cpf || !data.email) {
+      throw new Error('Dados obrigatórios não fornecidos (nome, CPF, email)');
+    }
     
-    // Usar Edge Function para processar todo o fluxo de registro e pagamento
-    const { data: registrationResult, error: edgeFunctionError } = await supabase.functions.invoke('tema-orchestrator', {
-      body: {
-        action: 'create_subscription',
-        data: {
-          // Dados Pessoais
-          fullName: data.fullName,
-          cpf: data.cpf.replace(/\D/g, ''),
-          birthDate: data.birthDate,
-          email: data.email,
-          phone: data.phone.replace(/\D/g, ''),
-          
-          // Endereço
-          cep: data.cep.replace(/\D/g, ''),
-          street: data.street,
-          number: data.number,
-          complement: data.complement,
-          neighborhood: data.neighborhood,
-          city: data.city,
-          state: data.state,
-          
-          // Plano
-          includeSpecialists: data.includeSpecialists,
-          includePsychology: data.includePsychology,
-          includeNutrition: data.includeNutrition,
-          memberCount: data.memberCount,
-          serviceType: data.serviceType,
-          totalPrice: data.totalPrice,
-          discountPercentage: data.discountPercentage,
-          
-          // Pagamento
-          paymentMethod: data.paymentMethod,
-          creditCard: data.creditCard ? {
-            holderName: data.creditCard.holderName,
-            number: data.creditCard.number.replace(/\s/g, ''),
-            expiryMonth: data.creditCard.expiryMonth,
-            expiryYear: data.creditCard.expiryYear,
-            ccv: data.creditCard.ccv,
-          } : undefined,
-        },
+    if (!data.paymentMethod || !['credit_card', 'pix', 'boleto'].includes(data.paymentMethod)) {
+      throw new Error('Método de pagamento inválido');
+    }
+    
+    if (data.paymentMethod === 'credit_card' && !data.creditCard) {
+      throw new Error('Dados do cartão de crédito não fornecidos');
+    }
+    
+    console.log('[processRegistration] Validações iniciais OK');
+    
+    // Preparar dados para Edge Function
+    const edgeFunctionPayload = {
+      action: 'create_subscription',
+      data: {
+        // Dados Pessoais
+        fullName: data.fullName.trim(),
+        cpf: data.cpf.replace(/\D/g, ''),
+        birthDate: data.birthDate,
+        email: data.email.toLowerCase().trim(),
+        phone: data.phone.replace(/\D/g, ''),
+        
+        // Endereço
+        cep: data.cep.replace(/\D/g, ''),
+        street: data.street.trim(),
+        number: data.number.trim(),
+        complement: data.complement?.trim() || undefined,
+        neighborhood: data.neighborhood.trim(),
+        city: data.city.trim(),
+        state: data.state.trim(),
+        
+        // Plano
+        includeSpecialists: Boolean(data.includeSpecialists),
+        includePsychology: Boolean(data.includePsychology),
+        includeNutrition: Boolean(data.includeNutrition),
+        memberCount: Number(data.memberCount) || 1,
+        serviceType: data.serviceType,
+        totalPrice: Number(data.totalPrice) || 0,
+        discountPercentage: Number(data.discountPercentage) || 0,
+        
+        // Pagamento
+        paymentMethod: data.paymentMethod,
+        creditCard: data.creditCard ? {
+          holderName: data.creditCard.holderName.trim(),
+          number: data.creditCard.number.replace(/\s/g, ''),
+          expiryMonth: data.creditCard.expiryMonth.padStart(2, '0'),
+          expiryYear: data.creditCard.expiryYear,
+          ccv: data.creditCard.ccv,
+        } : undefined,
       },
+    };
+    
+    console.log('[processRegistration] Payload preparado para Edge Function');
+    console.log('[processRegistration] Tamanho do payload:', JSON.stringify(edgeFunctionPayload).length);
+    
+    // Chamar Edge Function
+    const { data: registrationResult, error: edgeFunctionError } = await supabase.functions.invoke('tema-orchestrator', {
+      body: edgeFunctionPayload,
     });
+    
+    console.log('[processRegistration] Resposta da Edge Function:');
+    console.log('- Error:', edgeFunctionError);
+    console.log('- Data:', registrationResult);
 
     if (edgeFunctionError) {
-      throw new Error(edgeFunctionError.message || 'Erro ao processar registro');
+      console.error('[processRegistration] Erro da Edge Function:', edgeFunctionError);
+      throw new Error(`Edge Function error: ${edgeFunctionError.message || JSON.stringify(edgeFunctionError)}`);
     }
 
-    if (!registrationResult || !registrationResult.success) {
-      throw new Error(registrationResult?.error || 'Erro desconhecido no registro');
+    if (!registrationResult) {
+      throw new Error('Edge Function retornou resposta vazia');
+    }
+    
+    if (!registrationResult.success) {
+      const errorMsg = registrationResult.error || 'Erro desconhecido no processamento';
+      console.error('[processRegistration] Edge Function retornou erro:', errorMsg);
+      throw new Error(errorMsg);
     }
 
-    console.log('[processRegistration] Registro processado com sucesso!');
+    console.log('[processRegistration] ===== REGISTRO CONCLUÍDO COM SUCESSO =====');
+    console.log('[processRegistration] Beneficiário UUID:', registrationResult.beneficiaryUuid);
+    console.log('[processRegistration] Customer ID Asaas:', registrationResult.asaasCustomerId);
 
     return {
       success: true,
@@ -134,25 +170,33 @@ export async function processRegistration(
     };
 
   } catch (error: any) {
-    console.error('[processRegistration] Erro no registro:', error);
+    console.error('[processRegistration] ===== ERRO NO REGISTRO =====');
+    console.error('[processRegistration] Tipo do erro:', typeof error);
+    console.error('[processRegistration] Mensagem:', error.message);
+    console.error('[processRegistration] Stack:', error.stack);
     
     // Registrar evento de falha no cadastro
-    await auditService.logEvent({
-      eventType: AuditEventType.SIGNUP_FAILED,
-      userEmail: data.email,
-      status: AuditEventStatus.FAILURE,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      eventData: {
-        fullName: data.fullName,
-        cpf: data.cpf,
-        serviceType: data.serviceType,
-      },
-    });
+    try {
+      await auditService.logEvent({
+        eventType: AuditEventType.SIGNUP_FAILED,
+        userEmail: data.email,
+        status: AuditEventStatus.FAILURE,
+        errorMessage: error.message,
+        errorStack: error.stack,
+        eventData: {
+          fullName: data.fullName,
+          cpf: data.cpf,
+          serviceType: data.serviceType,
+          paymentMethod: data.paymentMethod,
+        },
+      });
+    } catch (auditError) {
+      console.warn('[processRegistration] Erro ao registrar auditoria:', auditError);
+    }
     
     return {
       success: false,
-      error: error.message || 'Erro ao processar registro',
+      error: error.message || 'Erro interno ao processar registro',
     };
   }
 }
