@@ -157,8 +157,7 @@ class RapidocService {
       
       if (!response.ok) {
         this.logger.error(`RapiDoc Error (${response.status}): ${responseText}`);
-        throw new Error(`RapiDoc API Error: ${response.status} - ${responseText}`);
-      }
+        throw new Error(`RapiDoc API Error: ${response.status} - ${responseText}`);  }
 
       return data;
       
