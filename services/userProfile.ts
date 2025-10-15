@@ -41,7 +41,7 @@ export async function ensureBeneficiaryProfile(
     if (existingProfile) {
       return { 
         success: true, 
-        beneficiaryUuid: existingProfile.id 
+        beneficiaryUuid: userId 
       };
     }
 
@@ -65,15 +65,14 @@ export async function ensureBeneficiaryProfile(
     // Profile criado para beneficiário
     return { 
       success: true, 
-        beneficiaryUuid: profile.id 
-      };
+      beneficiaryUuid: userId 
+    };
 
   } catch (error: any) {
     console.error('Erro ao garantir profile do beneficiário:', error);
     return { 
       success: false, 
-      beneficiaryUuid: 
-        existingProfile?.id || profile?.id || userId,
+      beneficiaryUuid: userId,
       error: error.message 
     };
   }

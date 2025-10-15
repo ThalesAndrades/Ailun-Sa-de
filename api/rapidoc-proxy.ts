@@ -65,27 +65,15 @@ export async function fetchBeneficiaryByCPF(cpf: string): Promise<RapidocProxyRe
   try {
     console.log('[RapidocProxy] Buscando beneficiário por CPF:', cpf);
     
-    // Tentativa de buscar diretamente por CPF, se a API Rapidoc suportar
-    // Assumindo que a API Rapidoc tem um endpoint para buscar por CPF diretamente
-    // Se não tiver, a abordagem atual de buscar todos e filtrar é a única opção.
-    // Para esta refatoração, vamos simular uma busca direta por CPF.
-    const response = await fetch(`${RAPIDOC_CONFIG.BASE_URL}/beneficiaries?cpf=${cpf}`, {
-      method: 'GET',
-      headers: RAPIDOC_CONFIG.HEADERS,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[RapidocProxy] Erro na resposta ao buscar por CPF:', errorText);
-      return {
-        success: false,
-        error: `Erro na API: ${response.status} - ${errorText}`,
-        status: response.status,
-      };
+    // Primeiro, buscar todos os beneficiários
+    const allBeneficiariesResult = await fetchBeneficiaries();
+    
+    if (!allBeneficiariesResult.success || !allBeneficiariesResult.data) {
+      return allBeneficiariesResult;
     }
 
-    const data = await response.json();
-    const beneficiary = data.beneficiaries && data.beneficiaries.length > 0 ? data.beneficiaries[0] : null;
+    const beneficiaries = allBeneficiariesResult.data.beneficiaries || [];
+    const beneficiary = beneficiaries.find((b: any) => b.cpf === cpf);
 
     if (!beneficiary) {
       return {

@@ -284,7 +284,7 @@ async function processSpecificBeneficiaries(beneficiariesToProcess: BeneficiaryI
         birthDate: supabaseBeneficiary.birth_date,
         email: supabaseBeneficiary.email,
         phone: supabaseBeneficiary.phone,
-        serviceType: supabaseBeneficiary.service_type || 'GS', // Usar o service_type do Supabase, se disponível, senão 'GS' como padrão para o PUT
+        serviceType: 'GS', // Padrão para o PUT
       }
     );
 

@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -52,7 +51,7 @@ serve(async (req) => {
       case 'PAYMENT_CONFIRMED':
         // Atualizar perfil do usuário
         await supabase
-          .from('profiles') // Fix: Removed invalid characters
+          .from('user_profiles')
           .update({
             subscription_status: 'ACTIVE',
             last_payment_date: new Date().toISOString(),
@@ -69,7 +68,7 @@ serve(async (req) => {
           status: 'RECEIVED',
           billing_type: payment.billingType,
           due_date: payment.dueDate,
-          payment_date: payment.clientPaymentDate || new Date().toISOString(), // Usar a data de pagamento do Asaas se disponível, senão a data atual.
+          payment_date: new Date().toISOString(),
           invoice_url: payment.invoiceUrl,
           bank_slip_url: payment.bankSlipUrl,
           metadata: payment,
@@ -88,8 +87,8 @@ serve(async (req) => {
         break;
 
       case 'PAYMENT_OVERDUE':
-        await supabase // Fix: Corrected 'supabas' to 'supabase' and removed invalid characters
-          .from('profiles')
+        await supabase
+          .from('user_profiles')
           .update({
             subscription_status: 'OVERDUE',
             updated_at: new Date().toISOString(),
@@ -109,7 +108,7 @@ serve(async (req) => {
 
       case 'PAYMENT_REFUNDED':
         await supabase
-          .from('profiles') // Fix: Removed invalid characters
+          .from('user_profiles')
           .update({
             subscription_status: 'REFUNDED',
             updated_at: new Date().toISOString(),
@@ -179,3 +178,4 @@ serve(async (req) => {
     );
   }
 });
+

@@ -324,7 +324,9 @@ export default function LoginScreen() {
         }
 
         // Verificar se é o primeiro acesso
-        const { data: profileData } = await supabase          .from(\'profiles\')          .select('has_seen_onboarding')
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('has_seen_onboarding')
           .eq('id', result.data.id)
           .single();
 

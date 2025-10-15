@@ -62,7 +62,17 @@ CREATE TABLE IF NOT EXISTS public.consultation_reminders (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-
+-- 6. Tabela de Preferências do Usuário (opcional)
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+    beneficiary_uuid TEXT PRIMARY KEY,
+    notifications_enabled BOOLEAN DEFAULT TRUE,
+    email_notifications BOOLEAN DEFAULT TRUE,
+    sms_notifications BOOLEAN DEFAULT FALSE,
+    language TEXT DEFAULT 'pt-BR',
+    theme TEXT DEFAULT 'light',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- ==================== ÍNDICES ====================
 
@@ -109,7 +119,11 @@ CREATE TRIGGER update_queue_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-
+DROP TRIGGER IF EXISTS update_preferences_updated_at ON public.user_preferences;
+CREATE TRIGGER update_preferences_updated_at
+    BEFORE UPDATE ON public.user_preferences
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- ==================== FUNÇÕES ÚTEIS ====================
 
@@ -161,7 +175,7 @@ ALTER TABLE public.system_notifications DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.active_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.consultation_queue DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.consultation_reminders DISABLE ROW LEVEL SECURITY;
-
+ALTER TABLE public.user_preferences DISABLE ROW LEVEL SECURITY;
 
 -- ==================== COMENTÁRIOS ====================
 
@@ -170,7 +184,7 @@ COMMENT ON TABLE public.system_notifications IS 'Notificações do sistema para 
 COMMENT ON TABLE public.active_sessions IS 'Sessões ativas de consultas';
 COMMENT ON TABLE public.consultation_queue IS 'Fila de espera para consultas imediatas';
 COMMENT ON TABLE public.consultation_reminders IS 'Lembretes de consultas agendadas';
-
+COMMENT ON TABLE public.user_preferences IS 'Preferências e configurações do usuário';
 
 -- ==================== DADOS INICIAIS (OPCIONAL) ====================
 

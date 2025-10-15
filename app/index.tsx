@@ -1,42 +1,57 @@
-
 /**
- * Página Inicial - AiLun Saúde
- * Ponto de entrada do aplicativo
+ * Tela de Índice Simplificada para Evitar Problemas de Roteamento
  */
 
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
-import { useAuth } from '../hooks/useAuth';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function IndexScreen() {
-  const { user, loading } = useAuth();
-
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        // Usuário logado - ir para dashboard
-        router.replace('/dashboard');
-      } else {
-        // Usuário não logado - ir para splash/login
-        router.replace('/splash');
+    // Redirecionar após um pequeno delay
+    const timer = setTimeout(() => {
+      try {
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined' && window.location) {
+            window.location.href = '/dashboard';
+          }
+        } else {
+          // Para aplicativos nativos, usar redirecionamento simples
+          if (typeof window !== 'undefined' && window.location) {
+            window.location.href = '/dashboard';
+          }
+        }
+      } catch (error) {
+        console.log('Redirecionamento não disponível:', error);
       }
-    }
-  }, [user, loading]);
+    }, 1000);
 
-  // Mostrar loading enquanto verifica autenticação
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#00B4DB" />
-    </View>
+    <LinearGradient colors={['#00B4DB', '#0083B0']} style={styles.container}>
+      <View style={styles.content}>
+        <ActivityIndicator size="large" color="white" />
+        <Text style={styles.text}>Carregando AiLun Saúde...</Text>
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+  },
+  text: {
+    color: 'white',
+    fontSize: 16,
+    marginTop: 16,
+    fontWeight: '500',
   },
 });
