@@ -10,7 +10,9 @@
 
 import { supabase } from './supabase';
 
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
+// NOTA: Este serviço não deve ser usado diretamente no frontend
+// Todas as operações devem passar pela Edge Function 'tema-orchestrator'
+const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '';
 const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
 // Valor da assinatura mensal
@@ -82,44 +84,59 @@ interface CreditCardHolderInfo {
 }
 
 /**
- * Fazer requisição à API do Asaas
+ * Fazer requisição à API do Asaas (apenas para Edge Functions)
+ * IMPORTANTE: Este método não deve ser usado no frontend React Native
  */
 async function asaasRequest(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   data?: any
 ): Promise<any> {
+  if (!ASAAS_API_KEY) {
+    throw new Error('ASAAS_API_KEY não configurada. Certifique-se de que está executando em Edge Function.');
+  }
+
   try {
     const url = `${ASAAS_API_URL}${endpoint}`;
+    
+    console.log(`[asaasRequest] ${method} ${url}`);
     
     const options: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
         'access_token': ASAAS_API_KEY,
+        'User-Agent': 'AiLun-Saude/1.0',
       },
     };
 
     if (data && (method === 'POST' || method === 'PUT')) {
       options.body = JSON.stringify(data);
+      console.log(`[asaasRequest] Body:`, JSON.stringify(data, null, 2));
     }
 
     const response = await fetch(url, options);
     const result = await response.json();
 
+    console.log(`[asaasRequest] Response status:`, response.status);
+    console.log(`[asaasRequest] Response:`, result);
+
     if (!response.ok) {
-      throw new Error(result.errors?.[0]?.description || 'Erro na requisição ao Asaas');
+      const errorMsg = result.errors?.[0]?.description || result.message || 'Erro na requisição ao Asaas';
+      console.error(`[asaasRequest] Erro na API:`, errorMsg);
+      throw new Error(errorMsg);
     }
 
     return result;
-  } catch (error) {
-    console.error('Erro na requisição ao Asaas:', error);
-    throw error;
+  } catch (error: any) {
+    console.error('[asaasRequest] Erro na requisição:', error);
+    throw new Error(`Falha na requisição Asaas: ${error.message}`);
   }
 }
 
 /**
- * Criar cliente no Asaas
+ * Criar cliente no Asaas (apenas Edge Functions)
+ * No frontend, use a Edge Function 'tema-orchestrator'
  */
 export async function createAsaasCustomer(data: {
   name: string;
@@ -133,32 +150,57 @@ export async function createAsaasCustomer(data: {
   province?: string;
   beneficiaryUuid?: string;
 }): Promise<AsaasCustomer> {
+  // Validar e limpar dados de entrada
   const customerData = {
-    name: data.name,
-    email: data.email,
+    name: data.name.trim(),
+    email: data.email.toLowerCase().trim(),
     cpfCnpj: data.cpf.replace(/\D/g, ''),
     phone: data.phone.replace(/\D/g, ''),
     mobilePhone: data.phone.replace(/\D/g, ''),
     postalCode: data.postalCode?.replace(/\D/g, ''),
-    address: data.address,
-    addressNumber: data.addressNumber,
-    complement: data.complement,
-    province: data.province,
+    address: data.address?.trim(),
+    addressNumber: data.addressNumber?.trim(),
+    complement: data.complement?.trim() || undefined,
+    province: data.province?.trim(),
     externalReference: data.beneficiaryUuid,
     notificationDisabled: false,
   };
 
+  // Validações básicas
+  if (customerData.cpfCnpj.length !== 11) {
+    throw new Error('CPF deve ter 11 dígitos');
+  }
+  
+  if (customerData.phone.length < 10) {
+    throw new Error('Telefone deve ter pelo menos 10 dígitos');
+  }
+  
+  if (!customerData.email.includes('@')) {
+    throw new Error('Email inválido');
+  }
+
+  console.log('[createAsaasCustomer] Criando cliente:', {
+    ...customerData,
+    cpfCnpj: customerData.cpfCnpj.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4')
+  });
+
   const customer = await asaasRequest('/customers', 'POST', customerData);
   
-  // Salvar ID do cliente Asaas no Supabase
-  if (data.beneficiaryUuid) {
-    await supabase
-      .from('user_profiles')
-      .upsert({
-        beneficiary_uuid: data.beneficiaryUuid,
-        asaas_customer_id: customer.id,
-        updated_at: new Date().toISOString(),
-      });
+  // Salvar ID do cliente Asaas no Supabase se estiver em ambiente server
+  if (data.beneficiaryUuid && typeof window === 'undefined') {
+    try {
+      await supabase
+        .from('user_profiles')
+        .upsert({
+          beneficiary_uuid: data.beneficiaryUuid,
+          asaas_customer_id: customer.id,
+          updated_at: new Date().toISOString(),
+        });
+      
+      console.log('[createAsaasCustomer] Cliente salvo no Supabase:', customer.id);
+    } catch (error) {
+      console.warn('[createAsaasCustomer] Erro ao salvar no Supabase:', error);
+    }
   }
 
   return customer;

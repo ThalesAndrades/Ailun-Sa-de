@@ -3,158 +3,89 @@
  */
 
 /**
- * Validar CPF brasileiro
+ * Validar CPF
  */
-export function isValidCpf(cpf: string): boolean {
-  // Remove caracteres não numéricos
-  const cleanCpf = cpf.replace(/\D/g, '');
+export function isValidCPF(cpf: string): boolean {
+  const cleanCPF = cpf.replace(/\D/g, '');
   
-  // Verifica se tem 11 dígitos
-  if (cleanCpf.length !== 11) return false;
+  if (cleanCPF.length !== 11) return false;
   
   // Verifica se todos os dígitos são iguais
-  if (/^(\d)\1+$/.test(cleanCpf)) return false;
+  if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
   
-  // Validação do primeiro dígito verificador
+  // Validação dos dígitos verificadores
   let sum = 0;
   for (let i = 0; i < 9; i++) {
-    sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
+    sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
   }
-  let digit1 = 11 - (sum % 11);
-  if (digit1 >= 10) digit1 = 0;
   
-  if (parseInt(cleanCpf.charAt(9)) !== digit1) return false;
+  let remainder = 11 - (sum % 11);
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCPF.charAt(9))) return false;
   
-  // Validação do segundo dígito verificador
   sum = 0;
   for (let i = 0; i < 10; i++) {
-    sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
+    sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
   }
-  let digit2 = 11 - (sum % 11);
-  if (digit2 >= 10) digit2 = 0;
   
-  return parseInt(cleanCpf.charAt(10)) === digit2;
+  remainder = 11 - (sum % 11);
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCPF.charAt(10))) return false;
+  
+  return true;
 }
 
 /**
- * Validar e-mail
+ * Validar email
  */
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
+  return emailRegex.test(email.trim().toLowerCase());
 }
 
 /**
- * Validar telefone brasileiro
+ * Validar telefone
  */
 export function isValidPhone(phone: string): boolean {
-  // Remove caracteres não numéricos
   const cleanPhone = phone.replace(/\D/g, '');
-  
-  // Verifica se tem 10 ou 11 dígitos (fixo ou celular)
   return cleanPhone.length >= 10 && cleanPhone.length <= 11;
 }
 
 /**
- * Validar CEP brasileiro
+ * Validar data de nascimento
  */
-export function isValidZipCode(zipCode: string): boolean {
-  // Remove caracteres não numéricos
-  const cleanZip = zipCode.replace(/\D/g, '');
+export function isValidBirthDate(date: string): boolean {
+  if (!date) return false;
   
-  // Verifica se tem exatamente 8 dígitos
-  return cleanZip.length === 8;
-}
-
-/**
- * Validar data no formato brasileiro DD/MM/AAAA
- */
-export function isValidBrazilianDate(dateString: string): boolean {
-  // Verifica formato DD/MM/AAAA
-  const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-  const match = dateString.match(dateRegex);
-  
-  if (!match) return false;
-  
-  const day = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10);
-  const year = parseInt(match[3], 10);
-  
-  // Verifica se os valores são válidos
-  if (month < 1 || month > 12) return false;
-  if (day < 1 || day > 31) return false;
-  if (year < 1900 || year > new Date().getFullYear()) return false;
-  
-  // Verifica se a data é válida (considera anos bissextos, etc.)
-  const date = new Date(year, month - 1, day);
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
-}
-
-/**
- * Validar idade mínima
- */
-export function isValidAge(dateString: string, minAge: number = 0): boolean {
-  if (!isValidBrazilianDate(dateString)) return false;
-  
-  const [day, month, year] = dateString.split('/').map(Number);
-  const birthDate = new Date(year, month - 1, day);
+  const birthDate = new Date(date);
   const today = new Date();
-  
   const age = today.getFullYear() - birthDate.getFullYear();
-  const monthDifference = today.getMonth() - birthDate.getMonth();
   
-  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
-    return age - 1 >= minAge;
-  }
-  
-  return age >= minAge;
+  // Deve ter pelo menos 16 anos e no máximo 120 anos
+  return age >= 16 && age <= 120;
 }
 
 /**
- * Validar se string tem comprimento mínimo
+ * Validar CEP
  */
-export function hasMinLength(text: string, minLength: number): boolean {
-  return text.trim().length >= minLength;
+export function isValidZipCode(cep: string): boolean {
+  const cleanCEP = cep.replace(/\D/g, '');
+  return cleanCEP.length === 8;
 }
 
 /**
- * Validar se string tem comprimento máximo
- */
-export function hasMaxLength(text: string, maxLength: number): boolean {
-  return text.trim().length <= maxLength;
-}
-
-/**
- * Validar se string contém apenas letras e espaços
- */
-export function isValidName(name: string): boolean {
-  const nameRegex = /^[A-Za-zÀ-ÿ\s]+$/;
-  return nameRegex.test(name.trim()) && name.trim().length >= 2;
-}
-
-/**
- * Validar número de cartão de crédito (algoritmo de Luhn)
+ * Validar cartão de crédito (Algoritmo de Luhn)
  */
 export function isValidCreditCard(cardNumber: string): boolean {
-  // Remove espaços e hífens
-  const cleanNumber = cardNumber.replace(/[\s-]/g, '');
+  const cleanNumber = cardNumber.replace(/\s/g, '');
   
-  // Verifica se contém apenas números
-  if (!/^\d+$/.test(cleanNumber)) return false;
+  if (!/^\d{13,19}$/.test(cleanNumber)) return false;
   
-  // Verifica comprimento (13-19 dígitos)
-  if (cleanNumber.length < 13 || cleanNumber.length > 19) return false;
-  
-  // Algoritmo de Luhn
   let sum = 0;
   let isEven = false;
   
   for (let i = cleanNumber.length - 1; i >= 0; i--) {
-    let digit = parseInt(cleanNumber.charAt(i), 10);
+    let digit = parseInt(cleanNumber.charAt(i));
     
     if (isEven) {
       digit *= 2;
@@ -178,7 +109,7 @@ export function isValidCvv(cvv: string): boolean {
 }
 
 /**
- * Validar mês de expiração do cartão
+ * Validar mês de expiração
  */
 export function isValidExpiryMonth(month: string): boolean {
   const monthNum = parseInt(month, 10);
@@ -186,35 +117,168 @@ export function isValidExpiryMonth(month: string): boolean {
 }
 
 /**
- * Validar ano de expiração do cartão
+ * Validar ano de expiração
  */
 export function isValidExpiryYear(year: string): boolean {
-  const currentYear = new Date().getFullYear();
+  if (year.length !== 4) return false;
+  
   const yearNum = parseInt(year, 10);
+  const currentYear = new Date().getFullYear();
   
-  // Aceita anos de 2 ou 4 dígitos
-  const fullYear = yearNum < 100 ? 2000 + yearNum : yearNum;
-  
-  return fullYear >= currentYear && fullYear <= currentYear + 20;
+  return yearNum >= currentYear && yearNum <= currentYear + 20;
 }
 
 /**
- * Validar data de expiração completa do cartão
+ * Validar nome completo
  */
-export function isValidExpiryDate(month: string, year: string): boolean {
-  if (!isValidExpiryMonth(month) || !isValidExpiryYear(year)) {
-    return false;
+export function isValidFullName(name: string): boolean {
+  const trimmedName = name.trim();
+  const words = trimmedName.split(' ').filter(word => word.length > 0);
+  
+  // Deve ter pelo menos 2 palavras e cada palavra deve ter pelo menos 2 caracteres
+  return words.length >= 2 && words.every(word => word.length >= 2);
+}
+
+/**
+ * Validar senha
+ */
+export function isValidPassword(password: string): boolean {
+  // Pelo menos 6 caracteres
+  return password.length >= 6;
+}
+
+/**
+ * Validar número de endereço
+ */
+export function isValidAddressNumber(number: string): boolean {
+  const trimmed = number.trim();
+  return trimmed.length > 0 && /^[0-9A-Za-z\-\s]+$/.test(trimmed);
+}
+
+/**
+ * Formatar CPF
+ */
+export function formatCPF(cpf: string): string {
+  const cleanCPF = cpf.replace(/\D/g, '');
+  return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+/**
+ * Formatar telefone
+ */
+export function formatPhone(phone: string): string {
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  if (cleanPhone.length === 11) {
+    return cleanPhone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  } else if (cleanPhone.length === 10) {
+    return cleanPhone.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   }
   
+  return phone;
+}
+
+/**
+ * Formatar CEP
+ */
+export function formatZipCode(cep: string): string {
+  const cleanCEP = cep.replace(/\D/g, '');
+  return cleanCEP.replace(/(\d{5})(\d{3})/, '$1-$2');
+}
+
+/**
+ * Máscara de cartão de crédito
+ */
+export function formatCreditCard(cardNumber: string): string {
+  const cleanNumber = cardNumber.replace(/\s/g, '');
+  return cleanNumber
+    .replace(/(\d{4})(\d)/, '$1 $2')
+    .replace(/(\d{4}) (\d{4})(\d)/, '$1 $2 $3')
+    .replace(/(\d{4}) (\d{4}) (\d{4})(\d)/, '$1 $2 $3 $4');
+}
+
+/**
+ * Detectar bandeira do cartão
+ */
+export function getCardBrand(cardNumber: string): string {
+  const cleanNumber = cardNumber.replace(/\s/g, '');
+  
+  if (/^4/.test(cleanNumber)) return 'visa';
+  if (/^5[1-5]/.test(cleanNumber)) return 'mastercard';
+  if (/^3[47]/.test(cleanNumber)) return 'amex';
+  if (/^6/.test(cleanNumber)) return 'discover';
+  if (/^35/.test(cleanNumber)) return 'jcb';
+  
+  return 'unknown';
+}
+
+/**
+ * Validar todos os campos obrigatórios
+ */
+export function validateRequiredFields(fields: Record<string, any>): string[] {
+  const errors: string[] = [];
+  
+  Object.entries(fields).forEach(([key, value]) => {
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      errors.push(`Campo ${key} é obrigatório`);
+    }
+  });
+  
+  return errors;
+}
+
+/**
+ * Sanitizar entrada de texto
+ */
+export function sanitizeInput(input: string): string {
+  return input
+    .trim()
+    .replace(/[<>]/g, '') // Remove caracteres HTML básicos
+    .replace(/\s+/g, ' '); // Remove espaços extras
+}
+
+/**
+ * Validar dados do cartão completos
+ */
+export function validateCreditCardData(data: {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  cvv: string;
+}): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (!isValidFullName(data.holderName)) {
+    errors.push('Nome do portador inválido');
+  }
+  
+  if (!isValidCreditCard(data.number)) {
+    errors.push('Número do cartão inválido');
+  }
+  
+  if (!isValidExpiryMonth(data.expiryMonth)) {
+    errors.push('Mês de expiração inválido');
+  }
+  
+  if (!isValidExpiryYear(data.expiryYear)) {
+    errors.push('Ano de expiração inválido');
+  }
+  
+  if (!isValidCvv(data.cvv)) {
+    errors.push('CVV inválido');
+  }
+  
+  // Verificar se o cartão não está expirado
   const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1;
+  const expiryDate = new Date(parseInt(data.expiryYear), parseInt(data.expiryMonth) - 1);
   
-  const expiryYear = parseInt(year, 10) < 100 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
-  const expiryMonth = parseInt(month, 10);
+  if (expiryDate < currentDate) {
+    errors.push('Cartão expirado');
+  }
   
-  if (expiryYear > currentYear) return true;
-  if (expiryYear === currentYear && expiryMonth >= currentMonth) return true;
-  
-  return false;
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }

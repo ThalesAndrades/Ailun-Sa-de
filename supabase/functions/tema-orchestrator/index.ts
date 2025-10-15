@@ -314,23 +314,60 @@ async function handleCreateSubscription(data: CreateSubscriptionData, supabase: 
 }
 
 async function handleCheckPaymentStatus(paymentId: string, supabase: any) {
+  console.log('[handleCheckPaymentStatus] Verificando status do pagamento:', paymentId)
+  
   try {
     const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
     const asaasApiUrl = 'https://api.asaas.com/v3'
+    
+    if (!asaasApiKey) {
+      throw new Error('ASAAS_API_KEY não configurada')
+    }
 
-    const response = await fetch(`${asaasApiUrl}/payments/${paymentId}`, {
+    if (!paymentId || paymentId.trim() === '') {
+      throw new Error('ID do pagamento não fornecido')
+    }
+
+    const response = await fetch(`${asaasApiUrl}/payments/${paymentId.trim()}`, {
+      method: 'GET',
       headers: {
         'access_token': asaasApiKey,
+        'User-Agent': 'AiLun-Saude/1.0',
       },
     })
 
     const payment = await response.json()
+    
+    console.log('[handleCheckPaymentStatus] Response status:', response.status)
+    console.log('[handleCheckPaymentStatus] Payment status:', payment.status)
+
+    if (!response.ok) {
+      const errorMsg = payment.errors?.[0]?.description || payment.message || 'Erro ao consultar pagamento'
+      console.error('[handleCheckPaymentStatus] Erro na API:', errorMsg)
+      throw new Error(errorMsg)
+    }
+
+    const isPaid = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)
+    const isPending = ['PENDING', 'AWAITING_RISK_ANALYSIS'].includes(payment.status)
+    const isOverdue = payment.status === 'OVERDUE'
+    const isCanceled = ['REFUNDED', 'CHARGEBACK_REQUESTED'].includes(payment.status)
+
+    console.log('[handleCheckPaymentStatus] Status processado:', {
+      status: payment.status,
+      isPaid,
+      isPending,
+      isOverdue,
+      isCanceled
+    })
 
     return new Response(
       JSON.stringify({
         success: true,
         status: payment.status,
-        paid: payment.status === 'RECEIVED' || payment.status === 'CONFIRMED',
+        paid: isPaid,
+        pending: isPending,
+        overdue: isOverdue,
+        canceled: isCanceled,
         payment,
       }),
       {
@@ -346,6 +383,9 @@ async function handleCheckPaymentStatus(paymentId: string, supabase: any) {
         success: false,
         status: 'ERROR',
         paid: false,
+        pending: false,
+        overdue: false,
+        canceled: false,
         error: error.message,
       }),
       {
@@ -417,35 +457,62 @@ async function createAsaasCustomer(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  const response = await fetch(`${asaasApiUrl}/customers`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': asaasApiKey,
-    },
-    body: JSON.stringify({
-      name: data.name,
-      email: data.email,
-      cpfCnpj: data.cpf,
-      phone: data.phone,
-      mobilePhone: data.phone,
-      postalCode: data.postalCode,
-      address: data.address,
-      addressNumber: data.addressNumber,
-      complement: data.complement,
-      province: data.province,
-      externalReference: data.beneficiaryUuid,
-      notificationDisabled: false,
-    }),
-  })
-
-  const result = await response.json()
-
-  if (!response.ok) {
-    throw new Error(result.errors?.[0]?.description || 'Erro ao criar cliente Asaas')
+  console.log('[createAsaasCustomer] Iniciando criação do cliente:', data.name)
+  
+  if (!asaasApiKey) {
+    throw new Error('ASAAS_API_KEY não configurada')
   }
 
-  return result
+  // Limpar e validar dados
+  const customerData = {
+    name: data.name.trim(),
+    email: data.email.toLowerCase().trim(),
+    cpfCnpj: data.cpf.replace(/\D/g, ''),
+    phone: data.phone.replace(/\D/g, ''),
+    mobilePhone: data.phone.replace(/\D/g, ''),
+    postalCode: data.postalCode.replace(/\D/g, ''),
+    address: data.address?.trim(),
+    addressNumber: data.addressNumber?.trim(),
+    complement: data.complement?.trim() || undefined,
+    province: data.province?.trim(),
+    externalReference: data.beneficiaryUuid,
+    notificationDisabled: false,
+  }
+
+  console.log('[createAsaasCustomer] Dados limpos:', {
+    ...customerData,
+    cpfCnpj: customerData.cpfCnpj.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4')
+  })
+
+  try {
+    const response = await fetch(`${asaasApiUrl}/customers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': asaasApiKey,
+        'User-Agent': 'AiLun-Saude/1.0',
+      },
+      body: JSON.stringify(customerData),
+    })
+
+    const result = await response.json()
+    
+    console.log('[createAsaasCustomer] Response status:', response.status)
+    console.log('[createAsaasCustomer] Response:', result)
+
+    if (!response.ok) {
+      const errorMsg = result.errors?.[0]?.description || result.message || 'Erro ao criar cliente Asaas'
+      console.error('[createAsaasCustomer] Erro na API:', errorMsg)
+      throw new Error(errorMsg)
+    }
+
+    console.log('[createAsaasCustomer] Cliente criado com sucesso:', result.id)
+    return result
+    
+  } catch (error) {
+    console.error('[createAsaasCustomer] Erro na requisição:', error)
+    throw new Error(`Falha ao criar cliente: ${error.message}`)
+  }
 }
 
 async function createAsaasSubscription(data: {
@@ -459,53 +526,88 @@ async function createAsaasSubscription(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
+  console.log('[createAsaasSubscription] Iniciando criação de assinatura para cliente:', data.customerId)
+  
+  if (!asaasApiKey) {
+    throw new Error('ASAAS_API_KEY não configurada')
+  }
+
+  // Calcular data de vencimento (próximo mês)
+  const nextDueDate = new Date()
+  nextDueDate.setMonth(nextDueDate.getMonth() + 1)
+  nextDueDate.setDate(1) // Primeira cobrança sempre no dia 1
+  
   const subscriptionData: any = {
     customer: data.customerId,
     billingType: data.billingType,
-    value: data.value,
-    nextDueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    value: Math.round(data.value * 100) / 100, // Garantir 2 casas decimais
+    nextDueDate: nextDueDate.toISOString().split('T')[0],
     cycle: 'MONTHLY',
-    description: 'Assinatura AiLun Saúde - Acesso completo aos serviços de telemedicina',
+    description: `Assinatura AiLun Saúde - ${data.billingType === 'CREDIT_CARD' ? 'Cartão de Crédito' : 'PIX'}`,
     externalReference: data.beneficiaryUuid,
   }
 
-  if (data.creditCard && data.creditCardHolderInfo) {
+  // Configurar dados do cartão de crédito se necessário
+  if (data.billingType === 'CREDIT_CARD' && data.creditCard && data.creditCardHolderInfo) {
+    console.log('[createAsaasSubscription] Configurando dados do cartão')
+    
     subscriptionData.creditCard = {
-      holderName: data.creditCard.holderName,
-      number: data.creditCard.number,
-      expiryMonth: data.creditCard.expiryMonth,
+      holderName: data.creditCard.holderName.trim(),
+      number: data.creditCard.number.replace(/\s/g, ''),
+      expiryMonth: data.creditCard.expiryMonth.padStart(2, '0'),
       expiryYear: data.creditCard.expiryYear,
       ccv: data.creditCard.ccv,
     }
 
     subscriptionData.creditCardHolderInfo = {
-      name: data.creditCardHolderInfo.name,
-      email: data.creditCardHolderInfo.email,
-      cpfCnpj: data.creditCardHolderInfo.cpfCnpj,
-      postalCode: data.creditCardHolderInfo.postalCode,
+      name: data.creditCardHolderInfo.name.trim(),
+      email: data.creditCardHolderInfo.email.toLowerCase().trim(),
+      cpfCnpj: data.creditCardHolderInfo.cpfCnpj.replace(/\D/g, ''),
+      postalCode: data.creditCardHolderInfo.postalCode.replace(/\D/g, ''),
       addressNumber: data.creditCardHolderInfo.addressNumber,
-      addressComplement: data.creditCardHolderInfo.addressComplement,
-      phone: data.creditCardHolderInfo.phone,
-      mobilePhone: data.creditCardHolderInfo.mobilePhone,
+      addressComplement: data.creditCardHolderInfo.addressComplement || undefined,
+      phone: data.creditCardHolderInfo.phone.replace(/\D/g, ''),
     }
   }
 
-  const response = await fetch(`${asaasApiUrl}/subscriptions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': asaasApiKey,
-    },
-    body: JSON.stringify(subscriptionData),
+  console.log('[createAsaasSubscription] Dados da assinatura:', {
+    ...subscriptionData,
+    creditCard: subscriptionData.creditCard ? {
+      ...subscriptionData.creditCard,
+      number: subscriptionData.creditCard.number.replace(/(\d{4})(\d{4})(\d{4})(\d{4})/, '$1 **** **** $4'),
+      ccv: '***'
+    } : undefined
   })
 
-  const result = await response.json()
+  try {
+    const response = await fetch(`${asaasApiUrl}/subscriptions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': asaasApiKey,
+        'User-Agent': 'AiLun-Saude/1.0',
+      },
+      body: JSON.stringify(subscriptionData),
+    })
 
-  if (!response.ok) {
-    throw new Error(result.errors?.[0]?.description || 'Erro ao criar assinatura')
+    const result = await response.json()
+    
+    console.log('[createAsaasSubscription] Response status:', response.status)
+    console.log('[createAsaasSubscription] Response:', result)
+
+    if (!response.ok) {
+      const errorMsg = result.errors?.[0]?.description || result.message || 'Erro ao criar assinatura'
+      console.error('[createAsaasSubscription] Erro na API:', errorMsg)
+      throw new Error(errorMsg)
+    }
+
+    console.log('[createAsaasSubscription] Assinatura criada com sucesso:', result.id)
+    return result
+    
+  } catch (error) {
+    console.error('[createAsaasSubscription] Erro na requisição:', error)
+    throw new Error(`Falha ao criar assinatura: ${error.message}`)
   }
-
-  return result
 }
 
 async function createAsaasPixPayment(data: {
@@ -517,40 +619,79 @@ async function createAsaasPixPayment(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  const response = await fetch(`${asaasApiUrl}/payments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': asaasApiKey,
-    },
-    body: JSON.stringify({
-      customer: data.customerId,
-      billingType: 'PIX',
-      value: data.value,
-      dueDate: new Date().toISOString().split('T')[0],
-      description: data.description,
-      externalReference: data.beneficiaryUuid,
-    }),
-  })
-
-  const payment = await response.json()
-
-  if (!response.ok) {
-    throw new Error(payment.errors?.[0]?.description || 'Erro ao criar pagamento PIX')
+  console.log('[createAsaasPixPayment] Criando pagamento PIX:', data.customerId)
+  
+  if (!asaasApiKey) {
+    throw new Error('ASAAS_API_KEY não configurada')
   }
 
-  // Buscar QR Code do PIX
-  const qrCodeResponse = await fetch(`${asaasApiUrl}/payments/${payment.id}/pixQrCode`, {
-    headers: {
-      'access_token': asaasApiKey,
-    },
-  })
+  // Data de vencimento: hoje + 1 dia para dar tempo de processar
+  const dueDate = new Date()
+  dueDate.setDate(dueDate.getDate() + 1)
 
-  const qrCodeData = await qrCodeResponse.json()
+  const paymentData = {
+    customer: data.customerId,
+    billingType: 'PIX',
+    value: Math.round(data.value * 100) / 100, // Garantir 2 casas decimais
+    dueDate: dueDate.toISOString().split('T')[0],
+    description: data.description.trim(),
+    externalReference: data.beneficiaryUuid,
+  }
 
-  return {
-    ...payment,
-    ...qrCodeData,
+  console.log('[createAsaasPixPayment] Dados do pagamento:', paymentData)
+
+  try {
+    // 1. Criar pagamento PIX
+    const response = await fetch(`${asaasApiUrl}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': asaasApiKey,
+        'User-Agent': 'AiLun-Saude/1.0',
+      },
+      body: JSON.stringify(paymentData),
+    })
+
+    const payment = await response.json()
+    
+    console.log('[createAsaasPixPayment] Payment response status:', response.status)
+    console.log('[createAsaasPixPayment] Payment response:', payment)
+
+    if (!response.ok) {
+      const errorMsg = payment.errors?.[0]?.description || payment.message || 'Erro ao criar pagamento PIX'
+      console.error('[createAsaasPixPayment] Erro na API:', errorMsg)
+      throw new Error(errorMsg)
+    }
+
+    // 2. Buscar QR Code do PIX
+    console.log('[createAsaasPixPayment] Buscando QR Code PIX:', payment.id)
+    
+    const qrCodeResponse = await fetch(`${asaasApiUrl}/payments/${payment.id}/pixQrCode`, {
+      method: 'GET',
+      headers: {
+        'access_token': asaasApiKey,
+        'User-Agent': 'AiLun-Saude/1.0',
+      },
+    })
+
+    const qrCodeData = await qrCodeResponse.json()
+    
+    console.log('[createAsaasPixPayment] QR Code response status:', qrCodeResponse.status)
+    
+    if (!qrCodeResponse.ok) {
+      console.warn('[createAsaasPixPayment] Erro ao buscar QR Code, mas pagamento foi criado')
+      return payment // Retorna só o pagamento se não conseguir o QR Code
+    }
+
+    console.log('[createAsaasPixPayment] PIX criado com sucesso com QR Code')
+    return {
+      ...payment,
+      ...qrCodeData,
+    }
+    
+  } catch (error) {
+    console.error('[createAsaasPixPayment] Erro na requisição:', error)
+    throw new Error(`Falha ao criar pagamento PIX: ${error.message}`)
   }
 }
 
@@ -563,31 +704,61 @@ async function createAsaasBoletoPayment(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  // Data de vencimento: 3 dias úteis
-  const dueDate = new Date()
-  dueDate.setDate(dueDate.getDate() + 3)
-
-  const response = await fetch(`${asaasApiUrl}/payments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': asaasApiKey,
-    },
-    body: JSON.stringify({
-      customer: data.customerId,
-      billingType: 'BOLETO',
-      value: data.value,
-      dueDate: dueDate.toISOString().split('T')[0],
-      description: data.description,
-      externalReference: data.beneficiaryUuid,
-    }),
-  })
-
-  const payment = await response.json()
-
-  if (!response.ok) {
-    throw new Error(payment.errors?.[0]?.description || 'Erro ao criar boleto')
+  console.log('[createAsaasBoletoPayment] Criando boleto:', data.customerId)
+  
+  if (!asaasApiKey) {
+    throw new Error('ASAAS_API_KEY não configurada')
   }
 
-  return payment
+  // Data de vencimento: 5 dias úteis (considerando fins de semana)
+  const dueDate = new Date()
+  dueDate.setDate(dueDate.getDate() + 5)
+  
+  // Se cair no fim de semana, move para segunda
+  while (dueDate.getDay() === 0 || dueDate.getDay() === 6) {
+    dueDate.setDate(dueDate.getDate() + 1)
+  }
+
+  const paymentData = {
+    customer: data.customerId,
+    billingType: 'BOLETO',
+    value: Math.round(data.value * 100) / 100, // Garantir 2 casas decimais
+    dueDate: dueDate.toISOString().split('T')[0],
+    description: data.description.trim(),
+    externalReference: data.beneficiaryUuid,
+  }
+
+  console.log('[createAsaasBoletoPayment] Dados do boleto:', paymentData)
+
+  try {
+    const response = await fetch(`${asaasApiUrl}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': asaasApiKey,
+        'User-Agent': 'AiLun-Saude/1.0',
+      },
+      body: JSON.stringify(paymentData),
+    })
+
+    const payment = await response.json()
+    
+    console.log('[createAsaasBoletoPayment] Response status:', response.status)
+    console.log('[createAsaasBoletoPayment] Response:', payment)
+
+    if (!response.ok) {
+      const errorMsg = payment.errors?.[0]?.description || payment.message || 'Erro ao criar boleto'
+      console.error('[createAsaasBoletoPayment] Erro na API:', errorMsg)
+      throw new Error(errorMsg)
+    }
+
+    console.log('[createAsaasBoletoPayment] Boleto criado com sucesso:', payment.id)
+    console.log('[createAsaasBoletoPayment] URL do boleto:', payment.bankSlipUrl)
+    
+    return payment
+    
+  } catch (error) {
+    console.error('[createAsaasBoletoPayment] Erro na requisição:', error)
+    throw new Error(`Falha ao criar boleto: ${error.message}`)
+  }
 }
