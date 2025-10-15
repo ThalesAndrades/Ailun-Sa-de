@@ -23,7 +23,7 @@ import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
 import { useSubscription } from '../hooks/useSubscription';
 import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
-import { useRealTimeIntegrations } from '../hooks/useRealTimeIntegrations';
+import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
 import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
 import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
 import { ConnectionStatus } from '../components/ConnectionStatus';
@@ -50,13 +50,13 @@ export default function DashboardScreen() {
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);
   const { subscriptionData, loading: subscriptionLoading } = useSubscription(beneficiaryUuid || '');
-  const { loading: consultationLoading, requestImmediate } = useRapidocConsultation();
+
   const { 
     hasUnreadNotifications, 
     unreadCount, 
     refreshNotifications 
   } = useIntegratedNotifications();
-  const realTimeIntegrations = useRealTimeIntegrations();
+  const { requestImmediate, loading: consultationLoading } = useRapidocConsultation();
   
   // Modal states
   const [specialistModal, setSpecialistModal] = useState(false);
@@ -195,13 +195,9 @@ export default function DashboardScreen() {
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
     
-    // Usar integração em tempo real
+    // Solicitar consulta imediata via RapiDoc
     try {
-      const result = await realTimeIntegrations.requestConsultation({
-        beneficiaryUuid,
-        serviceType: 'clinical',
-        priority: 'normal',
-      });
+      const result = await requestImmediate(beneficiaryUuid);
 
       if (result.success) {
         showTemplateMessage({
