@@ -82,8 +82,7 @@ export default function DashboardScreen() {
       if (isAuthenticated && user) {
         try {
           const { data, error } = await supabase
-            .from('user_profiles')
-            .select('terms_accepted')
+            .from(\'profiles\')           .select('terms_accepted')
             .eq('id', user.id)
             .single();
 

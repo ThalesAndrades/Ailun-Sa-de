@@ -3,7 +3,7 @@
 -- ===========================
 
 -- Adicionar colunas de assinatura na tabela user_profiles
-ALTER TABLE user_profiles
+ALTER TABLE profiles
 ADD COLUMN IF NOT EXISTS asaas_customer_id VARCHAR(255),
 ADD COLUMN IF NOT EXISTS asaas_subscription_id VARCHAR(255),
 ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'INACTIVE',
@@ -13,13 +13,13 @@ ADD COLUMN IF NOT EXISTS last_payment_date TIMESTAMPTZ;
 
 -- Criar índices para melhor performance
 CREATE INDEX IF NOT EXISTS idx_user_profiles_asaas_customer 
-ON user_profiles(asaas_customer_id);
+ON profiles(asaas_customer_id);
 
 CREATE INDEX IF NOT EXISTS idx_user_profiles_asaas_subscription 
-ON user_profiles(asaas_subscription_id);
+ON profiles(asaas_subscription_id);
 
 CREATE INDEX IF NOT EXISTS idx_user_profiles_subscription_status 
-ON user_profiles(subscription_status);
+ON profiles(subscription_status);
 
 -- Tabela de logs de pagamentos
 CREATE TABLE IF NOT EXISTS payment_logs (
@@ -99,10 +99,10 @@ ON asaas_webhooks(created_at DESC);
 COMMENT ON TABLE payment_logs IS 'Registro de todos os pagamentos processados via Asaas';
 COMMENT ON TABLE asaas_webhooks IS 'Registro de webhooks recebidos do Asaas para auditoria';
 
-COMMENT ON COLUMN user_profiles.asaas_customer_id IS 'ID do cliente no Asaas';
-COMMENT ON COLUMN user_profiles.asaas_subscription_id IS 'ID da assinatura ativa no Asaas';
-COMMENT ON COLUMN user_profiles.subscription_status IS 'Status da assinatura: ACTIVE, INACTIVE, OVERDUE, CANCELED, REFUNDED';
-COMMENT ON COLUMN user_profiles.subscription_value IS 'Valor mensal da assinatura (R$ 89,90)';
-COMMENT ON COLUMN user_profiles.subscription_billing_type IS 'Forma de pagamento: CREDIT_CARD, PIX';
-COMMENT ON COLUMN user_profiles.last_payment_date IS 'Data do último pagamento recebido';
+COMMENT ON COLUMN profiles.asaas_customer_id IS 'ID do cliente no Asaas';
+COMMENT ON COLUMN profiles.asaas_subscription_id IS 'ID da assinatura ativa no Asaas';
+COMMENT ON COLUMN profiles.subscription_status IS 'Status da assinatura: ACTIVE, INACTIVE, OVERDUE, CANCELED, REFUNDED';
+COMMENT ON COLUMN profiles.subscription_value IS 'Valor mensal da assinatura (R$ 89,90)';
+COMMENT ON COLUMN profiles.subscription_billing_type IS 'Forma de pagamento: CREDIT_CARD, PIX';
+COMMENT ON COLUMN profiles.last_payment_date IS 'Data do último pagamento recebido';
 

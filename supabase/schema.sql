@@ -7,10 +7,10 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =====================================================
--- TABELA: user_profiles
+-- TABELA: profiles
 -- Perfil completo do usuário
 -- =====================================================
-CREATE TABLE IF NOT EXISTS public.user_profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   full_name TEXT,
@@ -21,19 +21,19 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- RLS Policies para user_profiles
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+-- RLS Policies para profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own profile"
-  ON public.user_profiles FOR SELECT
+  ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile"
-  ON public.user_profiles FOR UPDATE
+  ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
 CREATE POLICY "Users can insert own profile"
-  ON public.user_profiles FOR INSERT
+  ON public.profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
 -- =====================================================
@@ -295,8 +295,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers para atualizar updated_at
-CREATE TRIGGER update_user_profiles_updated_at
-  BEFORE UPDATE ON public.user_profiles
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
@@ -326,7 +326,7 @@ CREATE TRIGGER update_consultation_queue_updated_at
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.user_profiles (id, email)
+  INSERT INTO public.profiles (id, email)
   VALUES (NEW.id, NEW.email);
   
   INSERT INTO public.user_preferences (user_id)

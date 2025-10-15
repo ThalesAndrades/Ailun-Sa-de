@@ -50,9 +50,7 @@ serve(async (req) => {
       case 'PAYMENT_RECEIVED':
       case 'PAYMENT_CONFIRMED':
         // Atualizar perfil do usuário
-        await supabase
-          .from('user_profiles')
-          .update({
+        await supabase          .from(\'profiles\')          .update({
             subscription_status: 'ACTIVE',
             last_payment_date: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -68,7 +66,7 @@ serve(async (req) => {
           status: 'RECEIVED',
           billing_type: payment.billingType,
           due_date: payment.dueDate,
-          payment_date: new Date().toISOString(),
+          payment_date: payment.clientPaymentDate || new Date().toISOString(), // Usar a data de pagamento do Asaas se disponível, senão a data atual.
           invoice_url: payment.invoiceUrl,
           bank_slip_url: payment.bankSlipUrl,
           metadata: payment,
@@ -87,8 +85,7 @@ serve(async (req) => {
         break;
 
       case 'PAYMENT_OVERDUE':
-        await supabase
-          .from('user_profiles')
+        await supabas          .from(\'profiles\')
           .update({
             subscription_status: 'OVERDUE',
             updated_at: new Date().toISOString(),
@@ -107,9 +104,7 @@ serve(async (req) => {
         break;
 
       case 'PAYMENT_REFUNDED':
-        await supabase
-          .from('user_profiles')
-          .update({
+        await supabase          .from(\'profiles\')          .update({
             subscription_status: 'REFUNDED',
             updated_at: new Date().toISOString(),
           })

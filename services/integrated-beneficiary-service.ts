@@ -137,8 +137,7 @@ export class IntegratedBeneficiaryService {
       if (beneficiary.has_active_plan) {
         const { data: planData, error: planError } = await supabase
           .from('subscription_plans')
-          .select('*')
-          .eq('user_id', userId)
+          .select('*'          .eq(\'beneficiary_id\', beneficiary.id)
           .eq('status', 'active')
           .single();
 
