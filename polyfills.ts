@@ -1,34 +1,35 @@
 
 /**
- * Polyfills para compatibilidade
- * Configurações mínimas necessárias
+ * Polyfills simplificados para compatibilidade
  */
 
-import 'react-native-url-polyfill/auto';
-
-// Polyfill React.use apenas se necessário
-if (typeof React !== 'undefined' && !React.use) {
-  React.use = function(promise: Promise<any> | any): any { // Added type annotations
-    if (promise && typeof promise.then === 'function') {
-      throw promise; // Suspense behavior
-    }
-    return promise;
-  };
+// URL polyfill essencial
+try {
+  require('react-native-url-polyfill/auto');
+} catch (error) {
+  console.warn('URL polyfill not available:', error);
 }
 
-// Verificação de ambiente
+// Configurações globais mínimas
 if (typeof global !== 'undefined') {
-  // Polyfills globais mínimos
-  global.process = global.process || { env: {} };
-  
-  // URL polyfill para React Native
-  if (!global.URL) {
-    try {
-      const { URL, URLSearchParams } = require('react-native-url-polyfill');
-      global.URL = URL;
-      global.URLSearchParams = URLSearchParams;
-    } catch (e) {
-      // Ignore se não estiver disponível
-    }
+  // Process polyfill básico
+  if (!global.process) {
+    global.process = { env: {} };
   }
+  
+  // Garantir que process.env existe
+  if (!global.process.env) {
+    global.process.env = {};
+  }
+}
+
+// Console fallback para debugging
+if (typeof console === 'undefined') {
+  global.console = {
+    log: () => {},
+    warn: () => {},
+    error: () => {},
+    info: () => {},
+    debug: () => {}
+  };
 }

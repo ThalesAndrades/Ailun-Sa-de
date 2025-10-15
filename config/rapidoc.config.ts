@@ -4,7 +4,7 @@
  */
 
 // Configurações de ambiente
-const RAPIDOC_BASE_URL = process.env.RAPIDOC_BASE_URL || 'https://giovannedev.brazilsouth.cloudapp.azure.com';
+const RAPIDOC_BASE_URL = process.env.RAPIDOC_BASE_URL || 'https://api.rapidoc.tech';
 const RAPIDOC_CLIENT_ID = process.env.RAPIDOC_CLIENT_ID;
 const RAPIDOC_TOKEN = process.env.RAPIDOC_TOKEN;
 

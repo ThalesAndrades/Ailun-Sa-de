@@ -17,20 +17,106 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
-import { getBeneficiaryByCPF, canUseService } from '../services/beneficiary-plan-service';
-import { checkSubscriptionStatus } from '../services/asaas';
-import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
-import { useSubscription } from '../hooks/useSubscription';
-import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
-import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
-import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
-import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
-import { ConnectionStatus } from '../components/ConnectionStatus';
-import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
-import NutritionistAppointmentScreen from '../components/NutritionistAppointmentScreen';
-import PsychologyAppointmentScreen from '../components/PsychologyAppointmentScreen';
-import MyAppointmentsScreen from '../components/MyAppointmentsScreen';
-import NotificationScreen from '../components/NotificationScreen';
+
+// Importações condicionais para evitar erros de inicialização
+let getBeneficiaryByCPF, canUseService;
+try {
+  const beneficiaryService = require('../services/beneficiary-plan-service');
+  getBeneficiaryByCPF = beneficiaryService.getBeneficiaryByCPF;
+  canUseService = beneficiaryService.canUseService;
+} catch (error) {
+  console.warn('Beneficiary service not available:', error);
+  getBeneficiaryByCPF = () => Promise.resolve(null);
+  canUseService = () => Promise.resolve({ canUse: false, reason: 'Serviço indisponível' });
+}
+
+let checkSubscriptionStatus;
+try {
+  const asaasService = require('../services/asaas');
+  checkSubscriptionStatus = asaasService.checkSubscriptionStatus;
+} catch (error) {
+  console.warn('Asaas service not available:', error);
+  checkSubscriptionStatus = () => Promise.resolve({ hasActiveSubscription: false });
+}
+
+let useBeneficiaryPlan, useSubscription, useRapidocConsultation, useIntegratedNotifications;
+try {
+  useBeneficiaryPlan = require('../hooks/useBeneficiaryPlan').useBeneficiaryPlan;
+} catch (error) {
+  useBeneficiaryPlan = () => ({ plan: null, loading: false, canUse: () => Promise.resolve({ canUse: false }) });
+}
+
+try {
+  useSubscription = require('../hooks/useSubscription').useSubscription;
+} catch (error) {
+  useSubscription = () => ({ subscriptionData: null, loading: false });
+}
+
+try {
+  useRapidocConsultation = require('../hooks/useRapidocConsultation').useRapidocConsultation;
+} catch (error) {
+  useRapidocConsultation = () => ({ requestImmediate: () => Promise.resolve({ success: false }), loading: false });
+}
+
+try {
+  useIntegratedNotifications = require('../hooks/useIntegratedNotifications').useIntegratedNotifications;
+} catch (error) {
+  useIntegratedNotifications = () => ({ 
+    hasUnreadNotifications: false, 
+    unreadCount: 0, 
+    refreshNotifications: () => {} 
+  });
+}
+
+let MessageTemplates, getGreetingMessage, showTemplateMessage, showConfirmationAlert;
+try {
+  const messageTemplates = require('../constants/messageTemplates');
+  MessageTemplates = messageTemplates.MessageTemplates;
+  getGreetingMessage = messageTemplates.getGreetingMessage;
+} catch (error) {
+  getGreetingMessage = (name) => `Olá, ${name || 'Usuário'}!`;
+}
+
+try {
+  const alertHelpers = require('../utils/alertHelpers');
+  showTemplateMessage = alertHelpers.showTemplateMessage;
+  showConfirmationAlert = alertHelpers.showConfirmationAlert;
+} catch (error) {
+  showTemplateMessage = ({ title, message }) => alert(`${title}: ${message}`);
+  showConfirmationAlert = (message, onConfirm) => {
+    if (confirm(message)) onConfirm();
+  };
+}
+
+// Componentes condicionais
+let ConnectionStatus, SpecialistAppointmentScreen, NutritionistAppointmentScreen, PsychologyAppointmentScreen, MyAppointmentsScreen, NotificationScreen;
+try {
+  ConnectionStatus = require('../components/ConnectionStatus').ConnectionStatus;
+} catch (error) {
+  ConnectionStatus = () => null;
+}
+
+try {
+  SpecialistAppointmentScreen = require('../components/SpecialistAppointmentScreen').default;
+  NutritionistAppointmentScreen = require('../components/NutritionistAppointmentScreen').default;
+  PsychologyAppointmentScreen = require('../components/PsychologyAppointmentScreen').default;
+  MyAppointmentsScreen = require('../components/MyAppointmentsScreen').default;
+  NotificationScreen = require('../components/NotificationScreen').default;
+} catch (error) {
+  const MockComponent = ({ onClose }) => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text>Componente em desenvolvimento</Text>
+      <TouchableOpacity onPress={onClose} style={{ marginTop: 20, padding: 10, backgroundColor: '#007AFF', borderRadius: 5 }}>
+        <Text style={{ color: 'white' }}>Fechar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+  SpecialistAppointmentScreen = MockComponent;
+  NutritionistAppointmentScreen = MockComponent;
+  PsychologyAppointmentScreen = MockComponent;
+  MyAppointmentsScreen = MockComponent;
+  NotificationScreen = MockComponent;
+}
 
 interface ServiceButton {
   id: string;

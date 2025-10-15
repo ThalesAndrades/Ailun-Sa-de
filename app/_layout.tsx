@@ -18,27 +18,6 @@ import { CPFAuthProvider } from '../contexts/CPFAuthContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 
-// Configurações globais
-import { logAuditEvent, checkSupabaseConfig } from '../services/supabase';
-import { ProductionLogger } from '../utils/production-logger';
-import { isRapidocConfigured, getRapidocInfo } from '../config/rapidoc.config';
-
-const logger = new ProductionLogger('RootLayout');
-
-// Configurações de performance
-if (Platform.OS !== 'web') {
-  try {
-    const { InteractionManager } = require('react-native');
-    
-    // Permitir mais tempo para animações em dispositivos lentos
-    if (InteractionManager?.setDeadline) {
-      InteractionManager.setDeadline(100);
-    }
-  } catch (error) {
-    // Ignore se InteractionManager não estiver disponível
-  }
-}
-
 // Manter splash screen até a inicialização estar completa
 SplashScreen.preventAutoHideAsync();
 
@@ -47,41 +26,16 @@ export default function RootLayout() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        logger.info('Inicializando aplicação AiLun Saúde v2.1.0');
-        
-        // Verificar configurações essenciais
-        const supabaseConfig = checkSupabaseConfig();
-        const rapidocConfig = getRapidocInfo();
-        
-        logger.info('Configurações verificadas', {
-          supabase: supabaseConfig.isConfigured,
-          rapidoc: rapidocConfig.configured,
-          platform: Platform.OS,
-        });
-        
-        if (!supabaseConfig.isConfigured) {
-          logger.error('Supabase não configurado', supabaseConfig);
-        }
-        
-        if (!rapidocConfig.configured) {
-          logger.warn('RapiDoc não configurado completamente', rapidocConfig);
-        }
-        
-        // Log de inicialização da aplicação
-        await logAuditEvent('app_initialized', {
-          platform: Platform.OS,
-          version: '2.1.0',
-          supabaseConfigured: supabaseConfig.isConfigured,
-          rapidocConfigured: rapidocConfig.configured,
-        });
+        // Log simples sem dependências externas
+        console.log('[AiLun] Inicializando aplicação v2.1.0');
         
         // Aguardar um pouco para carregar recursos essenciais
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        logger.info('Aplicação inicializada com sucesso');
+        console.log('[AiLun] Aplicação inicializada com sucesso');
         
-      } catch (error: any) {
-        logger.error('Erro na inicialização da aplicação', { error: error.message });
+      } catch (error) {
+        console.error('[AiLun] Erro na inicialização:', error);
       } finally {
         // Esconder splash screen após inicialização
         SplashScreen.hideAsync();
