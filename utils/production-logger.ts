@@ -12,22 +12,11 @@ interface LogConfig {
   environment: 'development' | 'production' | 'test';
 }
 
-// Verificar se é ambiente de desenvolvimento
-function isDev(): boolean {
-  try {
-    return typeof __DEV__ !== 'undefined' ? __DEV__ : false;
-  } catch {
-    return false;
-  }
-}
-
-export class ProductionLogger {
+class ProductionLogger {
   private config: LogConfig;
   private logQueue: Array<{ level: LogLevel; message: string; data?: any; timestamp: Date }> = [];
-  private context: string;
 
-  constructor(context: string = 'App') {
-    this.context = context;
+  constructor() {
     this.config = {
       level: this.getLogLevel(),
       enableConsole: this.shouldEnableConsole(),
@@ -37,39 +26,31 @@ export class ProductionLogger {
   }
 
   private getLogLevel(): LogLevel {
-    try {
-      if (typeof process !== 'undefined' && process.env) {
-        return (process.env.LOG_LEVEL as LogLevel) || 'warn';
-      }
-    } catch {}
-    return isDev() ? 'debug' : 'warn';
+    if (typeof process !== 'undefined' && process.env) {
+      return (process.env.LOG_LEVEL as LogLevel) || 'warn';
+    }
+    return __DEV__ ? 'debug' : 'warn';
   }
 
   private shouldEnableConsole(): boolean {
-    try {
-      if (typeof process !== 'undefined' && process.env) {
-        return process.env.NODE_ENV !== 'production' || process.env.DEBUG_MODE === 'true';
-      }
-    } catch {}
-    return isDev();
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.NODE_ENV !== 'production' || process.env.DEBUG_MODE === 'true';
+    }
+    return __DEV__;
   }
 
   private shouldEnableRemote(): boolean {
-    try {
-      if (typeof process !== 'undefined' && process.env) {
-        return process.env.NODE_ENV === 'production' && process.env.ENABLE_CRASH_REPORTING === 'true';
-      }
-    } catch {}
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.NODE_ENV === 'production' && process.env.ENABLE_CRASH_REPORTING === 'true';
+    }
     return false;
   }
 
   private getEnvironment(): 'development' | 'production' | 'test' {
-    try {
-      if (typeof process !== 'undefined' && process.env) {
-        return (process.env.NODE_ENV as any) || 'development';
-      }
-    } catch {}
-    return isDev() ? 'development' : 'production';
+    if (typeof process !== 'undefined' && process.env) {
+      return (process.env.NODE_ENV as any) || 'development';
+    }
+    return __DEV__ ? 'development' : 'production';
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -82,14 +63,10 @@ export class ProductionLogger {
 
   private formatMessage(level: LogLevel, message: string, data?: any): string {
     const timestamp = new Date().toISOString();
-    const prefix = `[${timestamp}] [${this.context}] [${level.toUpperCase()}]`;
+    const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
     
     if (data) {
-      try {
-        return `${prefix} ${message} ${JSON.stringify(data)}`;
-      } catch {
-        return `${prefix} ${message} [Unparseable data]`;
-      }
+      return `${prefix} ${message} ${JSON.stringify(data)}`;
     }
     return `${prefix} ${message}`;
   }
@@ -97,7 +74,7 @@ export class ProductionLogger {
   debug(message: string, data?: any): void {
     if (!this.shouldLog('debug')) return;
 
-    if (this.config.enableConsole && console.debug) {
+    if (this.config.enableConsole) {
       console.debug(this.formatMessage('debug', message, data));
     }
 
@@ -107,7 +84,7 @@ export class ProductionLogger {
   info(message: string, data?: any): void {
     if (!this.shouldLog('info')) return;
 
-    if (this.config.enableConsole && console.info) {
+    if (this.config.enableConsole) {
       console.info(this.formatMessage('info', message, data));
     }
 
@@ -117,7 +94,7 @@ export class ProductionLogger {
   warn(message: string, data?: any): void {
     if (!this.shouldLog('warn')) return;
 
-    if (this.config.enableConsole && console.warn) {
+    if (this.config.enableConsole) {
       console.warn(this.formatMessage('warn', message, data));
     }
 
@@ -127,7 +104,7 @@ export class ProductionLogger {
   error(message: string, error?: any): void {
     if (!this.shouldLog('error')) return;
 
-    if (this.config.enableConsole && console.error) {
+    if (this.config.enableConsole) {
       console.error(this.formatMessage('error', message, error));
     }
 
@@ -169,7 +146,7 @@ export class ProductionLogger {
 }
 
 // Instância singleton
-export const logger = new ProductionLogger('Global');
+export const logger = new ProductionLogger();
 
 // Exports para compatibilidade
 export const log = {

@@ -189,13 +189,6 @@ export class AppointmentService {
     error?: string;
   }> {
     try {
-      console.log('[AppointmentService] Iniciando agendamento de especialista', {
-        beneficiaryUuid,
-        specialtyUuid,
-        availabilityUuid,
-        referralUuid
-      });
-
       // Verificar se há encaminhamento necessário
       if (!referralUuid) {
         const referralCheck = await this.checkSpecialtyReferral(beneficiaryUuid, specialtyUuid);

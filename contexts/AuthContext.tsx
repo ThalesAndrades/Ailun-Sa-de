@@ -10,7 +10,6 @@ export interface AuthContextType {
   session: Session | null;  
   beneficiaryUuid: string | null;
   loading: boolean;
-  isAuthenticated: boolean;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -64,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Buscar perfil no Supabase incluindo novos campos de beneficiário ativo
       const { data: profileData, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*, is_active_beneficiary, plan_type, plan_details')
         .eq('id', userId)
         .single();
@@ -177,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const { error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({
           ...data,
           updated_at: new Date().toISOString(),
@@ -206,7 +205,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     beneficiaryUuid,
     loading,
-    isAuthenticated: !!user,
     signUp,
     signIn,
     signOut,

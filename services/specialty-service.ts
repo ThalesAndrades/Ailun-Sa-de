@@ -5,8 +5,6 @@
 
 import { rapidocHttpClient } from './http-client';
 import { SpecialtyData, ApiResponse } from '../types/rapidoc-types';
-import { withRetry } from '../utils/retry';
-import { ErrorMessages } from '../constants/ErrorMessages';
 
 export class SpecialtyService {
   private readonly ENDPOINTS = {
@@ -36,9 +34,8 @@ export class SpecialtyService {
       }
 
       console.log('[SpecialtyService] Buscando especialidades da API');
-      const response = await withRetry(
-        () => rapidocHttpClient.get<ApiResponse<SpecialtyData[]>>(this.ENDPOINTS.SPECIALTIES),
-        { maxRetries: 2, initialDelay: 500 }
+      const response = await rapidocHttpClient.get<ApiResponse<SpecialtyData[]>>(
+        this.ENDPOINTS.SPECIALTIES
       );
 
       if (response.success) {
@@ -58,13 +55,12 @@ export class SpecialtyService {
 
       return {
         success: false,
-        error: response.message || ErrorMessages.RAPIDOC.API_ERROR
+        error: response.message || 'Erro ao carregar especialidades'
       };
     } catch (error: any) {
-      console.error('[SpecialtyService] Erro ao buscar especialidades:', error);
       return {
         success: false,
-        error: error.message || ErrorMessages.RAPIDOC.API_ERROR
+        error: this.extractErrorMessage(error)
       };
     }
   }
@@ -94,7 +90,7 @@ export class SpecialtyService {
 
     return {
       success: false,
-      error: ErrorMessages.CONSULTATION.SPECIALTY_NOT_FOUND
+      error: 'Especialidade não encontrada'
     };
   }
 
@@ -174,7 +170,15 @@ export class SpecialtyService {
       (Date.now() - this.cacheTimestamp) < this.CACHE_DURATION;
   }
 
-
+  private extractErrorMessage(error: any): string {
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+    if (error.message) {
+      return error.message;
+    }
+    return 'Erro desconhecido na comunicação com a API';
+  }
 }
 
 // Instância singleton

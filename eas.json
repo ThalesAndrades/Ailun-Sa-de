@@ -1,134 +1,42 @@
 {
   "cli": {
-    "version": ">= 8.0.0",
-    "appVersionSource": "remote",
-    "requireCommit": false
+    "version": ">= 12.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "channel": "development",
-      "ios": {
-        "resourceClass": "m-medium",
-        "simulator": true,
-        "buildConfiguration": "Debug"
-      },
-      "android": {
-        "resourceClass": "medium",
-        "buildType": "developmentClient",
-        "gradleCommand": ":app:assembleDebug"
-      },
-      "env": {
-        "NODE_ENV": "development"
-      }
+      "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
-      "channel": "preview",
-      "ios": {
-        "resourceClass": "m-medium",
-        "simulator": true,
-        "buildConfiguration": "Release",
-        "autoIncrement": "buildNumber"
-      },
       "android": {
-        "resourceClass": "medium",
-        "buildType": "apk",
-        "autoIncrement": "versionCode",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "apk"
       },
+      "distribution": "internal",
       "env": {
-        "NODE_ENV": "preview"
+        "EXPO_PUBLIC_APP_ENV": "staging"
       }
     },
     "production": {
-      "distribution": "store",
-      "channel": "production",
-      "ios": {
-        "resourceClass": "m-large",
-        "autoIncrement": "buildNumber",
-        "buildConfiguration": "Release",
-        "bundleIdentifier": "com.ailun.saude",
-        "config": {
-          "usesNonExemptEncryption": false
-        },
-        "image": "latest"
-      },
-      "android": {
-        "resourceClass": "large",
-        "autoIncrement": "versionCode",
-        "buildType": "aab",
-        "gradleCommand": ":app:bundleRelease",
-        "image": "latest"
-      },
       "env": {
-        "NODE_ENV": "production"
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_DISABLE_LOGS": "true"
       },
-      "cache": {
-        "disabled": false,
-        "key": "production-cache",
-        "cacheDefaultPaths": true,
-        "customPaths": [
-          "node_modules",
-          ".expo"
-        ]
-      }
-    },
-    "production-ios": {
-      "extends": "production",
-      "ios": {
-        "resourceClass": "m-large",
-        "autoIncrement": "buildNumber",
-        "buildConfiguration": "Release",
-        "simulator": false,
-        "enterprise": false
-      }
-    },
-    "production-android": {
-      "extends": "production",
       "android": {
-        "resourceClass": "large",
-        "autoIncrement": "versionCode",
         "buildType": "aab"
       }
     }
   },
   "submit": {
     "production": {
-      "ios": {
-        "ascAppId": "YOUR_ASC_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID",
-        "sku": "ailun-saude-ios",
-        "language": "pt-BR",
-        "companyName": "AiLun Saúde",
-        "appName": "AiLun Saúde",
-        "copyright": "2024 AiLun Saúde. Todos os direitos reservados.",
-        "primaryCategory": "MEDICAL",
-        "secondaryCategory": "HEALTH_FITNESS"
-      },
       "android": {
-        "serviceAccountKeyPath": "./android-service-account.json",
-        "track": "production",
-        "releaseStatus": "completed",
-        "rollout": 1.0
-      }
-    },
-    "preview": {
-      "ios": {
-        "ascAppId": "YOUR_ASC_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./android-service-account.json",
+        "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "your-apple-id@email.com",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "your-team-id"
       }
     }
-  },
-  "cli": {
-    "version": ">= 8.0.0",
-    "appVersionSource": "remote",
-    "requireCommit": false,
-    "promptToConfigurePushNotifications": false
   }
 }

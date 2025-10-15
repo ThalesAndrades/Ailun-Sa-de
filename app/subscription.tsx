@@ -48,8 +48,7 @@ export default function SubscriptionScreen() {
       showAlert('Erro', 'Dados do usuário não encontrados. Faça login novamente.');
       return;
     }
-    // Redirecionar para seleção de planos
-    router.push('/subscription/select-plan');
+    router.push('/payment-card');
   };
 
   const handleSubscribePix = () => {

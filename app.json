@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "AiLun Saúde",
-    "slug": "ailun-saude",
-    "version": "2.1.0",
+    "name": "Ailun Saúde",
+    "slug": "ailun-saude-app",
+    "version": "1.2.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/adaptive-icon.png",
+    "scheme": "ailun",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
@@ -14,43 +15,15 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "privacy": "public",
-    "primaryColor": "#00B4DB",
-    "description": "AiLun Saúde - Sua plataforma de telemedicina completa com consultas médicas, especialistas, psicólogos e nutricionistas disponíveis 24/7.",
-    "keywords": ["saúde", "telemedicina", "médico", "consulta", "ailun"],
-    "githubUrl": "https://github.com/yourusername/ailun-saude",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ailun.saude",
-      "buildNumber": "2.1.0",
-      "requireFullScreen": false,
-      "config": {
-        "usesNonExemptEncryption": false
-      },
+      "buildNumber": "12",
       "infoPlist": {
-        "NSCameraUsageDescription": "O aplicativo precisa acessar a câmera para realizar consultas médicas por videochamada com segurança e qualidade.",
-        "NSMicrophoneUsageDescription": "O aplicativo precisa acessar o microfone para permitir comunicação durante consultas médicas por videochamada.",
-        "NSFaceIDUsageDescription": "Use Face ID ou Touch ID para fazer login no aplicativo de forma rápida e segura, protegendo seus dados médicos.",
-        "NSLocationWhenInUseUsageDescription": "O aplicativo pode usar sua localização para encontrar profissionais de saúde próximos a você.",
-        "NSPhotoLibraryUsageDescription": "O aplicativo precisa acessar suas fotos para permitir o envio de imagens médicas durante consultas.",
-        "NSHealthShareUsageDescription": "O aplicativo pode integrar com seus dados de saúde para fornecer informações mais precisas aos médicos.",
-        "NSHealthUpdateUsageDescription": "O aplicativo pode atualizar seus dados de saúde com informações das consultas médicas.",
-        "CFBundleDisplayName": "AiLun Saúde",
-        "CFBundleName": "AiLun Saúde",
-        "UIBackgroundModes": ["background-fetch", "remote-notification"],
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIRequiresFullScreen": false,
-        "UISupportedInterfaceOrientations": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationPortraitUpsideDown"
-        ],
-        "UILaunchStoryboardName": "SplashScreen",
-        "UIStatusBarStyle": "UIStatusBarStyleDefault"
-      },
-      "associatedDomains": [
-        "applinks:ailun.com.br",
-        "applinks:app.ailun.com.br"
-      ]
+        "NSCameraUsageDescription": "Este aplicativo precisa de acesso à câmera para consultas médicas por vídeo.",
+        "NSMicrophoneUsageDescription": "Este aplicativo precisa de acesso ao microfone para consultas médicas por áudio.",
+        "NSFaceIDUsageDescription": "Use Face ID ou Touch ID para login rápido e seguro no aplicativo."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -58,124 +31,42 @@
         "backgroundColor": "#00B4DB"
       },
       "package": "com.ailun.saude",
-      "versionCode": 21,
+      "versionCode": 12,
       "permissions": [
+        "android.permission.INTERNET",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.WAKE_LOCK",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT",
-        "android.permission.VIBRATE",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SYSTEM_ALERT_WINDOW"
-      ],
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "category": ["BROWSABLE", "DEFAULT"],
-          "data": {
-            "scheme": "https",
-            "host": "app.ailun.com.br"
-          }
-        }
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "config": {
-        "firebase": {
-          "measurementId": "G-XXXXXXXXXX"
-        }
-      }
-    },
-    "scheme": "ailun-saude",
-    "notification": {
-      "icon": "./assets/notification-icon.png",
-      "color": "#00B4DB",
-      "androidMode": "default",
-      "androidCollapsedTitle": "#{unread_notifications} novas notificações"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/ailun-saude-project-id"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
+      "output": "static",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Use Face ID ou Touch ID para fazer login no aplicativo de forma rápida e segura."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "O aplicativo precisa acessar a câmera para realizar consultas médicas por videochamada.",
-          "microphonePermission": "O aplicativo precisa acessar o microfone para comunicação durante as consultas.",
-          "recordAudioAndroid": true
-        }
-      ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": "O aplicativo precisa acessar o microfone para consultas médicas por videochamada."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#00B4DB",
-          "sounds": [
-            "./assets/notification-sound.wav"
-          ],
-          "mode": "production"
-        }
-      ],
+      "expo-local-authentication",
       [
         "expo-image-picker",
         {
-          "photosPermission": "O aplicativo precisa acessar suas fotos para permitir o envio de imagens médicas durante consultas.",
-          "cameraPermission": "O aplicativo precisa acessar a câmera para capturar fotos médicas."
-        }
-      ],
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "O aplicativo precisa acessar a galeria para salvar documentos médicos.",
-          "savePhotosPermission": "O aplicativo precisa salvar documentos médicos na galeria.",
-          "isAccessMediaLocationEnabled": true
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "O aplicativo pode usar sua localização para encontrar profissionais de saúde próximos.",
-          "isIosBackgroundLocationEnabled": false,
-          "isAndroidBackgroundLocationEnabled": false
+          "photosPermission": "The app accesses your photos to let you share them.",
+          "cameraPermission": "The app accesses your camera to let you take photos."
         }
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "tsconfigPaths": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "ailun-saude-project-id"
-      },
-      "SUPABASE_URL": "${SUPABASE_URL}",
-      "SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY}"
+        "projectId": "ailun-saude-production"
+      }
     }
   }
 }

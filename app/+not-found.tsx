@@ -1,97 +1,74 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+/*
+ * @Description: 
+ */
+
+// Powered by OnSpace.AI
 import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotFoundScreen() {
-  const insets = useSafeAreaInsets();
-
-  const handleGoHome = () => {
-    try {
-      // Usar diferentes estratégias de navegação dependendo do ambiente
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.location) {
-          window.location.href = '/';
-        }
-      } else {
-        // Para mobile, redirecionar usando window.location como fallback
-        if (typeof window !== 'undefined' && window.location) {
-          window.location.href = '/dashboard';
-        }
-      }
-    } catch (error) {
-      // Fallback silencioso para evitar crashes
-      console.log('Erro na navegação:', error);
-    }
-  };
-
   return (
-    <LinearGradient colors={['#00B4DB', '#0083B0']} style={styles.container}>
-      <View style={[styles.content, { paddingTop: insets.top + 40 }]}>
-        <View style={styles.iconContainer}>
-          <MaterialIcons name="error-outline" size={80} color="white" />
-        </View>
-        
-        <Text style={styles.title}>Página não encontrada</Text>
-        <Text style={styles.subtitle}>
-          A página que você procura não existe ou foi movida.
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#0a0a0a', '#1a1a1a']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      
+      <View style={styles.content}>
+        <MaterialIcons name="photo-camera" size={80} color="#FFD700" />
+        <Text style={styles.title}>Page Not Found</Text>
+        <Text style={styles.message}>
+          The moment you're looking for seems to have been lost in the shadows.
         </Text>
         
         <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleGoHome}
-          activeOpacity={0.8}
+          style={styles.homeButton}
+          onPress={() => router.push('/')}
         >
-          <MaterialIcons name="home" size={24} color="white" />
-          <Text style={styles.buttonText}>Voltar ao Início</Text>
+          <Text style={styles.homeButtonText}>Return Home</Text>
         </TouchableOpacity>
       </View>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0a0a0a',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  iconContainer: {
-    marginBottom: 32,
+    padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 16,
+    color: '#FFFFFF',
+    marginTop: 20,
+    marginBottom: 10,
   },
-  subtitle: {
+  message: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#CCCCCC',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
     lineHeight: 22,
   },
-  button: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+  homeButton: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
+  homeButtonText: {
+    color: '#0a0a0a',
     fontWeight: 'bold',
-    marginLeft: 8,
+    fontSize: 16,
   },
 });

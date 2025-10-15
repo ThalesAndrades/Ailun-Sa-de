@@ -16,107 +16,19 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
-
-// Importações condicionais para evitar erros de inicialização
-let getBeneficiaryByCPF, canUseService;
-try {
-  const beneficiaryService = require('../services/beneficiary-plan-service');
-  getBeneficiaryByCPF = beneficiaryService.getBeneficiaryByCPF;
-  canUseService = beneficiaryService.canUseService;
-} catch (error) {
-  console.warn('Beneficiary service not available:', error);
-  getBeneficiaryByCPF = () => Promise.resolve(null);
-  canUseService = () => Promise.resolve({ canUse: false, reason: 'Serviço indisponível' });
-}
-
-let checkSubscriptionStatus;
-try {
-  const asaasService = require('../services/asaas');
-  checkSubscriptionStatus = asaasService.checkSubscriptionStatus;
-} catch (error) {
-  console.warn('Asaas service not available:', error);
-  checkSubscriptionStatus = () => Promise.resolve({ hasActiveSubscription: false });
-}
-
-let useBeneficiaryPlan, useSubscription, useRapidocConsultation, useIntegratedNotifications;
-try {
-  useBeneficiaryPlan = require('../hooks/useBeneficiaryPlan').useBeneficiaryPlan;
-} catch (error) {
-  useBeneficiaryPlan = () => ({ plan: null, loading: false, canUse: () => Promise.resolve({ canUse: false }) });
-}
-
-try {
-  useSubscription = require('../hooks/useSubscription').useSubscription;
-} catch (error) {
-  useSubscription = () => ({ subscriptionData: null, loading: false });
-}
-
-try {
-  useRapidocConsultation = require('../hooks/useRapidocConsultation').useRapidocConsultation;
-} catch (error) {
-  useRapidocConsultation = () => ({ requestImmediate: () => Promise.resolve({ success: false }), loading: false });
-}
-
-try {
-  useIntegratedNotifications = require('../hooks/useIntegratedNotifications').useIntegratedNotifications;
-} catch (error) {
-  useIntegratedNotifications = () => ({ 
-    hasUnreadNotifications: false, 
-    unreadCount: 0, 
-    refreshNotifications: () => {} 
-  });
-}
-
-let MessageTemplates, getGreetingMessage, showTemplateMessage, showConfirmationAlert;
-try {
-  const messageTemplates = require('../constants/messageTemplates');
-  MessageTemplates = messageTemplates.MessageTemplates;
-  getGreetingMessage = messageTemplates.getGreetingMessage;
-} catch (error) {
-  getGreetingMessage = (name) => `Olá, ${name || 'Usuário'}!`;
-}
-
-try {
-  const alertHelpers = require('../utils/alertHelpers');
-  showTemplateMessage = alertHelpers.showTemplateMessage;
-  showConfirmationAlert = alertHelpers.showConfirmationAlert;
-} catch (error) {
-  showTemplateMessage = ({ title, message }) => alert(`${title}: ${message}`);
-  showConfirmationAlert = (message, onConfirm) => {
-    if (confirm(message)) onConfirm();
-  };
-}
-
-// Componentes condicionais
-let ConnectionStatus, SpecialistAppointmentScreen, NutritionistAppointmentScreen, PsychologyAppointmentScreen, MyAppointmentsScreen, NotificationScreen;
-try {
-  ConnectionStatus = require('../components/ConnectionStatus').ConnectionStatus;
-} catch (error) {
-  ConnectionStatus = () => null;
-}
-
-try {
-  SpecialistAppointmentScreen = require('../components/SpecialistAppointmentScreen').default;
-  NutritionistAppointmentScreen = require('../components/NutritionistAppointmentScreen').default;
-  PsychologyAppointmentScreen = require('../components/PsychologyAppointmentScreen').default;
-  MyAppointmentsScreen = require('../components/MyAppointmentsScreen').default;
-  NotificationScreen = require('../components/NotificationScreen').default;
-} catch (error) {
-  const MockComponent = ({ onClose }) => (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Componente em desenvolvimento</Text>
-      <TouchableOpacity onPress={onClose} style={{ marginTop: 20, padding: 10, backgroundColor: '#007AFF', borderRadius: 5 }}>
-        <Text style={{ color: 'white' }}>Fechar</Text>
-      </TouchableOpacity>
-    </View>
-  );
-  SpecialistAppointmentScreen = MockComponent;
-  NutritionistAppointmentScreen = MockComponent;
-  PsychologyAppointmentScreen = MockComponent;
-  MyAppointmentsScreen = MockComponent;
-  NotificationScreen = MockComponent;
-}
+import { getBeneficiaryByCPF, canUseService } from '../services/beneficiary-plan-service';
+import { checkSubscriptionStatus } from '../services/asaas';
+import { useBeneficiaryPlan } from '../hooks/useBeneficiaryPlan';
+import { useSubscription } from '../hooks/useSubscription';
+import { useRapidocConsultation } from '../hooks/useRapidocConsultation';
+import { useIntegratedNotifications } from '../hooks/useIntegratedNotifications';
+import { MessageTemplates, getGreetingMessage } from '../constants/messageTemplates';
+import { showTemplateMessage, showConfirmationAlert } from '../utils/alertHelpers';
+import SpecialistAppointmentScreen from '../components/SpecialistAppointmentScreen';
+import NutritionistAppointmentScreen from '../components/NutritionistAppointmentScreen';
+import PsychologyAppointmentScreen from '../components/PsychologyAppointmentScreen';
+import MyAppointmentsScreen from '../components/MyAppointmentsScreen';
+import NotificationScreen from '../components/NotificationScreen';
 
 interface ServiceButton {
   id: string;
@@ -130,18 +42,17 @@ interface ServiceButton {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { user, profile, beneficiaryUuid, loading: authLoading, signOut, isAuthenticated } = useAuth();
+  const { user, profile, beneficiaryUuid, loading: authLoading, signOut } = useAuth();
   const [beneficiaryData, setBeneficiaryData] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const { plan, loading: planLoading, canUse } = useBeneficiaryPlan(beneficiaryUuid);
   const { subscriptionData, loading: subscriptionLoading } = useSubscription(beneficiaryUuid || '');
-
+  const { loading: consultationLoading, requestImmediate } = useRapidocConsultation();
   const { 
     hasUnreadNotifications, 
     unreadCount, 
     refreshNotifications 
   } = useIntegratedNotifications();
-  const { requestImmediate, loading: consultationLoading } = useRapidocConsultation();
   
   // Modal states
   const [specialistModal, setSpecialistModal] = useState(false);
@@ -160,35 +71,6 @@ export default function DashboardScreen() {
     new Animated.Value(0),
     new Animated.Value(0)
   ]);
-
-  // Verificar aceite de termos
-  useEffect(() => {
-    const checkTermsAcceptance = async () => {
-      if (isAuthenticated && user) {
-        try {
-          const { data, error } = await supabase
-            .from('user_profiles')
-            .select('terms_accepted')
-            .eq('id', user.id)
-            .single();
-
-          if (error) {
-            console.error('[Dashboard] Erro ao verificar aceite de termos:', error);
-            return;
-          }
-
-          // Se o usuário não aceitou os termos, redirecionar para a tela de aceite
-          if (data && !data.terms_accepted) {
-            router.replace('/signup/terms-acceptance');
-          }
-        } catch (err) {
-          console.error('[Dashboard] Erro inesperado ao verificar termos:', err);
-        }
-      }
-    };
-
-    checkTermsAcceptance();
-  }, [isAuthenticated, user]);
 
   // Animações de entrada
   useEffect(() => {
@@ -280,44 +162,32 @@ export default function DashboardScreen() {
   const handleDoctorNow = async () => {
     if (consultationLoading || !beneficiaryUuid) return;
     
-    // Solicitar consulta imediata via RapiDoc
-    try {
-      const result = await requestImmediate(beneficiaryUuid);
+    // Verificar status da assinatura
+    if (subscriptionStatus && !subscriptionStatus.hasActiveSubscription) {
+      showTemplateMessage({
+        title: '⚠️ Assinatura Inativa',
+        message: 'Sua assinatura está inativa. Por favor, regularize seu pagamento para continuar usando os serviços.',
+        type: 'warning'
+      });
+      router.push('/subscription');
+      return;
+    }
 
-      if (result.success) {
+    // Verificar se pode usar o serviço
+    if (beneficiaryData?.beneficiary_uuid) {
+      const serviceCheck = await canUseService(beneficiaryData.beneficiary_uuid, 'clinical');
+      if (!serviceCheck.canUse) {
         showTemplateMessage({
-          title: '🏥 Consulta Solicitada',
-          message: result.estimatedWaitTime 
-            ? `Tempo estimado: ${result.estimatedWaitTime} minutos`
-            : 'Conectando você ao médico...',
-          type: 'success'
-        });
-        
-        if (result.sessionUrl) {
-          router.push({
-            pathname: '/consultation/webview',
-            params: { 
-              url: result.sessionUrl,
-              consultationId: result.consultationId 
-            }
-          });
-        } else {
-          router.push('/consultation/request-immediate');
-        }
-      } else {
-        showTemplateMessage({
-          title: '⚠️ Consulta Indisponível',
-          message: result.error || 'Não foi possível solicitar a consulta no momento.',
+          title: 'Serviço Indisponível',
+          message: serviceCheck.reason || 'Você não pode usar este serviço no momento.',
           type: 'warning'
         });
+        return;
       }
-    } catch (error: any) {
-      showTemplateMessage({
-        title: '❌ Erro na Solicitação',
-        message: 'Tente novamente em alguns instantes.',
-        type: 'error'
-      });
     }
+    
+    // Navegar para tela de solicitação de consulta imediata
+    router.push('/consultation/request-immediate');
   };
 
   const handleSpecialists = async () => {
@@ -503,9 +373,6 @@ export default function DashboardScreen() {
             )}
           </View>
           <View style={styles.headerRight}>
-            {/* Status de Conexão */}
-            <ConnectionStatus compact={true} />
-            
             {/* Botão de Assinatura */}
             <TouchableOpacity 
               style={[
@@ -601,9 +468,6 @@ export default function DashboardScreen() {
                 )}
               </View>
             )}
-
-            {/* Status de Conectividade das Integrações */}
-            <ConnectionStatus showDetails={true} />
 
             {hasUnreadNotifications && (
               <TouchableOpacity 

@@ -14,7 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { requestImmediateConsultation } from '../../services/rapidoc-consultation-service';
 import { 
   getBeneficiaryByCPF, 
@@ -57,7 +56,7 @@ export default function RequestImmediateConsultationScreen() {
 
       // Buscar perfil do usuário
       const { data: profile } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -103,18 +102,6 @@ export default function RequestImmediateConsultationScreen() {
       );
       return;
     }
-
-    // Validar sintomas
-    if (!symptoms.trim()) {
-      Alert.alert(
-        'Atenção',
-        'Por favor, descreva seus sintomas para que o médico possa atendê-lo melhor.'
-      );
-      return;
-    }
-
-    // Feedback tátil
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Verificar se pode usar o serviço
     const canUse = await canUseService(beneficiaryUuid, 'clinical');

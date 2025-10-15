@@ -1,45 +1,17 @@
-/**
- * TypeScript configuration para AiLun Saúde
- */
-
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": false,
-    "allowJs": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "moduleResolution": "node",
-    "noEmit": true,
-    "isolatedModules": true,
-    "strictNullChecks": false,
-    "baseUrl": ".",
+    "strict": true,
     "paths": {
-      "@/*": ["./*"],
-      "@components/*": ["./components/*"],
-      "@services/*": ["./services/*"],
-      "@hooks/*": ["./hooks/*"],
-      "@utils/*": ["./utils/*"],
-      "@constants/*": ["./constants/*"],
-      "@contexts/*": ["./contexts/*"],
-      "@types/*": ["./types/*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "polyfills.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    ".expo",
-    "web-build"
+    "expo-env.d.ts"
   ]
 }
