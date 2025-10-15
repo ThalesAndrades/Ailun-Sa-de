@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import {
   getAvailableSpecialties,
   getAvailableSlots,
@@ -166,18 +167,22 @@ export default function ScheduleConsultationScreen() {
   };
 
   const handleSelectSpecialty = async (specialty: Specialty) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedSpecialty(specialty);
     setStep('slots');
     await loadSlots(specialty.id);
   };
 
   const handleSelectSlot = (slot: TimeSlot) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedSlot(slot);
     setStep('confirm');
   };
 
   const handleConfirmSchedule = async () => {
     if (!beneficiaryUuid || !selectedSlot) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     setIsScheduling(true);
 
