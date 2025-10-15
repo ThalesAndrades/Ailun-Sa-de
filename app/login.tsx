@@ -20,13 +20,13 @@ import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
-import { loginWithCPF } from '../services/cpfAuthNew';
 import { MessageTemplates } from '../constants/messageTemplates';
 import {
   showTemplateMessage,
   showErrorAlert,
   showInvalidCPFAlert
 } from '../utils/alertHelpers';
+import { useActiveBeneficiaryAuth } from '../hooks/useActiveBeneficiaryAuth';
 
 const CPF_KEY = 'last_used_cpf';
 
@@ -34,7 +34,13 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { 
+    loading, 
+    loginWithCPF: authenticateBeneficiary, 
+    formatCPF: formatCPFHelper,
+    validateCPFFormat,
+    resetPassword
+  } = useActiveBeneficiaryAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [cpfError, setCpfError] = useState('');
   const [senhaError, setSenhaError] = useState('');
@@ -132,14 +138,7 @@ export default function LoginScreen() {
   };
 
   const formatCPF = (value: string) => {
-    const numericValue = value.replace(/\D/g, '');
-    if (numericValue.length <= 11) {
-      return numericValue
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})/, '$1-$2');
-    }
-    return cpf;
+    return formatCPFHelper(value);
   };
 
   const handleCpfFocus = () => {
@@ -262,93 +261,36 @@ export default function LoginScreen() {
   };
 
   const performLogin = async (cpfValue: string, senhaValue: string) => {
-    console.log('[performLogin] Executando login com CPF:', cpfValue, 'e Senha:', senhaValue);
+    console.log('[performLogin] Executando login com beneficiário ativo');
     
     try {
       // Garantir que são strings e limpar
       const cpfString = String(cpfValue).trim();
       const senhaString = String(senhaValue).trim();
       
-      const numericCPF = cpfString.replace(/\D/g, '');
-      console.log('[performLogin] CPF numérico final:', numericCPF);
-      console.log('[performLogin] Senha final:', senhaString);
+      // Salvar credenciais apenas em plataformas nativas
+      if (Platform.OS !== 'web') {
+        try {
+          const numericCPF = cpfString.replace(/\D/g, '');
+          await SecureStore.setItemAsync(CPF_KEY, numericCPF);
+          await SecureStore.setItemAsync(numericCPF, senhaString);
+        } catch (error) {
+          console.log('Erro ao salvar credenciais:', error);
+        }
+      }
       
-      const result = await loginWithCPF(numericCPF, senhaString);
-      console.log('[performLogin] Resultado do login:', result);
-
-      if (result.success && result.data) {
-        // Salvar credenciais apenas em plataformas nativas
-        if (Platform.OS !== 'web') {
-          try {
-            await SecureStore.setItemAsync(CPF_KEY, numericCPF);
-            await SecureStore.setItemAsync(numericCPF, senhaString);
-          } catch (error) {
-            console.log('Erro ao salvar credenciais:', error);
-          }
-        }
-
-        // Verificar se o usuário tem plano ativo usando novos serviços
-        const { supabase } = await import('../services/supabase');
-        const { getBeneficiaryByCPF, getActivePlanByBeneficiaryUUID } = await import('../services/beneficiary-plan-service');
-        const { checkSubscriptionStatus } = await import('../services/asaas');
-        
-        const beneficiary = await getBeneficiaryByCPF(numericCPF);
-        
-        if (beneficiary) {
-          const planData = await getActivePlanByBeneficiaryUUID(beneficiary.beneficiary_uuid);
-          const subscriptionStatus = await checkSubscriptionStatus(beneficiary.beneficiary_uuid);
-          
-          if (!planData || !subscriptionStatus.hasActiveSubscription) {
-            // Usuário não tem plano ativo ou assinatura inativa
-            showTemplateMessage({
-              title: '⚠️ Assinatura Inativa',
-              message: 'Sua assinatura está inativa. Complete ou renove seu plano para acessar o aplicativo.',
-              type: 'warning'
-            });
-            setTimeout(() => {
-              router.replace('/signup/welcome');
-            }, 1500);
-            return;
-          }
-        } else {
-          // Beneficiário não encontrado, redirecionar para fluxo de assinatura
-          showTemplateMessage({
-            title: '⚠️ Cadastro Incompleto',
-            message: 'Complete seu cadastro para acessar o aplicativo.',
-            type: 'warning'
-          });
-          setTimeout(() => {
-            router.replace('/signup/welcome');
-          }, 1500);
-          return;
-        }
-
-        // Verificar se é o primeiro acesso
-        const { data: profileData } = await supabase
-          .from('user_profiles')
-          .select('has_seen_onboarding')
-          .eq('id', result.data.id)
-          .single();
-
-        const isFirstAccess = !profileData?.has_seen_onboarding;
-
-        showTemplateMessage(MessageTemplates.auth.loginSuccess(result.data.name));
+      // Usar o novo sistema de autenticação de beneficiários
+      const result = await authenticateBeneficiary(cpfString, senhaString);
+      
+      if (result.success) {
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-
-        setTimeout(() => {
-          if (isFirstAccess) {
-            router.replace('/onboarding/platform-guide');
-          } else {
-            router.replace('/dashboard');
-          }
-        }, 1500);
       } else {
         // Mostrar erro no campo apropriado
         const errorMessage = result.error || 'Erro inesperado';
         
-        if (errorMessage.toLowerCase().includes('cpf')) {
+        if (errorMessage.toLowerCase().includes('cpf') || errorMessage.toLowerCase().includes('beneficiário')) {
           setCpfError(errorMessage);
           triggerShake(cpfShakeAnim);
         } else if (errorMessage.toLowerCase().includes('senha')) {
@@ -372,14 +314,11 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    console.log('[handleLogin] Iniciando processo de login');
-    console.log('[handleLogin] Estado atual - CPF:', cpf, 'Senha:', senha);
+    console.log('[handleLogin] Iniciando processo de login para beneficiário ativo');
     
     // Capturar os valores atuais do estado no momento da execução
     const currentCPF = cpf;
     const currentSenha = senha;
-    
-    console.log('[handleLogin] Valores capturados - CPF:', currentCPF, 'Senha:', currentSenha);
     
     // Limpar erros anteriores
     setCpfError('');
@@ -391,21 +330,20 @@ export default function LoginScreen() {
       return;
     }
 
-    setLoading(true);
-    
-    try {
-      await performLogin(currentCPF, currentSenha);
-    } finally {
-      setLoading(false);
-    }
+    // O loading é gerenciado pelo hook useActiveBeneficiaryAuth
+    await performLogin(currentCPF, currentSenha);
   };
 
-  const handleForgotPassword = () => {
-    showTemplateMessage({
-      title: '🔑 Esqueceu a Senha?',
-      message: 'Sua senha são os 4 primeiros dígitos do seu CPF.\n\nPor exemplo:\nCPF: 123.456.789-10\nSenha: 1234\n\nSe continuar com problemas, entre em contato conosco.',
-      type: 'info'
-    });
+  const handleForgotPassword = async () => {
+    if (cpf.length >= 11) {
+      await resetPassword(cpf);
+    } else {
+      showTemplateMessage({
+        title: '🔑 Esqueceu a Senha?',
+        message: 'Sua senha são os 4 primeiros dígitos do seu CPF.\n\nPor exemplo:\nCPF: 123.456.789-10\nSenha: 1234\n\nDigite seu CPF completo para receber informações específicas.',
+        type: 'info'
+      });
+    }
   };
 
   const handleHelp = () => {
@@ -582,23 +520,23 @@ export default function LoginScreen() {
           {/* Footer */}
           <View style={styles.footer}>
             <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>Recursos Disponíveis</Text>
+              <Text style={styles.featuresTitle}>✨ Sistema Otimizado para Beneficiários</Text>
               <View style={styles.featuresList}>
                 <View style={styles.featureItem}>
-                  <MaterialIcons name="medical-services" size={20} color="rgba(255, 255, 255, 0.8)" />
-                  <Text style={styles.featureText}>Médico Imediato</Text>
+                  <MaterialIcons name="verified" size={20} color="rgba(76, 175, 80, 0.9)" />
+                  <Text style={styles.featureText}>Login Automático para Beneficiários Ativos</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <MaterialIcons name="person-search" size={20} color="rgba(255, 255, 255, 0.8)" />
-                  <Text style={styles.featureText}>Especialistas</Text>
+                  <MaterialIcons name="speed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Acesso Direto aos Serviços</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <MaterialIcons name="psychology" size={20} color="rgba(255, 255, 255, 0.8)" />
-                  <Text style={styles.featureText}>Psicologia</Text>
+                  <MaterialIcons name="sync" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Sincronização Automática</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <MaterialIcons name="restaurant" size={20} color="rgba(255, 255, 255, 0.8)" />
-                  <Text style={styles.featureText}>Nutrição</Text>
+                  <MaterialIcons name="security" size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <Text style={styles.featureText}>Segurança Aprimorada</Text>
                 </View>
               </View>
             </View>
