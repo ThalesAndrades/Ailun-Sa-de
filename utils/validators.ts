@@ -66,6 +66,45 @@ export function isValidBirthDate(date: string): boolean {
 }
 
 /**
+ * Validar data brasileira (DD/MM/AAAA)
+ */
+export function isValidBrazilianDate(date: string): boolean {
+  if (!date) return false;
+  
+  // Verificar formato DD/MM/AAAA
+  const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const match = date.match(dateRegex);
+  
+  if (!match) return false;
+  
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const year = parseInt(match[3], 10);
+  
+  // Verificar se a data é válida
+  const birthDate = new Date(year, month - 1, day);
+  
+  if (
+    birthDate.getDate() !== day ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getFullYear() !== year
+  ) {
+    return false;
+  }
+  
+  // Verificar idade (16 a 120 anos)
+  const today = new Date();
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    return age - 1 >= 16 && age - 1 <= 120;
+  }
+  
+  return age >= 16 && age <= 120;
+}
+
+/**
  * Validar CEP
  */
 export function isValidZipCode(cep: string): boolean {
