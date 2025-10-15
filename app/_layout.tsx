@@ -4,8 +4,8 @@
  */
 
 // CRÍTICO: Polyfills de inicialização DEVEM ser a primeira coisa importada
-import './polyfill-init';
-import './polyfills';
+import '../polyfill-init';
+import '../polyfills';
 
 // Forçar uma pausa para garantir que polyfills sejam aplicados
 console.log('[AiLun] Verificando React.use:', typeof React?.use);
