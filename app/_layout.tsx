@@ -1,10 +1,14 @@
 /**
  * Root Layout - AiLun Saúde
- * Layout principal com providers e navegação otimizada
+ * Layout principal com polyfills aplicados PRIMEIRO
  */
 
-// Polyfills devem ser importados ANTES de tudo
-import '../polyfills';
+// CRÍTICO: Polyfills de inicialização DEVEM ser a primeira coisa importada
+import './polyfill-init';
+import './polyfills';
+
+// Forçar uma pausa para garantir que polyfills sejam aplicados
+console.log('[AiLun] Verificando React.use:', typeof React?.use);
 
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
@@ -26,13 +30,29 @@ export default function RootLayout() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Log simples sem dependências externas
-        console.log('[AiLun] Inicializando aplicação v2.1.0');
+        console.log('[AiLun] Inicializando aplicação v2.1.1');
+        
+        // Verificar se React.use está disponível
+        if (typeof React.use !== 'function') {
+          console.warn('[AiLun] React.use não disponível, aplicando polyfill de emergência');
+          
+          // Polyfill de emergência
+          React.use = function(resource) {
+            if (resource && typeof resource.then === 'function') {
+              throw resource;
+            }
+            if (resource && resource._context) {
+              return resource._currentValue || resource._defaultValue || null;
+            }
+            return resource;
+          };
+        }
         
         // Aguardar um pouco para carregar recursos essenciais
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         console.log('[AiLun] Aplicação inicializada com sucesso');
+        console.log('[AiLun] React.use status:', typeof React.use);
         
       } catch (error) {
         console.error('[AiLun] Erro na inicialização:', error);
