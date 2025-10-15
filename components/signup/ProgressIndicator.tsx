@@ -1,71 +1,76 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 
 interface ProgressIndicatorProps {
   currentStep: number;
   totalSteps: number;
-  stepLabels?: string[];
+  stepLabels: string[];
 }
 
 export default function ProgressIndicator({ 
   currentStep, 
   totalSteps, 
-  stepLabels = [] 
+  stepLabels 
 }: ProgressIndicatorProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.progressBar}>
-        <View 
-          style={[
-            styles.progressFill, 
-            { width: `${(currentStep / totalSteps) * 100}%` }
-          ]} 
-        />
-      </View>
+      <Text style={styles.title}>
+        Passo {currentStep} de {totalSteps}
+      </Text>
       
-      <View style={styles.stepsContainer}>
-        {Array.from({ length: totalSteps }, (_, index) => {
-          const stepNumber = index + 1;
-          const isCompleted = stepNumber < currentStep;
-          const isCurrent = stepNumber === currentStep;
-          
-          return (
-            <View key={stepNumber} style={styles.step}>
-              <View 
+      <View style={styles.progressContainer}>
+        {Array.from({ length: totalSteps }).map((_, index) => (
+          <React.Fragment key={index}>
+            <View
+              style={[
+                styles.step,
+                index < currentStep 
+                  ? styles.stepCompleted
+                  : index === currentStep
+                  ? styles.stepActive
+                  : styles.stepPending,
+              ]}
+            >
+              <Text
                 style={[
-                  styles.stepCircle,
-                  isCompleted && styles.stepCompleted,
-                  isCurrent && styles.stepCurrent,
+                  styles.stepText,
+                  index < currentStep || index === currentStep
+                    ? styles.stepTextActive
+                    : styles.stepTextPending,
                 ]}
               >
-                {isCompleted ? (
-                  <MaterialIcons name="check" size={16} color="#fff" />
-                ) : (
-                  <Text 
-                    style={[
-                      styles.stepNumber,
-                      isCurrent && styles.stepNumberCurrent,
-                    ]}
-                  >
-                    {stepNumber}
-                  </Text>
-                )}
-              </View>
-              
-              {stepLabels[index] && (
-                <Text 
-                  style={[
-                    styles.stepLabel,
-                    (isCompleted || isCurrent) && styles.stepLabelActive,
-                  ]}
-                >
-                  {stepLabels[index]}
-                </Text>
-              )}
+                {index + 1}
+              </Text>
             </View>
-          );
-        })}
+            
+            {index < totalSteps - 1 && (
+              <View
+                style={[
+                  styles.connector,
+                  index < currentStep - 1 ? styles.connectorCompleted : styles.connectorPending,
+                ]}
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </View>
+      
+      <View style={styles.labelsContainer}>
+        {stepLabels.map((label, index) => (
+          <Text
+            key={index}
+            style={[
+              styles.label,
+              index < currentStep
+                ? styles.labelCompleted
+                : index === currentStep
+                ? styles.labelActive
+                : styles.labelPending,
+            ]}
+          >
+            {label}
+          </Text>
+        ))}
       </View>
     </View>
   );
@@ -75,54 +80,79 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 32,
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
-    marginBottom: 16,
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 2,
-  },
-  stepsContainer: {
+  progressContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   step: {
-    alignItems: 'center',
-  },
-  stepCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    borderWidth: 2,
   },
   stepCompleted: {
     backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
   },
-  stepCurrent: {
+  stepActive: {
     backgroundColor: '#fff',
+    borderColor: '#fff',
   },
-  stepNumber: {
+  stepPending: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  stepText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  stepNumberCurrent: {
-    color: '#00B4DB',
-  },
-  stepLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
     fontWeight: '600',
   },
-  stepLabelActive: {
+  stepTextActive: {
+    color: '#00B4DB',
+  },
+  stepTextPending: {
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  connector: {
+    width: 40,
+    height: 2,
+    marginHorizontal: 8,
+  },
+  connectorCompleted: {
+    backgroundColor: '#4CAF50',
+  },
+  connectorPending: {
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  labelsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    flex: 1,
+  },
+  labelCompleted: {
+    color: '#4CAF50',
+  },
+  labelActive: {
     color: '#fff',
+    fontWeight: '700',
+  },
+  labelPending: {
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
