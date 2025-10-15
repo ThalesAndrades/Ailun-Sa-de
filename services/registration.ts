@@ -69,240 +69,68 @@ export async function processRegistration(
   try {
     console.log('[processRegistration] Iniciando registro:', data.email);
     
-    // Registrar evento de início de cadastro
-    await auditService.logEvent({
-      eventType: AuditEventType.SIGNUP_STARTED,
-      userEmail: data.email,
-      status: AuditEventStatus.PENDING,
-      eventData: {
-        fullName: data.fullName,
-        cpf: data.cpf,
-        serviceType: data.serviceType,
-        memberCount: data.memberCount,
-      },
-    });
-
-    // 1. Criar beneficiário na RapiDoc
-    console.log('[processRegistration] Criando beneficiário na RapiDoc...');
-    const beneficiaryResult = await createBeneficiary({
-      name: data.fullName,
-      cpf: data.cpf,
-      birthDate: data.birthDate,
-      email: data.email,
-      phone: data.phone,
-      serviceType: data.serviceType,
-    });
-
-    if (!beneficiaryResult.success || !beneficiaryResult.data) {
-      throw new Error(beneficiaryResult.error || 'Erro ao criar beneficiário');
-    }
-
-    const beneficiaryUuid = beneficiaryResult.data.uuid;
-    console.log('[processRegistration] Beneficiário criado:', beneficiaryUuid);
-
-    // 2. Criar usuário no Supabase Auth
-    console.log('[processRegistration] Criando usuário no Supabase Auth...');
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.cpf.replace(/\D/g, ''), // Senha temporária = CPF sem formatação
-      options: {
+    // Usar Edge Function para processar todo o fluxo de registro e pagamento
+    const { data: registrationResult, error: edgeFunctionError } = await supabase.functions.invoke('tema-orchestrator', {
+      body: {
+        action: 'create_subscription',
         data: {
-          full_name: data.fullName,
-          cpf: data.cpf,
-        },
-      },
-    });
-
-    if (authError || !authData.user) {
-      throw new Error(`Erro ao criar usuário: ${authError?.message || 'Usuário não criado'}`);
-    }
-
-    const userId = authData.user.id;
-    console.log('[processRegistration] Usuário criado:', userId);
-
-    // 3. Criar perfil do usuário no Supabase
-    console.log('[processRegistration] Criando perfil no Supabase...');
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
-        user_id: userId,
-        beneficiary_uuid: beneficiaryUuid,
-        full_name: data.fullName,
-        cpf: data.cpf.replace(/\D/g, ''),
-        birth_date: data.birthDate,
-        email: data.email,
-        phone: data.phone.replace(/\D/g, ''),
-        cep: data.cep.replace(/\D/g, ''),
-        street: data.street,
-        number: data.number,
-        complement: data.complement,
-        neighborhood: data.neighborhood,
-        city: data.city,
-        state: data.state,
-        service_type: data.serviceType,
-        include_specialists: data.includeSpecialists,
-        include_psychology: data.includePsychology,
-        include_nutrition: data.includeNutrition,
-        member_count: data.memberCount,
-        plan_value: data.totalPrice,
-        discount_percentage: data.discountPercentage,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-    if (profileError) {
-      throw new Error(`Erro ao criar perfil: ${profileError.message}`);
-    }
-
-    console.log('[processRegistration] Perfil criado com sucesso');
-
-    // 4. Criar cliente no Asaas
-    console.log('[processRegistration] Criando cliente no Asaas...');
-    const asaasCustomer = await createAsaasCustomer({
-      name: data.fullName,
-      email: data.email,
-      cpf: data.cpf,
-      phone: data.phone,
-      postalCode: data.cep,
-      address: data.street,
-      addressNumber: data.number,
-      complement: data.complement,
-      province: data.neighborhood,
-      beneficiaryUuid,
-    });
-
-    console.log('[processRegistration] Cliente Asaas criado:', asaasCustomer.id);
-
-    // 5. Registrar evento de início de pagamento
-    await auditService.logEvent({
-      eventType: AuditEventType.PAYMENT_INITIATED,
-      userId,
-      userEmail: data.email,
-      status: AuditEventStatus.PENDING,
-      eventData: {
-        paymentMethod: data.paymentMethod,
-        totalPrice: data.totalPrice,
-        asaasCustomerId: asaasCustomer.id,
-      },
-    });
-
-    // 6. Processar pagamento baseado no método escolhido
-    let paymentResult: any = {};
-
-    if (data.paymentMethod === 'credit_card' && data.creditCard) {
-      console.log('[processRegistration] Processando pagamento com cartão...');
-      
-      // Criar assinatura com cartão de crédito
-      const subscription = await createSubscription({
-        customerId: asaasCustomer.id,
-        billingType: 'CREDIT_CARD',
-        creditCard: data.creditCard,
-        creditCardHolderInfo: {
-          name: data.fullName,
+          // Dados Pessoais
+          fullName: data.fullName,
+          cpf: data.cpf.replace(/\D/g, ''),
+          birthDate: data.birthDate,
           email: data.email,
-          cpfCnpj: data.cpf,
-          postalCode: data.cep,
-          addressNumber: data.number,
-          addressComplement: data.complement,
-          phone: data.phone,
+          phone: data.phone.replace(/\D/g, ''),
+          
+          // Endereço
+          cep: data.cep.replace(/\D/g, ''),
+          street: data.street,
+          number: data.number,
+          complement: data.complement,
+          neighborhood: data.neighborhood,
+          city: data.city,
+          state: data.state,
+          
+          // Plano
+          includeSpecialists: data.includeSpecialists,
+          includePsychology: data.includePsychology,
+          includeNutrition: data.includeNutrition,
+          memberCount: data.memberCount,
+          serviceType: data.serviceType,
+          totalPrice: data.totalPrice,
+          discountPercentage: data.discountPercentage,
+          
+          // Pagamento
+          paymentMethod: data.paymentMethod,
+          creditCard: data.creditCard ? {
+            holderName: data.creditCard.holderName,
+            number: data.creditCard.number.replace(/\s/g, ''),
+            expiryMonth: data.creditCard.expiryMonth,
+            expiryYear: data.creditCard.expiryYear,
+            ccv: data.creditCard.ccv,
+          } : undefined,
         },
-        beneficiaryUuid,
-      });
-
-      paymentResult = {
-        asaasSubscriptionId: subscription.id,
-        paymentMethod: 'credit_card',
-      };
-
-    } else if (data.paymentMethod === 'pix') {
-      console.log('[processRegistration] Gerando pagamento PIX...');
-      
-      // Criar cobrança PIX
-      const pixPayment = await createPixPayment({
-        customerId: asaasCustomer.id,
-        value: data.totalPrice,
-        description: `Assinatura AiLun Saúde - ${data.fullName}`,
-        beneficiaryUuid,
-      });
-
-      paymentResult = {
-        paymentId: pixPayment.id,
-        pixQrCode: pixPayment.encodedImage,
-        pixCopyPaste: pixPayment.payload,
-        paymentMethod: 'pix',
-      };
-
-    } else if (data.paymentMethod === 'boleto') {
-      console.log('[processRegistration] Gerando boleto...');
-      
-      // Criar cobrança via boleto
-      const boletoPayment = await createBoletoPayment({
-        customerId: asaasCustomer.id,
-        value: data.totalPrice,
-        description: `Assinatura AiLun Saúde - ${data.fullName}`,
-        beneficiaryUuid,
-      });
-
-      paymentResult = {
-        paymentId: boletoPayment.id,
-        boletoUrl: boletoPayment.bankSlipUrl,
-        paymentMethod: 'boleto',
-      };
-    }
-
-    // 7. Criar plano de assinatura no Supabase
-    console.log('[processRegistration] Criando plano de assinatura no Supabase...');
-    const planResult = await createSubscriptionPlan({
-      userId,
-      beneficiaryId: beneficiaryUuid,
-      serviceType: data.serviceType,
-      includeSpecialists: data.includeSpecialists,
-      includePsychology: data.includePsychology,
-      includeNutrition: data.includeNutrition,
-      memberCount: data.memberCount,
-      monthlyPrice: data.totalPrice,
-      discountPercentage: data.discountPercentage,
-      asaasCustomerId: asaasCustomer.id,
-      asaasSubscriptionId: paymentResult.asaasSubscriptionId,
-      status: data.paymentMethod === 'credit_card' ? 'active' : 'pending',
-    });
-
-    if (!planResult.success) {
-      console.warn('[processRegistration] Erro ao criar plano, mas registro foi concluído:', planResult.error);
-    }
-
-    console.log('[processRegistration] Registro concluído com sucesso!');
-
-    // Registrar evento de cadastro concluído
-    await auditService.logEvent({
-      eventType: AuditEventType.SIGNUP_COMPLETED,
-      userId,
-      userEmail: data.email,
-      status: AuditEventStatus.SUCCESS,
-      eventData: {
-        beneficiaryUuid,
-        asaasCustomerId: asaasCustomer.id,
-        serviceType: data.serviceType,
-        paymentMethod: data.paymentMethod,
       },
     });
 
-    // Registrar evento de pagamento bem-sucedido (se aplicável)
-    if (data.paymentMethod === 'credit_card') {
-      await auditService.logEvent({
-        eventType: AuditEventType.PAYMENT_SUCCESS,
-        userId,
-        userEmail: data.email,
-        status: AuditEventStatus.SUCCESS,
-        eventData: paymentResult,
-      });
+    if (edgeFunctionError) {
+      throw new Error(edgeFunctionError.message || 'Erro ao processar registro');
     }
+
+    if (!registrationResult || !registrationResult.success) {
+      throw new Error(registrationResult?.error || 'Erro desconhecido no registro');
+    }
+
+    console.log('[processRegistration] Registro processado com sucesso!');
 
     return {
       success: true,
-      beneficiaryUuid,
-      asaasCustomerId: asaasCustomer.id,
-      ...paymentResult,
+      beneficiaryUuid: registrationResult.beneficiaryUuid,
+      asaasCustomerId: registrationResult.asaasCustomerId,
+      asaasSubscriptionId: registrationResult.asaasSubscriptionId,
+      paymentId: registrationResult.paymentId,
+      pixQrCode: registrationResult.pixQrCode,
+      pixCopyPaste: registrationResult.pixCopyPaste,
+      boletoUrl: registrationResult.boletoUrl,
     };
 
   } catch (error: any) {
@@ -329,95 +157,7 @@ export async function processRegistration(
   }
 }
 
-/**
- * Criar pagamento PIX
- */
-async function createPixPayment(data: {
-  customerId: string;
-  value: number;
-  description: string;
-  beneficiaryUuid: string;
-}): Promise<any> {
-  const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
-  const ASAAS_API_URL = 'https://api.asaas.com/v3';
-
-  const response = await fetch(`${ASAAS_API_URL}/payments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': ASAAS_API_KEY,
-    },
-    body: JSON.stringify({
-      customer: data.customerId,
-      billingType: 'PIX',
-      value: data.value,
-      dueDate: new Date().toISOString().split('T')[0],
-      description: data.description,
-      externalReference: data.beneficiaryUuid,
-    }),
-  });
-
-  const payment = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payment.errors?.[0]?.description || 'Erro ao criar pagamento PIX');
-  }
-
-  // Buscar QR Code do PIX
-  const qrCodeResponse = await fetch(`${ASAAS_API_URL}/payments/${payment.id}/pixQrCode`, {
-    headers: {
-      'access_token': ASAAS_API_KEY,
-    },
-  });
-
-  const qrCodeData = await qrCodeResponse.json();
-
-  return {
-    ...payment,
-    ...qrCodeData,
-  };
-}
-
-/**
- * Criar pagamento via Boleto
- */
-async function createBoletoPayment(data: {
-  customerId: string;
-  value: number;
-  description: string;
-  beneficiaryUuid: string;
-}): Promise<any> {
-  const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
-  const ASAAS_API_URL = 'https://api.asaas.com/v3';
-
-  // Data de vencimento: 3 dias úteis
-  const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + 3);
-
-  const response = await fetch(`${ASAAS_API_URL}/payments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': ASAAS_API_KEY,
-    },
-    body: JSON.stringify({
-      customer: data.customerId,
-      billingType: 'BOLETO',
-      value: data.value,
-      dueDate: dueDate.toISOString().split('T')[0],
-      description: data.description,
-      externalReference: data.beneficiaryUuid,
-    }),
-  });
-
-  const payment = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payment.errors?.[0]?.description || 'Erro ao criar boleto');
-  }
-
-  return payment;
-}
+// Funções removidas - processamento via Edge Function
 
 /**
  * Verificar status do pagamento
@@ -428,21 +168,21 @@ export async function checkPaymentStatus(paymentId: string): Promise<{
   payment?: any;
 }> {
   try {
-    const ASAAS_API_KEY = process.env.ASAAS_API_KEY || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhMmE3MDRkLTM0YjEtNDVmMS05NWU4LWJjOTY5ZTk3NGMyMzo6JGFhY2hfOGVlOWY3ZTItZTBiYy00YmYxLWI2ZTEtMDQ1NzlmMWI5MWRk';
-    const ASAAS_API_URL = 'https://api.asaas.com/v3';
-
-    const response = await fetch(`${ASAAS_API_URL}/payments/${paymentId}`, {
-      headers: {
-        'access_token': ASAAS_API_KEY,
+    const { data: result, error } = await supabase.functions.invoke('tema-orchestrator', {
+      body: {
+        action: 'check_payment_status',
+        paymentId,
       },
     });
 
-    const payment = await response.json();
+    if (error) {
+      throw new Error(error.message);
+    }
 
     return {
-      status: payment.status,
-      paid: payment.status === 'RECEIVED' || payment.status === 'CONFIRMED',
-      payment,
+      status: result.status,
+      paid: result.paid,
+      payment: result.payment,
     };
   } catch (error) {
     console.error('Erro ao verificar pagamento:', error);

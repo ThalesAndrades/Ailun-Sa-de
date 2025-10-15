@@ -1,599 +1,593 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-interface TemaOrchestrationRequest {
-  action: 'create_subscription' | 'check_subscription' | 'cancel_subscription' | 'start_consultation' | 'check_queue' | 'get_active_sessions' | 'get_notifications';
-  serviceType?: 'doctor' | 'specialist' | 'psychologist' | 'nutritionist';
-  specialty?: string;
-  subscriptionData?: {
-    customerName: string;
-    customerEmail: string;
-    customerPhone: string;
-    customerDocument: string;
-  };
+interface CreateSubscriptionData {
+  // Dados Pessoais
+  fullName: string
+  cpf: string
+  birthDate: string
+  email: string
+  phone: string
+  
+  // Endereço
+  cep: string
+  street: string
+  number: string
+  complement?: string
+  neighborhood: string
+  city: string
+  state: string
+  
+  // Plano
+  includeSpecialists: boolean
+  includePsychology: boolean
+  includeNutrition: boolean
+  memberCount: number
+  serviceType: string
+  totalPrice: number
+  discountPercentage: number
+  
+  // Pagamento
+  paymentMethod: 'credit_card' | 'pix' | 'boleto'
+  creditCard?: {
+    holderName: string
+    number: string
+    expiryMonth: string
+    expiryYear: string
+    ccv: string
+  }
 }
 
-serve(async (req) => {
-  // Handle CORS
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Initialize Supabase client with service role
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { persistSession: false } }
-    )
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get user from auth
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Acesso não autorizado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    const { action, data, paymentId } = await req.json()
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Usuário inválido' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Parse request
-    const requestData: TemaOrchestrationRequest = await req.json()
-
-    let response;
-
-    switch (requestData.action) {
+    switch (action) {
       case 'create_subscription':
-        response = await createAsaasSubscription(supabaseClient, user.id, requestData.subscriptionData)
-        break
+        return await handleCreateSubscription(data, supabase)
       
-      case 'check_subscription':
-        response = await checkAsaasSubscription(supabaseClient, user.id, user.email)
-        break
-      
-      case 'cancel_subscription':
-        response = await cancelAsaasSubscription(supabaseClient, user.id)
-        break
-      
-      case 'start_consultation':
-        response = await startConsultation(supabaseClient, user.id, requestData)
-        break
-      
-      case 'check_queue':
-        response = await checkQueue(supabaseClient, user.id)
-        break
-      
-      case 'get_active_sessions':
-        response = await getActiveSessions(supabaseClient, user.id)
-        break
-      
-      case 'get_notifications':
-        response = await getNotifications(supabaseClient, user.id)
-        break
+      case 'check_payment_status':
+        return await handleCheckPaymentStatus(paymentId, supabase)
       
       default:
-        response = { success: false, error: 'Ação não reconhecida' }
+        throw new Error(`Ação não reconhecida: ${action}`)
     }
 
-    return new Response(
-      JSON.stringify(response),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-
   } catch (error) {
-    // Production error logging
-    console.error('Tema Orchestrator Error:', {
-      message: error.message,
-      timestamp: new Date().toISOString(),
-    })
-    
+    console.error('Erro no tema-orchestrator:', error)
     return new Response(
-      JSON.stringify({ success: false, error: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Erro interno'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     )
   }
 })
 
-// Production Asaas Integration
-async function createAsaasSubscription(supabaseClient: any, userId: string, subscriptionData: any) {
+async function handleCreateSubscription(data: CreateSubscriptionData, supabase: any) {
+  console.log('[handleCreateSubscription] Iniciando criação de assinatura:', data.email)
+
   try {
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = 'https://www.asaas.com/api/v3'
+    // 1. Criar beneficiário via RapiDoc
+    console.log('[handleCreateSubscription] Criando beneficiário...')
+    const beneficiaryResult = await createRapidocBeneficiary({
+      name: data.fullName,
+      cpf: data.cpf,
+      birthDate: data.birthDate,
+      email: data.email,
+      phone: data.phone,
+      serviceType: data.serviceType,
+    })
+
+    if (!beneficiaryResult.success) {
+      throw new Error(beneficiaryResult.error || 'Erro ao criar beneficiário')
+    }
+
+    const beneficiaryUuid = beneficiaryResult.data.uuid
+    console.log('[handleCreateSubscription] Beneficiário criado:', beneficiaryUuid)
+
+    // 2. Criar usuário no Supabase Auth
+    console.log('[handleCreateSubscription] Criando usuário...')
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: data.email,
+      password: data.cpf, // Senha temporária = CPF
+      email_confirm: true,
+      user_metadata: {
+        full_name: data.fullName,
+        cpf: data.cpf,
+      },
+    })
+
+    if (authError || !authData.user) {
+      throw new Error(`Erro ao criar usuário: ${authError?.message || 'Usuário não criado'}`)
+    }
+
+    const userId = authData.user.id
+    console.log('[handleCreateSubscription] Usuário criado:', userId)
+
+    // 3. Criar cliente no Asaas
+    console.log('[handleCreateSubscription] Criando cliente Asaas...')
+    const asaasCustomer = await createAsaasCustomer({
+      name: data.fullName,
+      email: data.email,
+      cpf: data.cpf,
+      phone: data.phone,
+      postalCode: data.cep,
+      address: data.street,
+      addressNumber: data.number,
+      complement: data.complement,
+      province: data.neighborhood,
+      beneficiaryUuid,
+    })
+
+    console.log('[handleCreateSubscription] Cliente Asaas criado:', asaasCustomer.id)
+
+    // 4. Processar pagamento
+    console.log('[handleCreateSubscription] Processando pagamento:', data.paymentMethod)
+    let paymentResult: any = {}
+
+    if (data.paymentMethod === 'credit_card' && data.creditCard) {
+      // Criar assinatura com cartão de crédito
+      const subscription = await createAsaasSubscription({
+        customerId: asaasCustomer.id,
+        billingType: 'CREDIT_CARD',
+        creditCard: data.creditCard,
+        creditCardHolderInfo: {
+          name: data.fullName,
+          email: data.email,
+          cpfCnpj: data.cpf,
+          postalCode: data.cep,
+          addressNumber: data.number,
+          addressComplement: data.complement,
+          phone: data.phone,
+        },
+        beneficiaryUuid,
+        value: data.totalPrice,
+      })
+
+      paymentResult = {
+        asaasSubscriptionId: subscription.id,
+        paymentMethod: 'credit_card',
+      }
+
+    } else if (data.paymentMethod === 'pix') {
+      // Criar cobrança PIX
+      const pixPayment = await createAsaasPixPayment({
+        customerId: asaasCustomer.id,
+        value: data.totalPrice,
+        description: `Assinatura AiLun Saúde - ${data.fullName}`,
+        beneficiaryUuid,
+      })
+
+      paymentResult = {
+        paymentId: pixPayment.id,
+        pixQrCode: pixPayment.encodedImage,
+        pixCopyPaste: pixPayment.payload,
+        paymentMethod: 'pix',
+      }
+
+    } else if (data.paymentMethod === 'boleto') {
+      // Criar cobrança via boleto
+      const boletoPayment = await createAsaasBoletoPayment({
+        customerId: asaasCustomer.id,
+        value: data.totalPrice,
+        description: `Assinatura AiLun Saúde - ${data.fullName}`,
+        beneficiaryUuid,
+      })
+
+      paymentResult = {
+        paymentId: boletoPayment.id,
+        boletoUrl: boletoPayment.bankSlipUrl,
+        paymentMethod: 'boleto',
+      }
+    }
+
+    // 5. Salvar dados no Supabase
+    console.log('[handleCreateSubscription] Salvando dados no Supabase...')
     
-    if (!asaasApiKey) {
-      return { success: false, error: 'Configuração de pagamento não encontrada' }
-    }
-
-    // Create customer in Asaas
-    const customerResponse = await fetch(`${asaasBaseUrl}/customers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': asaasApiKey,
-      },
-      body: JSON.stringify({
-        name: subscriptionData.customerName,
-        email: subscriptionData.customerEmail,
-        phone: subscriptionData.customerPhone,
-        cpfCnpj: subscriptionData.customerDocument,
-      }),
-    })
-
-    if (!customerResponse.ok) {
-      const errorData = await customerResponse.text()
-      throw new Error(`Asaas Customer API error: ${customerResponse.status} - ${errorData}`)
-    }
-
-    const customerData = await customerResponse.json()
-
-    // Create subscription in Asaas (R$ 89,90 monthly)
-    const subscriptionResponse = await fetch(`${asaasBaseUrl}/subscriptions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': asaasApiKey,
-      },
-      body: JSON.stringify({
-        customer: customerData.id,
-        billingType: 'BOLETO',
-        value: 89.90,
-        nextDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-        cycle: 'MONTHLY',
-        description: 'Assinatura Ailun Saúde - Plano Premium',
-      }),
-    })
-
-    if (!subscriptionResponse.ok) {
-      const errorData = await subscriptionResponse.text()
-      throw new Error(`Asaas Subscription API error: ${subscriptionResponse.status} - ${errorData}`)
-    }
-
-    const subscriptionAsaasData = await subscriptionResponse.json()
-
-    // Save subscription data in database
-    const { error: dbError } = await supabaseClient
+    // Criar perfil
+    const { error: profileError } = await supabase
       .from('profiles')
-      .upsert({
+      .insert({
         id: userId,
-        email: subscriptionData.customerEmail,
-        full_name: subscriptionData.customerName,
-        phone: subscriptionData.customerPhone,
+        email: data.email,
+        full_name: data.fullName,
+        phone: data.phone,
+        birth_date: data.birthDate,
+        is_active_beneficiary: true,
+        plan_type: data.serviceType,
+        plan_details: {
+          includeSpecialists: data.includeSpecialists,
+          includePsychology: data.includePsychology,
+          includeNutrition: data.includeNutrition,
+          memberCount: data.memberCount,
+          totalPrice: data.totalPrice,
+        },
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
+      })
 
-    if (dbError) {
-      console.error('Database error:', dbError)
+    if (profileError) {
+      console.warn('[handleCreateSubscription] Erro ao criar perfil:', profileError.message)
     }
 
-    // Log subscription creation
-    await supabaseClient
-      .from('consultation_logs')
+    // Criar beneficiário
+    const { error: beneficiaryError } = await supabase
+      .from('beneficiaries')
       .insert({
         user_id: userId,
-        service_type: 'subscription',
+        beneficiary_uuid: beneficiaryUuid,
+        cpf: data.cpf,
+        full_name: data.fullName,
+        birth_date: data.birthDate,
+        email: data.email,
+        phone: data.phone,
+        service_type: data.serviceType,
+        is_primary: true,
         status: 'active',
-        success: true,
-        metadata: {
-          asaas_customer_id: customerData.id,
-          asaas_subscription_id: subscriptionAsaasData.id,
-          subscription_value: 89.90,
-          billing_type: 'MONTHLY',
-          environment: 'production'
-        }
+        has_active_plan: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
 
-    // Create notification
-    await createNotification(supabaseClient, userId, {
-      title: 'Assinatura Criada',
-      message: 'Sua assinatura Ailun Saúde foi criada com sucesso! Valor: R$ 89,90/mês',
-      type: 'success',
-      metadata: {
-        subscription_id: subscriptionAsaasData.id,
-        value: 89.90
-      }
-    })
-
-    return {
-      success: true,
-      data: {
-        subscription_id: subscriptionAsaasData.id,
-        customer_id: customerData.id,
-        payment_url: subscriptionAsaasData.invoiceUrl,
-        value: 89.90,
-        next_due_date: subscriptionAsaasData.nextDueDate,
-        message: 'Assinatura criada com sucesso'
-      }
+    if (beneficiaryError) {
+      console.warn('[handleCreateSubscription] Erro ao criar beneficiário:', beneficiaryError.message)
     }
 
-  } catch (error) {
-    console.error('Create Asaas subscription error:', error)
-    return { 
-      success: false, 
-      error: 'Não foi possível processar a assinatura. Tente novamente.' 
-    }
-  }
-}
-
-async function checkAsaasSubscription(supabaseClient: any, userId: string, userEmail: string) {
-  try {
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = 'https://www.asaas.com/api/v3'
-    
-    if (!asaasApiKey) {
-      return { success: false, error: 'Configuração de pagamento não encontrada' }
-    }
-
-    // Get customer by email
-    const customerResponse = await fetch(`${asaasBaseUrl}/customers?email=${userEmail}`, {
-      method: 'GET',
-      headers: {
-        'access_token': asaasApiKey,
-      },
-    })
-
-    if (!customerResponse.ok) {
-      return { success: true, subscribed: false, message: 'Cliente não encontrado' }
-    }
-
-    const customerData = await customerResponse.json()
-    if (!customerData.data || customerData.data.length === 0) {
-      return { success: true, subscribed: false, message: 'Cliente não encontrado' }
-    }
-
-    const customer = customerData.data[0]
-
-    // Get active subscriptions
-    const subscriptionResponse = await fetch(`${asaasBaseUrl}/subscriptions?customer=${customer.id}&status=ACTIVE`, {
-      method: 'GET',
-      headers: {
-        'access_token': asaasApiKey,
-      },
-    })
-
-    if (!subscriptionResponse.ok) {
-      throw new Error(`Asaas Subscription check error: ${subscriptionResponse.status}`)
-    }
-
-    const subscriptionData = await subscriptionResponse.json()
-    const hasActiveSubscription = subscriptionData.data && subscriptionData.data.length > 0
-
-    let subscriptionInfo = null
-    if (hasActiveSubscription) {
-      const subscription = subscriptionData.data[0]
-      subscriptionInfo = {
-        subscription_id: subscription.id,
-        value: subscription.value,
-        next_due_date: subscription.nextDueDate,
-        status: subscription.status,
-        cycle: subscription.cycle
-      }
-    }
-
-    return {
-      success: true,
-      subscribed: hasActiveSubscription,
-      subscription: subscriptionInfo,
-      customer_id: customer.id
-    }
-
-  } catch (error) {
-    console.error('Check Asaas subscription error:', error)
-    return { success: false, error: 'Erro ao verificar assinatura' }
-  }
-}
-
-async function cancelAsaasSubscription(supabaseClient: any, userId: string) {
-  try {
-    // Get subscription from logs
-    const { data: logData } = await supabaseClient
-      .from('consultation_logs')
-      .select('metadata')
-      .eq('user_id', userId)
-      .eq('service_type', 'subscription')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (!logData?.metadata?.asaas_subscription_id) {
-      return { success: false, error: 'Assinatura não encontrada' }
-    }
-
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = 'https://www.asaas.com/api/v3'
-
-    // Cancel subscription in Asaas
-    const cancelResponse = await fetch(`${asaasBaseUrl}/subscriptions/${logData.metadata.asaas_subscription_id}`, {
-      method: 'DELETE',
-      headers: {
-        'access_token': asaasApiKey,
-      },
-    })
-
-    if (!cancelResponse.ok) {
-      throw new Error(`Asaas Cancel API error: ${cancelResponse.status}`)
-    }
-
-    // Update log status
-    await supabaseClient
-      .from('consultation_logs')
-      .update({ 
-        status: 'cancelled',
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('service_type', 'subscription')
-      .eq('status', 'active')
-
-    // Create notification
-    await createNotification(supabaseClient, userId, {
-      title: 'Assinatura Cancelada',
-      message: 'Sua assinatura foi cancelada com sucesso.',
-      type: 'info'
-    })
-
-    return {
-      success: true,
-      message: 'Assinatura cancelada com sucesso'
-    }
-
-  } catch (error) {
-    console.error('Cancel Asaas subscription error:', error)
-    return { success: false, error: 'Erro ao cancelar assinatura' }
-  }
-}
-
-// Production consultation flow with subscription check
-async function startConsultation(supabaseClient: any, userId: string, request: TemaOrchestrationRequest) {
-  try {
-    // Check if user has active subscription
-    const subscriptionCheck = await checkAsaasSubscription(supabaseClient, userId, '')
-    if (!subscriptionCheck.subscribed) {
-      return {
-        success: false,
-        error: 'Assinatura ativa necessária para acessar consultas',
-        requires_subscription: true
-      }
-    }
-
-    // Clean expired sessions first
-    await cleanExpiredSessions(supabaseClient)
-
-    // Check if user has active sessions
-    const { data: activeSessions } = await supabaseClient
-      .from('active_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
-
-    if (activeSessions && activeSessions.length > 0) {
-      return {
-        success: false,
-        error: 'Você já tem uma consulta ativa. Finalize antes de iniciar outra.',
-        activeSession: activeSessions[0]
-      }
-    }
-
-    // Add to queue and call RapiDoc
-    const queueEntry = {
-      user_id: userId,
-      service_type: request.serviceType,
-      specialty: request.specialty,
-      priority: getPriority(request.serviceType),
-      status: 'waiting',
-      metadata: {
-        requested_at: new Date().toISOString(),
-        user_agent: 'Ailun Saúde App',
-        environment: 'production'
-      }
-    }
-
-    const { data: queueData } = await supabaseClient
-      .from('consultation_queue')
-      .insert(queueEntry)
-      .select()
-      .single()
-
-    // Call RapiDoc function with production settings
-    const { data: consultationData } = await supabaseClient.functions.invoke('rapidoc', {
-      body: {
-        action: 'request-consultation',
-        serviceType: request.serviceType,
-        specialty: request.specialty,
-        queueId: queueData.id
-      }
-    })
-
-    if (!consultationData.success) {
-      await supabaseClient
-        .from('consultation_queue')
-        .update({ status: 'cancelled' })
-        .eq('id', queueData.id)
-
-      return {
-        success: false,
-        error: consultationData?.error || 'Serviço temporariamente indisponível'
-      }
-    }
-
-    // Create consultation log and active session
-    const logEntry = {
-      user_id: userId,
-      service_type: request.serviceType,
-      session_id: consultationData.sessionId,
-      professional_name: consultationData.professionalInfo?.name,
-      specialty: consultationData.professionalInfo?.specialty || request.specialty,
-      status: 'active',
-      success: true,
-      consultation_url: consultationData.consultationUrl,
-      estimated_wait_time: consultationData.estimatedWaitTime,
-      professional_rating: consultationData.professionalInfo?.rating,
-      metadata: {
-        ...consultationData,
-        environment: 'production'
-      }
-    }
-
-    const { data: logData } = await supabaseClient
-      .from('consultation_logs')
-      .insert(logEntry)
-      .select()
-      .single()
-
-    const sessionEntry = {
-      user_id: userId,
-      consultation_log_id: logData.id,
-      session_id: consultationData.sessionId,
-      service_type: request.serviceType,
-      professional_info: consultationData.professionalInfo || {},
-      session_url: consultationData.consultationUrl,
-      status: 'active',
-      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
-    }
-
-    await supabaseClient
-      .from('active_sessions')
-      .insert(sessionEntry)
-
-    await supabaseClient
-      .from('consultation_queue')
-      .update({ status: 'assigned' })
-      .eq('id', queueData.id)
-
-    return {
-      success: true,
-      data: {
-        consultationLog: logData,
-        session: consultationData,
-        message: 'Consulta iniciada com sucesso'
-      }
-    }
-
-  } catch (error) {
-    console.error('Start consultation error:', error)
-    return { success: false, error: 'Erro ao iniciar consulta' }
-  }
-}
-
-// Helper functions
-async function cleanExpiredSessions(supabaseClient: any) {
-  try {
-    await supabaseClient
-      .from('active_sessions')
-      .update({ status: 'expired' })
-      .lt('expires_at', new Date().toISOString())
-      .eq('status', 'active')
-  } catch (error) {
-    console.error('Clean expired sessions error:', error)
-  }
-}
-
-async function checkQueue(supabaseClient: any, userId: string) {
-  try {
-    const { data: queueItems } = await supabaseClient
-      .from('consultation_queue')
-      .select('*')
-      .eq('user_id', userId)
-      .in('status', ['waiting', 'processing'])
-      .order('created_at', { ascending: false })
-      .limit(5)
-
-    return {
-      success: true,
-      data: queueItems || []
-    }
-  } catch (error) {
-    console.error('Check queue error:', error)
-    return { success: false, error: 'Erro ao verificar fila' }
-  }
-}
-
-async function getActiveSessions(supabaseClient: any, userId: string) {
-  try {
-    const { data: sessions } = await supabaseClient
-      .from('active_sessions')
-      .select(`
-        *,
-        consultation_logs (
-          professional_name,
-          specialty,
-          status,
-          estimated_wait_time
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
-
-    return {
-      success: true,
-      data: sessions || []
-    }
-  } catch (error) {
-    console.error('Get active sessions error:', error)
-    return { success: false, error: 'Erro ao buscar sessões ativas' }
-  }
-}
-
-async function getNotifications(supabaseClient: any, userId: string) {
-  try {
-    const { data: notifications } = await supabaseClient
-      .from('system_notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20)
-
-    return {
-      success: true,
-      data: notifications || []
-    }
-  } catch (error) {
-    console.error('Get notifications error:', error)
-    return { success: false, error: 'Erro ao buscar notificações' }
-  }
-}
-
-async function createNotification(supabaseClient: any, userId: string, notification: {
-  title: string;
-  message: string;
-  type: string;
-  action_url?: string;
-  metadata?: any;
-}) {
-  try {
-    await supabaseClient
-      .from('system_notifications')
+    // Criar plano de assinatura
+    const { error: planError } = await supabase
+      .from('subscription_plans')
       .insert({
         user_id: userId,
-        ...notification,
-        metadata: notification.metadata || {}
+        beneficiary_id: beneficiaryUuid,
+        plan_name: `Plano ${data.serviceType}`,
+        service_type: data.serviceType,
+        include_clinical: true,
+        include_specialists: data.includeSpecialists,
+        include_psychology: data.includePsychology,
+        include_nutrition: data.includeNutrition,
+        member_count: data.memberCount,
+        discount_percentage: data.discountPercentage,
+        base_price: data.totalPrice,
+        total_price: data.totalPrice,
+        asaas_customer_id: asaasCustomer.id,
+        asaas_subscription_id: paymentResult.asaasSubscriptionId,
+        payment_method: data.paymentMethod,
+        billing_cycle: 'monthly',
+        status: data.paymentMethod === 'credit_card' ? 'active' : 'pending',
+        next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
+
+    if (planError) {
+      console.warn('[handleCreateSubscription] Erro ao criar plano:', planError.message)
+    }
+
+    console.log('[handleCreateSubscription] Registro concluído com sucesso!')
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        beneficiaryUuid,
+        asaasCustomerId: asaasCustomer.id,
+        ...paymentResult,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+
   } catch (error) {
-    console.error('Create notification error:', error)
+    console.error('[handleCreateSubscription] Erro:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Erro ao criar assinatura'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
 }
 
-function getPriority(serviceType?: string): number {
-  switch (serviceType) {
-    case 'doctor': return 10
-    case 'psychologist': return 7
-    case 'specialist': return 5
-    case 'nutritionist': return 3
-    default: return 1
+async function handleCheckPaymentStatus(paymentId: string, supabase: any) {
+  try {
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
+    const asaasApiUrl = 'https://api.asaas.com/v3'
+
+    const response = await fetch(`${asaasApiUrl}/payments/${paymentId}`, {
+      headers: {
+        'access_token': asaasApiKey,
+      },
+    })
+
+    const payment = await response.json()
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        status: payment.status,
+        paid: payment.status === 'RECEIVED' || payment.status === 'CONFIRMED',
+        payment,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+
+  } catch (error) {
+    console.error('[handleCheckPaymentStatus] Erro:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        status: 'ERROR',
+        paid: false,
+        error: error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
+}
+
+// Funções auxiliares do RapiDoc
+async function createRapidocBeneficiary(data: {
+  name: string
+  cpf: string
+  birthDate: string
+  email: string
+  phone: string
+  serviceType: string
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const rapidocClientId = Deno.env.get('RAPIDOC_CLIENT_ID')
+    const rapidocToken = Deno.env.get('RAPIDOC_TOKEN')
+    const rapidocBaseUrl = Deno.env.get('RAPIDOC_BASE_URL') || 'https://api.rapidoc.tech'
+
+    const response = await fetch(`${rapidocBaseUrl}/beneficiaries`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${rapidocToken}`,
+        'X-Client-ID': rapidocClientId,
+      },
+      body: JSON.stringify({
+        name: data.name,
+        cpf: data.cpf,
+        birth_date: data.birthDate,
+        email: data.email,
+        phone: data.phone,
+        service_type: data.serviceType,
+      }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Erro ao criar beneficiário')
+    }
+
+    return { success: true, data: result }
+
+  } catch (error) {
+    console.error('[createRapidocBeneficiary] Erro:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Funções auxiliares do Asaas
+async function createAsaasCustomer(data: {
+  name: string
+  email: string
+  cpf: string
+  phone: string
+  postalCode: string
+  address: string
+  addressNumber: string
+  complement?: string
+  province: string
+  beneficiaryUuid: string
+}): Promise<any> {
+  const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
+  const asaasApiUrl = 'https://api.asaas.com/v3'
+
+  const response = await fetch(`${asaasApiUrl}/customers`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'access_token': asaasApiKey,
+    },
+    body: JSON.stringify({
+      name: data.name,
+      email: data.email,
+      cpfCnpj: data.cpf,
+      phone: data.phone,
+      mobilePhone: data.phone,
+      postalCode: data.postalCode,
+      address: data.address,
+      addressNumber: data.addressNumber,
+      complement: data.complement,
+      province: data.province,
+      externalReference: data.beneficiaryUuid,
+      notificationDisabled: false,
+    }),
+  })
+
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.errors?.[0]?.description || 'Erro ao criar cliente Asaas')
+  }
+
+  return result
+}
+
+async function createAsaasSubscription(data: {
+  customerId: string
+  billingType: string
+  creditCard: any
+  creditCardHolderInfo: any
+  beneficiaryUuid: string
+  value: number
+}): Promise<any> {
+  const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
+  const asaasApiUrl = 'https://api.asaas.com/v3'
+
+  const subscriptionData: any = {
+    customer: data.customerId,
+    billingType: data.billingType,
+    value: data.value,
+    nextDueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    cycle: 'MONTHLY',
+    description: 'Assinatura AiLun Saúde - Acesso completo aos serviços de telemedicina',
+    externalReference: data.beneficiaryUuid,
+  }
+
+  if (data.creditCard && data.creditCardHolderInfo) {
+    subscriptionData.creditCard = {
+      holderName: data.creditCard.holderName,
+      number: data.creditCard.number,
+      expiryMonth: data.creditCard.expiryMonth,
+      expiryYear: data.creditCard.expiryYear,
+      ccv: data.creditCard.ccv,
+    }
+
+    subscriptionData.creditCardHolderInfo = {
+      name: data.creditCardHolderInfo.name,
+      email: data.creditCardHolderInfo.email,
+      cpfCnpj: data.creditCardHolderInfo.cpfCnpj,
+      postalCode: data.creditCardHolderInfo.postalCode,
+      addressNumber: data.creditCardHolderInfo.addressNumber,
+      addressComplement: data.creditCardHolderInfo.addressComplement,
+      phone: data.creditCardHolderInfo.phone,
+      mobilePhone: data.creditCardHolderInfo.mobilePhone,
+    }
+  }
+
+  const response = await fetch(`${asaasApiUrl}/subscriptions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'access_token': asaasApiKey,
+    },
+    body: JSON.stringify(subscriptionData),
+  })
+
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.errors?.[0]?.description || 'Erro ao criar assinatura')
+  }
+
+  return result
+}
+
+async function createAsaasPixPayment(data: {
+  customerId: string
+  value: number
+  description: string
+  beneficiaryUuid: string
+}): Promise<any> {
+  const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
+  const asaasApiUrl = 'https://api.asaas.com/v3'
+
+  const response = await fetch(`${asaasApiUrl}/payments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'access_token': asaasApiKey,
+    },
+    body: JSON.stringify({
+      customer: data.customerId,
+      billingType: 'PIX',
+      value: data.value,
+      dueDate: new Date().toISOString().split('T')[0],
+      description: data.description,
+      externalReference: data.beneficiaryUuid,
+    }),
+  })
+
+  const payment = await response.json()
+
+  if (!response.ok) {
+    throw new Error(payment.errors?.[0]?.description || 'Erro ao criar pagamento PIX')
+  }
+
+  // Buscar QR Code do PIX
+  const qrCodeResponse = await fetch(`${asaasApiUrl}/payments/${payment.id}/pixQrCode`, {
+    headers: {
+      'access_token': asaasApiKey,
+    },
+  })
+
+  const qrCodeData = await qrCodeResponse.json()
+
+  return {
+    ...payment,
+    ...qrCodeData,
+  }
+}
+
+async function createAsaasBoletoPayment(data: {
+  customerId: string
+  value: number
+  description: string
+  beneficiaryUuid: string
+}): Promise<any> {
+  const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
+  const asaasApiUrl = 'https://api.asaas.com/v3'
+
+  // Data de vencimento: 3 dias úteis
+  const dueDate = new Date()
+  dueDate.setDate(dueDate.getDate() + 3)
+
+  const response = await fetch(`${asaasApiUrl}/payments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'access_token': asaasApiKey,
+    },
+    body: JSON.stringify({
+      customer: data.customerId,
+      billingType: 'BOLETO',
+      value: data.value,
+      dueDate: dueDate.toISOString().split('T')[0],
+      description: data.description,
+      externalReference: data.beneficiaryUuid,
+    }),
+  })
+
+  const payment = await response.json()
+
+  if (!response.ok) {
+    throw new Error(payment.errors?.[0]?.description || 'Erro ao criar boleto')
+  }
+
+  return payment
 }
