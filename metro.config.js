@@ -1,71 +1,90 @@
-/**
- * Metro configuration otimizada para Expo Router v6 + React.use polyfill
- */
-
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
-// Obter configuração padrão do Expo
+/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Configurações específicas para resolver problemas do expo-router
-config.resolver.alias = {
-  ...config.resolver.alias,
-  // Garantir que React seja resolvido corretamente
-  'react': require.resolve('react'),
-  // Forçar resolução correta do React
-  'react/jsx-runtime': require.resolve('react/jsx-runtime'),
+// Configurações críticas para React.use polyfill
+config.resolver = {
+  ...config.resolver,
+  
+  // Alias crítico para React
+  alias: {
+    ...config.resolver?.alias,
+    'react': path.resolve(__dirname, 'node_modules/react'),
+    'react-native': path.resolve(__dirname, 'node_modules/react-native'),
+  },
+  
+  // Plataformas suportadas
+  platforms: ['ios', 'android', 'native', 'web'],
+  
+  // Node modules paths
+  nodeModulesPaths: [
+    path.resolve(__dirname, 'node_modules'),
+  ],
+  
+  // Asset extensions
+  assetExts: [...(config.resolver?.assetExts || []), 'bin'],
+  
+  // Source extensions com prioridade específica
+  sourceExts: [
+    'expo.ts', 'expo.tsx', 'expo.js', 'expo.jsx',
+    'ts', 'tsx', 'js', 'jsx', 'json', 'wasm', 'svg'
+  ],
 };
 
-// Configurações básicas de assets
-config.resolver.assetExts.push(
-  // Fontes
-  'ttf',
-  'otf',
-  // Imagens
-  'svg',
-  'webp',
-  // Áudio/Vídeo
-  'mp3',
-  'wav',
-  'm4a'
-);
-
-// Configurações de transformação específicas para React 18 + Expo Router
+// Configurações de transformação
 config.transformer = {
   ...config.transformer,
-  experimentalImportSupport: false,
-  // Garantir que polyfills sejam aplicados
-  getTransformOptions: async () => ({
-    transform: {
-      experimentalImportSupport: false,
-      inlineRequires: false,
-    },
-  }),
+  
+  // Minifier options
+  minifierConfig: {
+    ...config.transformer?.minifierConfig,
+    // Preservar React.use durante minificação
+    mangle: {
+      ...config.transformer?.minifierConfig?.mangle,
+      reserved: ['React', 'use', 'useState', 'useEffect', 'useContext']
+    }
+  },
+  
+  // Asset plugins
+  assetPlugins: ['expo-asset/tools/hashAssetFiles'],
 };
 
-// Resolver problemas com módulos do expo-router
-config.resolver.platforms = ['ios', 'android', 'web', 'native'];
-
-// Configurações de cache para desenvolvimento
-if (process.env.NODE_ENV === 'development') {
-  // Limpar cache mais agressivamente durante desenvolvimento
-  config.resetCache = true;
+// Configurações de servidor metro
+config.server = {
+  ...config.server,
   
-  config.watchFolders = [
-    ...config.watchFolders,
-    // Adicionar pastas específicas se necessário
-  ];
-}
+  // Resetar cache em desenvolvimento
+  resetCache: process.env.NODE_ENV === 'development',
+  
+  // Configurações de porta
+  port: process.env.EXPO_METRO_PORT ? parseInt(process.env.EXPO_METRO_PORT) : 8081,
+};
 
-// Configurações especiais para Expo Router + React.use
-config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
-config.resolver.sourceExts.push('ts', 'tsx');
-
-// Configuração de node_modules paths (corrigida)
-config.resolver.nodeModulesPaths = [
-  path.resolve(__dirname, 'node_modules'),
-  ...config.resolver.nodeModulesPaths || []
+// Configurações de cache otimizadas
+config.cacheStores = [
+  {
+    name: 'filesystem',
+    options: {
+      rootDir: path.join(__dirname, 'node_modules', '.cache', 'metro'),
+    },
+  },
 ];
+
+// Configurações de watcher
+config.watcher = {
+  ...config.watcher,
+  
+  // Ignorar arquivos desnecessários
+  additionalExts: ['cjs', 'mjs'],
+  
+  // Healthcheck
+  healthCheck: {
+    enabled: true,
+    filePrefix: '.metro-health-check',
+    timeout: 30000,
+  },
+};
 
 module.exports = config;

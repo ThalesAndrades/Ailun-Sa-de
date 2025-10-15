@@ -1,148 +1,176 @@
 /**
- * Polyfill de Inicialização Crítica
- * Deve ser executado ANTES de qualquer importação React/Expo
+ * Polyfill de Inicialização ULTRA Crítica - AiLun Saúde
+ * DEVE ser executado ANTES de qualquer coisa relacionada ao React/Expo Router
  */
 
-// Aplicar polyfills críticos IMEDIATAMENTE
-(function() {
-  'use strict';
+// Log inicial para debug
+console.log('[Polyfill-Init] 🚀 Inicializando polyfills ULTRA críticos...');
 
-  console.log('[Polyfill-Init] Inicializando polyfills críticos...');
-
-  // 1. React.use polyfill SUPER ROBUSTO
-  function applyReactUsePolyfill() {
-    try {
-      // Múltiplas tentativas de obter React
-      let React;
-      
-      // Tentativa 1: require direto
-      try {
-        React = require('react');
-      } catch (e) {
-        console.log('[Polyfill] React require falhou, tentando global...');
-      }
-      
-      // Tentativa 2: global
-      if (!React && typeof global !== 'undefined' && global.React) {
-        React = global.React;
-      }
-      
-      // Tentativa 3: window (para web)
-      if (!React && typeof window !== 'undefined' && window.React) {
-        React = window.React;
-      }
-      
-      // Tentativa 4: criar objeto React se não existir
-      if (!React) {
-        React = {};
-        console.log('[Polyfill] Criando objeto React fallback');
-      }
-
-      // Implementação robusta do React.use
-      const usePolyfill = function(resource) {
-        console.log('[Polyfill] React.use chamado com:', typeof resource);
-        
-        // Para Promises (padrão Suspense)
-        if (resource && typeof resource.then === 'function') {
-          console.log('[Polyfill] Suspendendo para Promise');
-          throw resource; // Suspend
-        }
-        
-        // Para Context objects
-        if (resource && (resource._context !== undefined || resource.Provider || resource.Consumer)) {
-          console.log('[Polyfill] Processando Context object');
-          
-          // Tentar usar useContext se disponível
-          if (React.useContext && typeof React.useContext === 'function') {
-            try {
-              return React.useContext(resource);
-            } catch (e) {
-              console.warn('[Polyfill] useContext falhou:', e);
-            }
-          }
-          
-          // Fallback para contexts
-          return resource._currentValue || resource._defaultValue || null;
-        }
-        
-        // Para outros recursos síncronos
-        console.log('[Polyfill] Retornando recurso síncrono');
-        return resource;
-      };
-
-      // Aplicar polyfill
-      if (!React.use) {
-        React.use = usePolyfill;
-        console.log('[Polyfill] React.use aplicado com sucesso');
-      }
-
-      // Garantir que está disponível globalmente
-      if (typeof global !== 'undefined') {
-        if (!global.React) {
-          global.React = React;
-        } else if (!global.React.use) {
-          global.React.use = usePolyfill;
-        }
-      }
-
-      if (typeof window !== 'undefined') {
-        if (!window.React) {
-          window.React = React;
-        } else if (!window.React.use) {
-          window.React.use = usePolyfill;
-        }
-      }
-
-      return true;
-    } catch (error) {
-      console.error('[Polyfill] Erro crítico ao aplicar React.use:', error);
-      return false;
-    }
-  }
-
-  // 2. Polyfills de compatibilidade básica
-  function applyBasicPolyfills() {
-    try {
-      // Process polyfill
-      if (typeof global !== 'undefined' && !global.process) {
-        global.process = { 
-          env: {},
-          platform: 'web',
-          version: 'polyfill',
-          nextTick: (callback) => setTimeout(callback, 0)
-        };
-      }
-
-      // Console polyfill
-      if (typeof console === 'undefined') {
-        const noop = () => {};
-        global.console = {
-          log: noop, warn: noop, error: noop, info: noop, debug: noop
-        };
-      }
-
-      return true;
-    } catch (error) {
-      console.error('[Polyfill] Erro em polyfills básicos:', error);
-      return false;
-    }
-  }
-
-  // Executar polyfills
-  const reactSuccess = applyReactUsePolyfill();
-  const basicSuccess = applyBasicPolyfills();
-
-  console.log('[Polyfill-Init] Status:', {
-    reactUse: reactSuccess,
-    basic: basicSuccess,
-    reactAvailable: typeof (global?.React?.use || window?.React?.use) === 'function'
+// Polyfill mais agressivo e completo para React.use
+const ULTRA_REACT_USE_POLYFILL = function usePolyfill(resource) {
+  // Debug detalhado
+  const resourceType = typeof resource;
+  const resourceConstructor = resource?.constructor?.name || 'Unknown';
+  const hasContext = resource && (resource._context !== undefined || resource.Provider || resource.Consumer);
+  const hasPromise = resource && typeof resource.then === 'function';
+  
+  console.log('[🔧 React.use] Chamado:', { 
+    type: resourceType, 
+    constructor: resourceConstructor,
+    hasContext,
+    hasPromise,
+    keys: resource ? Object.keys(resource).slice(0, 5) : []
   });
+  
+  // CASO 1: Context objects (CRÍTICO para expo-router)
+  if (resource && typeof resource === 'object' && hasContext) {
+    console.log('[🔧 React.use] 🎯 Processando Context object');
+    
+    // Tentar propriedades do context em ordem de prioridade
+    if (resource._currentValue !== undefined) {
+      console.log('[🔧 React.use] ✅ Retornando _currentValue:', resource._currentValue);
+      return resource._currentValue;
+    }
+    
+    if (resource._defaultValue !== undefined) {
+      console.log('[🔧 React.use] ✅ Retornando _defaultValue:', resource._defaultValue);
+      return resource._defaultValue;
+    }
+    
+    // Tentar useContext se React estiver disponível
+    try {
+      const ReactModule = require('react');
+      if (ReactModule && ReactModule.useContext && typeof ReactModule.useContext === 'function') {
+        const contextValue = ReactModule.useContext(resource);
+        console.log('[🔧 React.use] ✅ Retornando via useContext:', contextValue);
+        return contextValue;
+      }
+    } catch (e) {
+      console.log('[🔧 React.use] ⚠️ useContext falhou:', e.message);
+    }
+    
+    // Fallback para context vazio
+    console.log('[🔧 React.use] ⚠️ Context sem valor, retornando null');
+    return null;
+  }
+  
+  // CASO 2: Promise objects (Suspense)
+  if (resource && hasPromise) {
+    console.log('[🔧 React.use] 🎯 Detectada Promise - suspendendo');
+    throw resource;
+  }
+  
+  // CASO 3: Resource objects com read()
+  if (resource && typeof resource === 'object' && resource.read && typeof resource.read === 'function') {
+    console.log('[🔧 React.use] 🎯 Detectado Resource com read()');
+    try {
+      const result = resource.read();
+      console.log('[🔧 React.use] ✅ Resource.read() retornou:', result);
+      return result;
+    } catch (e) {
+      console.log('[🔧 React.use] ⚠️ Resource.read() falhou:', e.message);
+      throw e;
+    }
+  }
+  
+  // CASO 4: Recursos síncronos diretos
+  console.log('[🔧 React.use] 📦 Retornando resource diretamente:', resource);
+  return resource;
+};
 
+// Função para aplicar o polyfill de forma ultra agressiva
+function APPLY_ULTRA_POLYFILL() {
+  const locations = [];
+  
+  // 1. Tentar React via require
+  try {
+    const ReactModule = require('react');
+    if (ReactModule) {
+      if (!ReactModule.use || typeof ReactModule.use !== 'function') {
+        ReactModule.use = ULTRA_REACT_USE_POLYFILL;
+        locations.push('require("react")');
+        console.log('[Polyfill-Init] ✅ Aplicado via require("react")');
+      } else {
+        console.log('[Polyfill-Init] ℹ️ React.use já existe via require');
+      }
+    }
+  } catch (e) {
+    console.log('[Polyfill-Init] ⚠️ require("react") falhou:', e.message);
+  }
+  
+  // 2. Aplicar em global
+  try {
+    if (typeof global !== 'undefined') {
+      if (!global.React) {
+        global.React = {};
+      }
+      if (!global.React.use) {
+        global.React.use = ULTRA_REACT_USE_POLYFILL;
+        locations.push('global.React');
+        console.log('[Polyfill-Init] ✅ Aplicado em global.React');
+      }
+    }
+  } catch (e) {
+    console.log('[Polyfill-Init] ⚠️ global falhou:', e.message);
+  }
+  
+  // 3. Aplicar em window (web)
+  try {
+    if (typeof window !== 'undefined') {
+      if (!(window as any).React) {
+        (window as any).React = {};
+      }
+      if (!(window as any).React.use) {
+        (window as any).React.use = ULTRA_REACT_USE_POLYFILL;
+        locations.push('window.React');
+        console.log('[Polyfill-Init] ✅ Aplicado em window.React');
+      }
+    }
+  } catch (e) {
+    console.log('[Polyfill-Init] ⚠️ window falhou:', e.message);
+  }
+  
+  // 4. Tentar aplicar em exports/module.exports
+  try {
+    if (typeof module !== 'undefined' && module.exports) {
+      const ReactModule = require('react');
+      if (ReactModule && !ReactModule.use) {
+        ReactModule.use = ULTRA_REACT_USE_POLYFILL;
+        locations.push('module.exports');
+        console.log('[Polyfill-Init] ✅ Aplicado via module.exports');
+      }
+    }
+  } catch (e) {
+    console.log('[Polyfill-Init] ⚠️ module.exports falhou:', e.message);
+  }
+  
+  console.log('[Polyfill-Init] 🎯 Polyfill aplicado em:', locations.join(', '));
+}
+
+// EXECUTAR IMEDIATAMENTE (IIFE ultra agressiva)
+(() => {
+  console.log('[Polyfill-Init] 🚀 Executando aplicação ultra agressiva...');
+  APPLY_ULTRA_POLYFILL();
+  
+  // Verificação final
+  const checks = [];
+  try {
+    if (require('react').use) checks.push('✅ require("react").use');
+  } catch {} 
+  try {
+    if (global?.React?.use) checks.push('✅ global.React.use');
+  } catch {}
+  try {
+    if ((window as any)?.React?.use) checks.push('✅ window.React.use');
+  } catch {}
+  
+  console.log('[Polyfill-Init] 🎉 ULTRA polyfill concluído!', checks.join(', '));
 })();
 
-// URL polyfill (não crítico, mas útil)
-try {
-  require('react-native-url-polyfill/auto');
-} catch (error) {
-  console.warn('[Polyfill] URL polyfill opcional falhou:', error);
-}
+// Aplicar novamente em um setTimeout para garantir (backup)
+setTimeout(() => {
+  console.log('[Polyfill-Init] 🔄 Aplicando polyfill de backup...');
+  APPLY_ULTRA_POLYFILL();
+}, 0);
+
+console.log('[Polyfill-Init] 🏁 Inicialização ULTRA crítica finalizada');
