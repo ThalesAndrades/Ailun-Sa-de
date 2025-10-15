@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -155,6 +156,7 @@ export default function PlatformGuideScreen() {
     if (currentStep < guideSteps.length - 1) {
       setCurrentStep(currentStep + 1);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
       handleFinish();
     }
@@ -164,6 +166,7 @@ export default function PlatformGuideScreen() {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
