@@ -5,15 +5,18 @@
 
 import axios from 'axios';
 
+import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
+
 // Configuração da API Rapidoc
-const RAPIDOC_API_BASE_URL = process.env.EXPO_PUBLIC_RAPIDOC_API_URL || 'https://api.rapidoc.tech';
-const RAPIDOC_API_KEY = process.env.EXPO_PUBLIC_RAPIDOC_API_KEY || '';
+const RAPIDOC_API_BASE_URL = RAPIDOC_CONFIG.BASE_URL || 'https://api.rapidoc.tech/tema/api/';
+const RAPIDOC_API_KEY = RAPIDOC_CONFIG.TOKEN || '';
 
 const rapidocApi = axios.create({
   baseURL: RAPIDOC_API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${RAPIDOC_API_KEY}`,
+    'Authorization': `Bearer ${RAPIDOC_CONFIG.TOKEN}`,
+    'clientId': RAPIDOC_CONFIG.CLIENT_ID,
+    'Content-Type': RAPIDOC_CONFIG.CONTENT_TYPE,
   },
   timeout: 30000,
 });

@@ -1,132 +1,144 @@
 /**
- * Sistema de Logging para Produção
- * Substitui console.log/console.error em produção por sistema controlado
+ * Sistema de Logging Centralizado
+ * Padroniza logs em toda a aplicação com níveis e formatação consistente
  */
 
-const IS_PRODUCTION = process.env.EXPO_PUBLIC_APP_ENV === 'production' || 
-                     process.env.EXPO_PUBLIC_DISABLE_LOGS === 'true';
+export enum LogLevel {
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  DEBUG = 3
+}
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
-interface LogEntry {
-  level: LogLevel;
-  message: string;
-  data?: any;
-  timestamp: Date;
-  source?: string;
+export interface LogContext {
+  service?: string;
+  method?: string;
+  userId?: string;
+  requestId?: string;
+  [key: string]: any;
 }
 
 class Logger {
-  private logs: LogEntry[] = [];
-  private maxLogs = 1000; // Limite de logs mantidos em memória
+  private level: LogLevel = __DEV__ ? LogLevel.DEBUG : LogLevel.INFO;
+  private prefix: string = '[AiLun]';
 
-  private addLog(level: LogLevel, message: string, data?: any, source?: string) {
-    const logEntry: LogEntry = {
-      level,
-      message,
-      data,
-      timestamp: new Date(),
-      source
-    };
-
-    this.logs.push(logEntry);
-
-    // Manter apenas os logs mais recentes
-    if (this.logs.length > this.maxLogs) {
-      this.logs.shift();
-    }
-
-    // Em desenvolvimento, sempre mostrar no console
-    if (!IS_PRODUCTION) {
-      const timestamp = logEntry.timestamp.toISOString();
-      const prefix = source ? `[${source}]` : '';
-      
-      switch (level) {
-        case 'debug':
-          console.log(`🐛 ${timestamp} ${prefix} ${message}`, data || '');
-          break;
-        case 'info':
-          console.info(`ℹ️ ${timestamp} ${prefix} ${message}`, data || '');
-          break;
-        case 'warn':
-          console.warn(`⚠️ ${timestamp} ${prefix} ${message}`, data || '');
-          break;
-        case 'error':
-          console.error(`❌ ${timestamp} ${prefix} ${message}`, data || '');
-          break;
-      }
-    }
+  setLevel(level: LogLevel): void {
+    this.level = level;
   }
 
-  debug(message: string, data?: any, source?: string) {
-    this.addLog('debug', message, data, source);
+  private formatMessage(level: string, message: string, context?: LogContext): string {
+    const timestamp = new Date().toISOString();
+    const contextStr = context ? ` ${JSON.stringify(context)}` : '';
+    return `${this.prefix} ${timestamp} [${level}] ${message}${contextStr}`;
   }
 
-  info(message: string, data?: any, source?: string) {
-    this.addLog('info', message, data, source);
+  private shouldLog(level: LogLevel): boolean {
+    return level <= this.level;
   }
 
-  warn(message: string, data?: any, source?: string) {
-    this.addLog('warn', message, data, source);
-  }
-
-  error(message: string, data?: any, source?: string) {
-    this.addLog('error', message, data, source);
+  error(message: string, error?: Error, context?: LogContext): void {
+    if (!this.shouldLog(LogLevel.ERROR)) return;
     
-    // Em produção, sempre mostrar erros críticos
-    if (IS_PRODUCTION) {
-      console.error(`[AiLun Saúde] ${message}`, data || '');
-    }
+    const fullContext = { 
+      ...context, 
+      error: error?.message,
+      stack: error?.stack 
+    };
+    console.error(this.formatMessage('ERROR', message, fullContext));
   }
 
-  // Obter logs para debug ou envio para serviços externos
-  getLogs(level?: LogLevel): LogEntry[] {
-    if (level) {
-      return this.logs.filter(log => log.level === level);
-    }
-    return [...this.logs];
+  warn(message: string, context?: LogContext): void {
+    if (!this.shouldLog(LogLevel.WARN)) return;
+    console.warn(this.formatMessage('WARN', message, context));
   }
 
-  // Limpar logs
-  clearLogs() {
-    this.logs = [];
+  info(message: string, context?: LogContext): void {
+    if (!this.shouldLog(LogLevel.INFO)) return;
+    console.info(this.formatMessage('INFO', message, context));
   }
 
-  // Exportar logs como string para debug
-  exportLogs(): string {
-    return this.logs
-      .map(log => {
-        const timestamp = log.timestamp.toISOString();
-        const data = log.data ? ` | Data: ${JSON.stringify(log.data)}` : '';
-        const source = log.source ? ` [${log.source}]` : '';
-        return `${log.level.toUpperCase()} | ${timestamp}${source} | ${log.message}${data}`;
-      })
-      .join('\n');
+  debug(message: string, context?: LogContext): void {
+    if (!this.shouldLog(LogLevel.DEBUG)) return;
+    console.log(this.formatMessage('DEBUG', message, context));
+  }
+
+  // Métodos específicos para serviços
+  apiRequest(method: string, url: string, context?: LogContext): void {
+    this.debug(`API Request: ${method} ${url}`, { 
+      ...context, 
+      type: 'api_request' 
+    });
+  }
+
+  apiResponse(status: number, url: string, duration?: number, context?: LogContext): void {
+    this.debug(`API Response: ${status} ${url}`, { 
+      ...context, 
+      status, 
+      duration,
+      type: 'api_response' 
+    });
+  }
+
+  apiError(method: string, url: string, error: any, context?: LogContext): void {
+    this.error(`API Error: ${method} ${url}`, error, { 
+      ...context, 
+      type: 'api_error',
+      status: error.response?.status 
+    });
+  }
+
+  cacheHit(key: string, context?: LogContext): void {
+    this.debug(`Cache Hit: ${key}`, { 
+      ...context, 
+      type: 'cache_hit' 
+    });
+  }
+
+  cacheMiss(key: string, context?: LogContext): void {
+    this.debug(`Cache Miss: ${key}`, { 
+      ...context, 
+      type: 'cache_miss' 
+    });
+  }
+
+  userAction(action: string, userId?: string, context?: LogContext): void {
+    this.info(`User Action: ${action}`, { 
+      ...context, 
+      userId,
+      type: 'user_action' 
+    });
   }
 }
 
-// Instância única do logger
+// Instância singleton
 export const logger = new Logger();
 
-// Substituir console global em produção (opcional)
-if (IS_PRODUCTION) {
-  const originalLog = console.log;
-  const originalWarn = console.warn;
-  const originalError = console.error;
-
-  console.log = (message: any, ...args: any[]) => {
-    logger.info(String(message), args.length > 0 ? args : undefined);
-  };
-
-  console.warn = (message: any, ...args: any[]) => {
-    logger.warn(String(message), args.length > 0 ? args : undefined);
-  };
-
-  console.error = (message: any, ...args: any[]) => {
-    logger.error(String(message), args.length > 0 ? args : undefined);
-  };
-
-  // Manter console.info inalterado para logs de sistema essenciais
-}
-
-export default logger;
+// Helpers para contextos específicos
+export const createServiceLogger = (serviceName: string) => ({
+  error: (message: string, error?: Error, context?: LogContext) =>
+    logger.error(message, error, { ...context, service: serviceName }),
+  
+  warn: (message: string, context?: LogContext) =>
+    logger.warn(message, { ...context, service: serviceName }),
+  
+  info: (message: string, context?: LogContext) =>
+    logger.info(message, { ...context, service: serviceName }),
+  
+  debug: (message: string, context?: LogContext) =>
+    logger.debug(message, { ...context, service: serviceName }),
+  
+  apiRequest: (method: string, url: string, context?: LogContext) =>
+    logger.apiRequest(method, url, { ...context, service: serviceName }),
+  
+  apiResponse: (status: number, url: string, duration?: number, context?: LogContext) =>
+    logger.apiResponse(status, url, duration, { ...context, service: serviceName }),
+  
+  apiError: (method: string, url: string, error: any, context?: LogContext) =>
+    logger.apiError(method, url, error, { ...context, service: serviceName }),
+  
+  cacheHit: (key: string, context?: LogContext) =>
+    logger.cacheHit(key, { ...context, service: serviceName }),
+  
+  cacheMiss: (key: string, context?: LogContext) =>
+    logger.cacheMiss(key, { ...context, service: serviceName })
+});

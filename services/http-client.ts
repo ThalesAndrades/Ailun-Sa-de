@@ -5,12 +5,14 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { RAPIDOC_CONFIG } from '../config/rapidoc.config';
+import { createServiceLogger } from '../utils/logger';
 
 export class RapidocHttpClient {
   private client: AxiosInstance;
   private requestCount: number = 0;
   private lastRequestTime: number = 0;
   private readonly RATE_LIMIT_DELAY = 100; // ms entre requisições
+  private logger = createServiceLogger('RapidocHttpClient');
 
   constructor() {
     this.client = axios.create({
@@ -64,31 +66,32 @@ export class RapidocHttpClient {
   }
 
   private logRequest(config: AxiosRequestConfig): void {
-    console.log(`[RAPIDOC API] ${config.method?.toUpperCase()} ${config.url}`, {
-      timestamp: new Date().toISOString(),
-      requestId: this.requestCount
-    });
+    this.logger.apiRequest(
+      config.method?.toUpperCase() || 'GET',
+      config.url || '',
+      { requestId: this.requestCount }
+    );
   }
 
   private logResponse(response: AxiosResponse): void {
-    console.log(`[RAPIDOC API] Response ${response.status}`, {
-      url: response.config.url,
-      status: response.status,
-      timestamp: new Date().toISOString()
-    });
+    this.logger.apiResponse(
+      response.status,
+      response.config.url || '',
+      undefined,
+      { requestId: this.requestCount }
+    );
   }
 
   private handleResponseError(error: any): void {
-    const errorInfo = {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    };
-
-    console.error('[RAPIDOC API] Error:', errorInfo);
+    this.logger.apiError(
+      error.config?.method || 'UNKNOWN',
+      error.config?.url || '',
+      error,
+      { 
+        statusText: error.response?.statusText,
+        requestId: this.requestCount
+      }
+    );
 
     // Tratamento específico por código de erro
     switch (error.response?.status) {
@@ -105,15 +108,15 @@ export class RapidocHttpClient {
   }
 
   private handleUnauthorized(): void {
-    console.error('[RAPIDOC API] Token de autenticação inválido ou expirado');
+    this.logger.error('Token de autenticação inválido ou expirado');
   }
 
   private handleRateLimit(): void {
-    console.warn('[RAPIDOC API] Rate limit atingido, implementando backoff');
+    this.logger.warn('Rate limit atingido, implementando backoff');
   }
 
   private handleServerError(): void {
-    console.error('[RAPIDOC API] Erro interno do servidor Rapidoc');
+    this.logger.error('Erro interno do servidor Rapidoc');
   }
 
   public async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
