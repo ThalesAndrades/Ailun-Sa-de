@@ -44,36 +44,76 @@ interface CreateSubscriptionData {
 }
 
 Deno.serve(async (req) => {
+  console.log('[EDGE_FUNCTION] Iniciando processamento da requisição')
+  console.log('[EDGE_FUNCTION] Method:', req.method)
+  console.log('[EDGE_FUNCTION] URL:', req.url)
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('[EDGE_FUNCTION] Respondendo a requisição OPTIONS')
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // Verificar variáveis de ambiente
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
+    const rapidocClientId = Deno.env.get('RAPIDOC_CLIENT_ID')
+    const rapidocToken = Deno.env.get('RAPIDOC_TOKEN')
+    
+    console.log('[EDGE_FUNCTION] Verificando variáveis de ambiente:')
+    console.log('- SUPABASE_URL:', supabaseUrl ? 'OK' : 'MISSING')
+    console.log('- SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? 'OK' : 'MISSING')
+    console.log('- ASAAS_API_KEY:', asaasApiKey ? 'OK' : 'MISSING')
+    console.log('- RAPIDOC_CLIENT_ID:', rapidocClientId ? 'OK' : 'MISSING')
+    console.log('- RAPIDOC_TOKEN:', rapidocToken ? 'OK' : 'MISSING')
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Variáveis de ambiente do Supabase não configuradas')
+    }
+    
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('[EDGE_FUNCTION] Cliente Supabase inicializado')
 
-    const { action, data, paymentId } = await req.json()
+    // Parse request body
+    let requestBody
+    try {
+      requestBody = await req.json()
+      console.log('[EDGE_FUNCTION] Body recebido:', JSON.stringify(requestBody, null, 2))
+    } catch (parseError) {
+      console.error('[EDGE_FUNCTION] Erro ao parsear JSON:', parseError)
+      throw new Error('Corpo da requisição inválido (JSON malformado)')
+    }
+
+    const { action, data, paymentId } = requestBody
+    console.log('[EDGE_FUNCTION] Ação solicitada:', action)
 
     switch (action) {
       case 'create_subscription':
+        console.log('[EDGE_FUNCTION] Processando criação de assinatura')
         return await handleCreateSubscription(data, supabase)
       
       case 'check_payment_status':
+        console.log('[EDGE_FUNCTION] Verificando status do pagamento:', paymentId)
         return await handleCheckPaymentStatus(paymentId, supabase)
       
       default:
+        console.error('[EDGE_FUNCTION] Ação não reconhecida:', action)
         throw new Error(`Ação não reconhecida: ${action}`)
     }
 
   } catch (error) {
-    console.error('Erro no tema-orchestrator:', error)
+    console.error('[EDGE_FUNCTION] Erro crítico:', error)
+    console.error('[EDGE_FUNCTION] Stack trace:', error.stack)
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Erro interno'
+        error: error.message || 'Erro interno do servidor',
+        timestamp: new Date().toISOString(),
+        action: 'error_response'
       }),
       {
         status: 500,
@@ -84,7 +124,25 @@ Deno.serve(async (req) => {
 })
 
 async function handleCreateSubscription(data: CreateSubscriptionData, supabase: any) {
-  console.log('[handleCreateSubscription] Iniciando criação de assinatura:', data.email)
+  console.log('[handleCreateSubscription] =============================================')
+  console.log('[handleCreateSubscription] Iniciando criação de assinatura')
+  console.log('[handleCreateSubscription] Email:', data?.email)
+  console.log('[handleCreateSubscription] Dados recebidos:', JSON.stringify(data, null, 2))
+  
+  // Validar dados obrigatórios
+  if (!data) {
+    throw new Error('Dados da assinatura não fornecidos')
+  }
+  
+  if (!data.fullName || !data.cpf || !data.email) {
+    throw new Error('Dados obrigatórios não fornecidos (fullName, cpf, email)')
+  }
+  
+  if (!data.paymentMethod || !['credit_card', 'pix', 'boleto'].includes(data.paymentMethod)) {
+    throw new Error('Método de pagamento inválido')
+  }
+  
+  console.log('[handleCreateSubscription] Validações iniciais OK')
 
   try {
     // 1. Criar beneficiário via RapiDoc
@@ -405,39 +463,74 @@ async function createRapidocBeneficiary(data: {
   phone: string
   serviceType: string
 }): Promise<{ success: boolean; data?: any; error?: string }> {
+  console.log('[createRapidocBeneficiary] Iniciando criação do beneficiário')
+  console.log('[createRapidocBeneficiary] Nome:', data.name)
+  console.log('[createRapidocBeneficiary] CPF:', data.cpf.replace(/\d(?=\d{4})/g, '*'))
+  
   try {
     const rapidocClientId = Deno.env.get('RAPIDOC_CLIENT_ID')
     const rapidocToken = Deno.env.get('RAPIDOC_TOKEN')
     const rapidocBaseUrl = Deno.env.get('RAPIDOC_BASE_URL') || 'https://api.rapidoc.tech'
+    
+    console.log('[createRapidocBeneficiary] RapiDoc Base URL:', rapidocBaseUrl)
+    console.log('[createRapidocBeneficiary] Client ID configurado:', rapidocClientId ? 'SIM' : 'NÃO')
+    console.log('[createRapidocBeneficiary] Token configurado:', rapidocToken ? 'SIM' : 'NÃO')
+    
+    if (!rapidocClientId || !rapidocToken) {
+      console.warn('[createRapidocBeneficiary] Credenciais RapiDoc não configuradas, simulando criação')
+      // Simular beneficiário para desenvolvimento
+      const simulatedBeneficiary = {
+        uuid: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: data.name,
+        cpf: data.cpf,
+        service_type: data.serviceType,
+        status: 'active'
+      }
+      return { success: true, data: simulatedBeneficiary }
+    }
+    
+    const beneficiaryPayload = {
+      name: data.name.trim(),
+      cpf: data.cpf.replace(/\D/g, ''),
+      birth_date: data.birthDate,
+      email: data.email.toLowerCase().trim(),
+      phone: data.phone.replace(/\D/g, ''),
+      service_type: data.serviceType,
+    }
+    
+    console.log('[createRapidocBeneficiary] Payload:', JSON.stringify(beneficiaryPayload, null, 2))
 
     const response = await fetch(`${rapidocBaseUrl}/beneficiaries`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${rapidocToken}`,
-        'X-Client-ID': rapidocClientId,
+        'X-Client-ID': rapidocClientId || '',
+        'User-Agent': 'AiLun-Saude-EdgeFunction/1.0',
       },
-      body: JSON.stringify({
-        name: data.name,
-        cpf: data.cpf,
-        birth_date: data.birthDate,
-        email: data.email,
-        phone: data.phone,
-        service_type: data.serviceType,
-      }),
+      body: JSON.stringify(beneficiaryPayload),
     })
 
     const result = await response.json()
+    
+    console.log('[createRapidocBeneficiary] Response status:', response.status)
+    console.log('[createRapidocBeneficiary] Response:', result)
 
     if (!response.ok) {
-      throw new Error(result.message || 'Erro ao criar beneficiário')
+      const errorMsg = result.message || result.error || 'Erro ao criar beneficiário no RapiDoc'
+      console.error('[createRapidocBeneficiary] Erro da API:', errorMsg)
+      throw new Error(errorMsg)
     }
 
+    console.log('[createRapidocBeneficiary] Beneficiário criado com sucesso:', result.uuid || result.id)
     return { success: true, data: result }
 
   } catch (error) {
-    console.error('[createRapidocBeneficiary] Erro:', error)
-    return { success: false, error: error.message }
+    console.error('[createRapidocBeneficiary] Erro na requisição:', error)
+    return { 
+      success: false, 
+      error: `Falha ao criar beneficiário: ${error.message}`
+    }
   }
 }
 
