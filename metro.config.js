@@ -1,6 +1,6 @@
 /**
- * Metro Configuration - AiLun Saúde
- * Configuração otimizada para produção Apple Store
+ * Metro Configuration - AiLun Saúde v2.1.0
+ * Configuração simplificada e estável para produção
  */
 
 const { getDefaultConfig } = require('expo/metro-config');
@@ -12,13 +12,12 @@ const config = getDefaultConfig(__dirname, {
   isCSSEnabled: true,
 });
 
-// Resolver configuração otimizada
+// Resolver configuração básica
 config.resolver = {
   ...config.resolver,
   
   // Alias para módulos críticos
   alias: {
-    ...config.resolver?.alias,
     'react': path.resolve(__dirname, 'node_modules/react'),
     'react-native': path.resolve(__dirname, 'node_modules/react-native'),
     '@components': path.resolve(__dirname, 'components'),
@@ -33,60 +32,38 @@ config.resolver = {
   // Plataformas suportadas
   platforms: ['ios', 'android', 'native', 'web'],
   
-  // Node modules paths otimizados
-  nodeModulesPaths: [
-    path.resolve(__dirname, 'node_modules'),
-    path.resolve(__dirname, '../node_modules'), // Para monorepos
+  // Source extensions com prioridade correta
+  sourceExts: [
+    'expo.ts', 'expo.tsx', 'expo.js', 'expo.jsx',
+    'ts', 'tsx', 'js', 'jsx', 'json', 'cjs', 'mjs'
   ],
   
-  // Extensões de assets
+  // Asset extensions
   assetExts: [
     ...config.resolver.assetExts,
     'bin', 'txt', 'jpg', 'png', 'gif', 'webp', 'bmp', 'psd',
     'svg', 'pdf', 'mp4', 'webm', 'wav', 'mp3', 'm4a', 'aac', 'oga',
-    'ttf', 'otf', 'woff', 'woff2', 'eot',
-    'zip', 'csv', 'db'
-  ],
-  
-  // Source extensions com prioridade correta
-  sourceExts: [
-    'expo.ts', 'expo.tsx', 'expo.js', 'expo.jsx',
-    'ts', 'tsx', 'js', 'jsx', 'json', 'cjs', 'mjs',
-    'web.ts', 'web.tsx', 'web.js', 'web.jsx',
-    'ios.ts', 'ios.tsx', 'ios.js', 'ios.jsx',
-    'android.ts', 'android.tsx', 'android.js', 'android.jsx',
-    'native.ts', 'native.tsx', 'native.js', 'native.jsx'
-  ],
-  
-  // Bloquear resolução de módulos problemáticos
-  blockList: [
-    /\.git\/.*/,
-    /node_modules\/.*\/node_modules\/.*/,
+    'ttf', 'otf', 'woff', 'woff2', 'eot'
   ],
 };
 
-// Transformer otimizado para produção
+// Transformer básico
 config.transformer = {
   ...config.transformer,
   
   // Configurações de minificação
   minifierConfig: {
-    ...config.transformer?.minifierConfig,
     // Preservar nomes críticos
     mangle: {
-      ...config.transformer?.minifierConfig?.mangle,
       reserved: [
         'React', 'use', 'useState', 'useEffect', 'useContext', 
-        'useCallback', 'useMemo', 'useRef', 'useReducer',
         'NavigationContainer', 'Stack', 'Screen'
       ],
-      keep_fnames: true, // Manter nomes de função para debug
+      keep_fnames: true,
     },
-    // Configurações de otimização
     compress: {
       drop_console: process.env.NODE_ENV === 'production',
       drop_debugger: true,
-      pure_funcs: ['console.log', 'console.debug'],
     },
   },
   
@@ -97,91 +74,30 @@ config.transformer = {
   getTransformOptions: async () => ({
     transform: {
       experimentalImportSupport: false,
-      inlineRequires: true, // Otimização para produção
+      inlineRequires: true,
     },
   }),
-  
-  // Unstable allow require cycles para compatibilidade
-  unstable_allowRequireContext: true,
 };
 
-// Serializer otimizado
+// Serializer básico
 config.serializer = {
   ...config.serializer,
   
-  // Configurações de chunk
-  createModuleIdFactory: () => {
-    let nextId = 0;
-    return () => ++nextId; // IDs sequenciais para melhor caching
-  },
-  
-  // Otimizações de bundle
-  getModulesRunBeforeMainModule: () => [
-    require.resolve('react-native/Libraries/Core/InitializeCore'),
-  ],
-  
-  // Processamento customizado de módulos
+  // Filtrar módulos de teste em produção
   processModuleFilter: (module) => {
-    // Filtrar módulos de teste em produção
     if (process.env.NODE_ENV === 'production') {
       return !/\.test\.(ts|tsx|js|jsx)$/.test(module.path) &&
              !/\.spec\.(ts|tsx|js|jsx)$/.test(module.path) &&
-             !/\/__tests__\//.test(module.path) &&
-             !/\/test\//.test(module.path);
+             !/\/__tests__\//.test(module.path);
     }
     return true;
   },
 };
 
-// Configurações de servidor (somente para desenvolvimento)
-if (process.env.NODE_ENV !== 'production') {
-  config.server = {
-    ...config.server,
-    port: 8081,
-    enhanceMiddleware: (middleware) => {
-      return (req, res, next) => {
-        // Headers de segurança para desenvolvimento
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-Frame-Options', 'DENY');
-        return middleware(req, res, next);
-      };
-    },
-  };
-}
-
-// Watcher otimizado
-config.watcher = {
-  ...config.watcher,
-  
-  // Arquivos adicionais para watch
-  additionalExts: ['cjs', 'mjs'],
-  
-  // Ignorar arquivos/pastas
-  ignored: [
-    /node_modules\/(?!(@react-native|react-native|expo|@expo)\/).*/,
-    /.git\/.*/,
-    /\.expo\/.*/,
-    /web-build\/.*/,
-    /dist\/.*/,
-    /\.next\/.*/,
-  ],
-  
-  // Health check desabilitado para performance
-  healthCheck: {
-    enabled: false,
-  },
-  
-  // Configurações de watching
-  watchman: true,
-  useWatchman: true,
-};
-
-// Cache otimizado para produção
+// Cache otimizado
 if (process.env.NODE_ENV === 'production') {
   config.resetCache = false;
-  config.cacheVersion = '2.1.0';
 } else {
-  // Cache desabilitado em desenvolvimento para hot reload
   config.resetCache = true;
 }
 
