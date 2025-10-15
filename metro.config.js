@@ -1,72 +1,67 @@
 /**
  * Metro configuration para AiLun Saúde
- * Configuração otimizada para build e desenvolvimento
+ * Configurações de bundling otimizadas para Expo sem NativeWind
  */
 
 const { getDefaultConfig } = require('expo/metro-config');
-const { withNativeWind } = require('nativewind/metro');
 
+// Obter configuração padrão do Expo
 const config = getDefaultConfig(__dirname);
 
-// Configurações de resolver para melhor compatibilidade
-config.resolver.sourceExts = [
-  ...config.resolver.sourceExts,
-  'jsx',
-  'js',
-  'ts',
-  'tsx',
-  'json',
-  'mjs',
-  'cjs',
-];
+// Configurações adicionais para melhor performance
+config.resolver.platforms = ['ios', 'android', 'native', 'web'];
 
-// Aliases para melhorar resolução de módulos
-config.resolver.alias = {
-  ...config.resolver.alias,
-  // Garantir compatibilidade com diferentes versões de React
-  'react-native$': require.resolve('react-native'),
-  'react$': require.resolve('react'),
-};
+// Configurações de assets
+config.resolver.assetExts.push(
+  // Arquivos de fonte
+  'ttf',
+  'otf',
+  'woff',
+  'woff2',
+  // Imagens adicionais
+  'svg',
+  'webp',
+  // Áudio
+  'mp3',
+  'wav',
+  'm4a',
+  'aac',
+  // Outros
+  'bin',
+  'txt',
+  'json'
+);
 
-// Configurações para Platform Extensions
-config.resolver.platforms = [
-  'native', 
-  'ios', 
-  'android', 
-  'web',
-];
-
-// Transformações específicas
+// Configurações de transformação
 config.transformer = {
   ...config.transformer,
+  unstable_allowRequireContext: true,
   minifierConfig: {
+    keep_fnames: true,
     mangle: {
       keep_fnames: true,
     },
-    keep_fnames: true,
   },
 };
 
-// Configurações de cache
-config.cacheStores = [
-  {
-    name: 'filesystem',
-    type: 'FileStore',
-    root: './node_modules/.cache/metro',
-  },
+// Configurações de cache para desenvolvimento
+config.resetCache = process.env.NODE_ENV === 'development';
+
+// Configurações de serializer para otimização
+config.serializer = {
+  ...config.serializer,
+};
+
+// Configurações do watchman para melhor detecção de mudanças
+config.watchFolders = [
+  __dirname,
 ];
 
-// Configurações específicas para resolução de problemas do expo-router
-config.resolver.resolverMainFields = [
-  'react-native',
-  'browser',
-  'main',
-];
+// Configurações de Metro para lidar com symlinks
+config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
-// Suporte a symlinks para desenvolvimento
-config.resolver.symlinks = false;
+// Configurações experimentais para melhor performance
+config.transformer.experimentalImportSupport = false;
+config.transformer.inlineRequires = true;
 
-// Configuração do watchman para desenvolvimento
-config.watchFolders = [__dirname];
-
-module.exports = withNativeWind(config, { input: './global.css' });
+module.exports = config;

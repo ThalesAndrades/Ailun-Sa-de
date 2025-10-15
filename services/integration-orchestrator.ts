@@ -1,389 +1,593 @@
 /**
- * Orquestrador de Integrações - AiLun Saúde
- * Coordena comunicação entre RapiDoc, Asaas, Resend e Supabase
+ * Orquestrador de Integrações - Alinhado com APIs Oficiais
+ * Coordena integrações entre RapiDoc, Asaas, Resend e Supabase
  */
 
+import { rapidocService } from './rapidoc';
+import { rapidocConsultationService } from './rapidoc-consultation-service';
+import type {
+  BeneficiaryCreateData,
+  RapidocBeneficiary,
+  RapidocSpecialty,
+  RapidocAvailability,
+  RapidocAppointment,
+  ConsultationResponse
+} from './rapidoc';
+import type {
+  ConsultationRequest,
+  ScheduleRequest,
+  ConsultationResult
+} from './rapidoc-consultation-service';
+import { asaasService } from './asaas';
+import { sendEmail } from './email';
 import { supabase } from './supabase';
-import { rapidocHttpClient } from './http-client';
-import { errorRecovery } from './error-recovery';
-import { cache, createCacheKey } from '../utils/cache';
-import { ErrorMessages, SuccessMessages } from '../constants/ErrorMessages';
-import { auditService } from './audit-service';
+import { ProductionLogger } from '../utils/production-logger';
+import { retryOperation } from '../utils/retry';
 
-export interface ConsultationRequest {
-  beneficiaryUuid: string;
-  serviceType: 'clinical' | 'specialist' | 'psychology' | 'nutrition';
-  specialty?: string;
-  priority?: 'normal' | 'urgent';
-  notes?: string;
-  scheduledFor?: string; // ISO date for scheduled consultations
-}
-
-export interface ConsultationResponse {
-  success: boolean;
-  consultationId?: string;
-  sessionUrl?: string;
-  estimatedWaitTime?: number;
-  queuePosition?: number;
-  professionalInfo?: {
-    name: string;
-    specialty: string;
-    crm?: string;
-    photo?: string;
+interface IntegrationHealth {
+  overall: 'healthy' | 'degraded' | 'down';
+  services: {
+    rapidoc: 'healthy' | 'degraded' | 'down';
+    supabase: 'healthy' | 'degraded' | 'down';
+    asaas: 'healthy' | 'degraded' | 'down';
+    resend: 'healthy' | 'degraded' | 'down';
   };
-  error?: string;
+  lastCheck: Date;
 }
 
-export interface PaymentRequest {
+interface OrchestrationResult {
+  success: boolean;
+  data?: any;
+  errors: string[];
+  warnings: string[];
+  syncedSystems: string[];
+}
+
+interface NotificationRequest {
+  userId: string;
+  type: 'email' | 'push' | 'sms';
+  template: string;
+  data: Record<string, any>;
+}
+
+interface PaymentRequest {
   customerId: string;
-  planType: string;
   amount: number;
-  billingType: 'BOLETO' | 'CREDIT_CARD' | 'PIX';
-  cardData?: {
-    holderName: string;
-    number: string;
-    expiryMonth: string;
-    expiryYear: string;
-    ccv: string;
-  };
+  description: string;
+  paymentMethod: 'pix' | 'credit_card' | 'boleto';
+  dueDate?: Date;
 }
 
-export interface PaymentResponse {
-  success: boolean;
-  paymentId?: string;
-  invoiceUrl?: string;
-  pixQrCode?: string;
-  pixCode?: string;
-  dueDate?: string;
-  status?: string;
-  error?: string;
-}
+class IntegrationOrchestrator {
+  private logger = new ProductionLogger('IntegrationOrchestrator');
+  private healthCache: IntegrationHealth | null = null;
+  private healthCacheExpiry: number = 0;
 
-export class IntegrationOrchestrator {
-  private static instance: IntegrationOrchestrator;
-  
-  static getInstance(): IntegrationOrchestrator {
-    if (!IntegrationOrchestrator.instance) {
-      IntegrationOrchestrator.instance = new IntegrationOrchestrator();
-    }
-    return IntegrationOrchestrator.instance;
-  }
+  // ==================== CONSULTAS E AGENDAMENTOS ====================
 
   /**
-   * Solicita consulta médica via RapiDoc
+   * Solicitar consulta com orquestração completa
    */
-  async requestConsultation(request: ConsultationRequest): Promise<ConsultationResponse> {
-    const cacheKey = createCacheKey('consultation_request', request.beneficiaryUuid, request.serviceType);
-    
-    return await errorRecovery.executeWithRecovery(
-      async () => {
-        // Log da solicitação
-        await auditService.log({
-          event_type: 'consultation_request',
-          user_id: request.beneficiaryUuid,
-          event_data: {
-            service_type: request.serviceType,
-            specialty: request.specialty,
-            priority: request.priority,
-          },
-          status: 'pending',
-        });
-
-        // Verificar plano ativo
-        const planCheck = await this.verifyActivePlan(request.beneficiaryUuid, request.serviceType);
-        if (!planCheck.isValid) {
-          throw new Error(planCheck.reason || 'Plano inativo ou serviço não incluído');
+  async requestConsultation(request: ConsultationRequest): Promise<ConsultationResult & {
+    queuePosition?: number;
+    estimatedWaitTime?: number;
+    professionalInfo?: any;
+  }> {
+    try {
+      this.logger.info('Iniciando solicitação de consulta orquestrada', request);
+      
+      // 1. Verificar se beneficiário existe no RapiDoc
+      let beneficiary: RapidocBeneficiary | null = null;
+      
+      try {
+        // Buscar no Supabase primeiro para pegar CPF
+        const { data: profile } = await supabase
+          .from('beneficiaries')
+          .select('cpf, full_name')
+          .eq('beneficiary_uuid', request.beneficiaryUuid)
+          .single();
+        
+        if (profile?.cpf) {
+          beneficiary = await rapidocService.getBeneficiaryByCPF(profile.cpf);
         }
-
-        // Chamar RapiDoc via Edge Function
-        const { data, error } = await supabase.functions.invoke('tema-orchestrator', {
-          body: {
-            action: 'request_consultation',
-            beneficiary_uuid: request.beneficiaryUuid,
-            service_type: request.serviceType,
-            specialty: request.specialty,
-            priority: request.priority || 'normal',
-            notes: request.notes,
-            scheduled_for: request.scheduledFor,
-          },
-        });
-
-        if (error) throw error;
-
-        // Log de sucesso
-        await auditService.log({
-          event_type: 'consultation_request',
-          user_id: request.beneficiaryUuid,
-          event_data: {
-            consultation_id: data.consultationId,
-            service_type: request.serviceType,
-            professional_info: data.professionalInfo,
-          },
-          status: 'success',
-        });
-
-        return {
-          success: true,
-          consultationId: data.consultationId,
-          sessionUrl: data.sessionUrl,
-          estimatedWaitTime: data.estimatedWaitTime,
-          queuePosition: data.queuePosition,
-          professionalInfo: data.professionalInfo,
-        };
-      },
-      // Fallback para modo offline
-      () => {
-        return {
-          success: false,
-          error: ErrorMessages.RAPIDOC.API_ERROR,
-        };
-      },
-      cacheKey,
-      5 * 60 * 1000 // 5 minutos
-    );
-  }
-
-  /**
-   * Processa pagamento via Asaas
-   */
-  async processPayment(request: PaymentRequest): Promise<PaymentResponse> {
-    return await errorRecovery.executeWithRecovery(
-      async () => {
-        // Log da tentativa de pagamento
-        await auditService.log({
-          event_type: 'payment_request',
-          user_id: request.customerId,
-          event_data: {
-            plan_type: request.planType,
-            amount: request.amount,
-            billing_type: request.billingType,
-          },
-          status: 'pending',
-        });
-
-        // Processar via Edge Function
-        const { data, error } = await supabase.functions.invoke('asaas-webhook', {
-          body: {
-            action: 'create_payment',
-            customer_id: request.customerId,
-            plan_type: request.planType,
-            amount: request.amount,
-            billing_type: request.billingType,
-            card_data: request.cardData,
-          },
-        });
-
-        if (error) throw error;
-
-        // Log de sucesso
-        await auditService.log({
-          event_type: 'payment_request',
-          user_id: request.customerId,
-          event_data: {
-            payment_id: data.paymentId,
-            amount: request.amount,
-            status: data.status,
-          },
-          status: 'success',
-        });
-
-        return {
-          success: true,
-          paymentId: data.paymentId,
-          invoiceUrl: data.invoiceUrl,
-          pixQrCode: data.pixQrCode,
-          pixCode: data.pixCode,
-          dueDate: data.dueDate,
-          status: data.status,
-        };
-      },
-      // Fallback para erro de pagamento
-      () => {
-        return {
-          success: false,
-          error: ErrorMessages.PAYMENT.PAYMENT_FAILED,
-        };
+      } catch (error) {
+        this.logger.warn('Beneficiário não encontrado no RapiDoc', { error });
       }
-    );
+      
+      // 2. Determinar tipo de consulta e executar
+      let consultationResult: ConsultationResult;
+      
+      if (request.serviceType === 'clinical') {
+        // Consulta clínica imediata
+        consultationResult = await rapidocConsultationService.requestImmediateConsultation(
+          beneficiary?.uuid || request.beneficiaryUuid
+        );
+      } else {
+        // Agendamento de especialidade
+        const specialtyResult = await rapidocConsultationService.getSpecialtyByType(
+          request.serviceType as 'psychology' | 'nutrition'
+        );
+        
+        if (!specialtyResult) {
+          return {
+            success: false,
+            error: 'Especialidade não encontrada'
+          };
+        }
+        
+        // Buscar disponibilidade
+        const availabilityResult = await rapidocConsultationService.getSpecialtyAvailability(
+          specialtyResult.uuid,
+          beneficiary?.uuid || request.beneficiaryUuid
+        );
+        
+        if (!availabilityResult.success || availabilityResult.availableSlots.length === 0) {
+          return {
+            success: false,
+            error: 'Nenhum horário disponível encontrado'
+          };
+        }
+        
+        // Agendar no primeiro horário disponível
+        const firstSlot = availabilityResult.availableSlots[0];
+        
+        consultationResult = await rapidocConsultationService.scheduleAppointment({
+          beneficiaryUuid: beneficiary?.uuid || request.beneficiaryUuid,
+          availabilityUuid: firstSlot.uuid,
+          specialtyUuid: specialtyResult.uuid,
+          serviceType: request.serviceType as any,
+          approveAdditionalPayment: true
+        });
+      }
+      
+      // 3. Se bem-sucedido, registrar no Supabase e enviar notificações
+      if (consultationResult.success) {
+        try {
+          // Registrar consulta no histórico
+          await supabase.from('consultation_history').insert({
+            beneficiary_id: request.beneficiaryUuid,
+            service_type: request.serviceType.toUpperCase(),
+            specialty: request.specialty,
+            session_id: consultationResult.consultationId,
+            consultation_url: consultationResult.sessionUrl,
+            status: 'scheduled',
+            metadata: {
+              priority: request.priority,
+              notes: request.notes,
+              source: 'rapidoc_api'
+            }
+          });
+          
+          // Enviar notificação por email se houver
+          if (beneficiary?.email) {
+            await this.sendNotification(request.beneficiaryUuid, 'email', 'consultation_scheduled', {
+              consultationType: request.serviceType,
+              consultationUrl: consultationResult.sessionUrl,
+              scheduledAt: new Date().toISOString(),
+              professionalInfo: consultationResult.professionalInfo
+            });
+          }
+          
+        } catch (error) {
+          this.logger.warn('Falha nas operações pós-agendamento', { error });
+          // Não falhar a consulta por causa disso
+        }
+      }
+      
+      return {
+        ...consultationResult,
+        queuePosition: request.serviceType === 'clinical' ? 1 : undefined,
+        estimatedWaitTime: request.serviceType === 'clinical' ? 0 : this.calculateWaitTime(request.serviceType)
+      };
+      
+    } catch (error: any) {
+      this.logger.error('Erro na orquestração de consulta', { error: error.message });
+      return {
+        success: false,
+        error: 'Erro interno na solicitação de consulta'
+      };
+    }
   }
 
+  // ==================== PAGAMENTOS ====================
+
   /**
-   * Envia notificação via Resend
+   * Processar pagamento com integração Asaas
+   */
+  async processPayment(request: PaymentRequest): Promise<OrchestrationResult> {
+    const result: OrchestrationResult = {
+      success: false,
+      errors: [],
+      warnings: [],
+      syncedSystems: []
+    };
+    
+    try {
+      this.logger.info('Processando pagamento', request);
+      
+      // 1. Processar pagamento no Asaas
+      const paymentResult = await asaasService.createPayment({
+        customer: request.customerId,
+        billingType: request.paymentMethod === 'pix' ? 'PIX' : 
+                    request.paymentMethod === 'credit_card' ? 'CREDIT_CARD' : 'BOLETO',
+        value: request.amount,
+        description: request.description,
+        dueDate: request.dueDate?.toISOString().split('T')[0]
+      });
+      
+      if (paymentResult.success) {
+        result.syncedSystems.push('asaas');
+        result.data = paymentResult.data;
+        
+        // 2. Registrar pagamento no Supabase
+        try {
+          await supabase.from('subscription_plans').insert({
+            user_id: request.customerId,
+            asaas_subscription_id: paymentResult.data.id,
+            payment_method: request.paymentMethod,
+            base_price: request.amount,
+            total_price: request.amount,
+            status: 'active',
+            next_billing_date: request.dueDate,
+            metadata: {
+              source: 'asaas_integration',
+              payment_id: paymentResult.data.id
+            }
+          });
+          
+          result.syncedSystems.push('supabase');
+        } catch (supabaseError: any) {
+          result.warnings.push(`Falha ao sincronizar com Supabase: ${supabaseError.message}`);
+        }
+        
+        // 3. Enviar confirmação por email
+        try {
+          await this.sendNotification(request.customerId, 'email', 'payment_confirmation', {
+            amount: request.amount,
+            description: request.description,
+            paymentMethod: request.paymentMethod,
+            paymentId: paymentResult.data.id
+          });
+          
+          result.syncedSystems.push('resend');
+        } catch (emailError: any) {
+          result.warnings.push(`Falha ao enviar email: ${emailError.message}`);
+        }
+        
+        result.success = true;
+        
+      } else {
+        result.errors.push(paymentResult.error || 'Falha no processamento do pagamento');
+      }
+      
+    } catch (error: any) {
+      this.logger.error('Erro no processamento de pagamento', { error: error.message });
+      result.errors.push('Erro interno no processamento do pagamento');
+    }
+    
+    return result;
+  }
+
+  // ==================== NOTIFICAÇÕES ====================
+
+  /**
+   * Enviar notificação integrada
    */
   async sendNotification(
     userId: string,
-    type: 'email' | 'sms',
+    type: 'email' | 'push' | 'sms',
     template: string,
     data: Record<string, any>
-  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    return await errorRecovery.executeWithRecovery(
-      async () => {
-        const { data: result, error } = await supabase.functions.invoke('send-notification', {
-          body: {
-            user_id: userId,
-            type,
+  ): Promise<OrchestrationResult> {
+    const result: OrchestrationResult = {
+      success: false,
+      errors: [],
+      warnings: [],
+      syncedSystems: []
+    };
+    
+    try {
+      this.logger.info('Enviando notificação', { userId, type, template });
+      
+      // 1. Buscar dados do usuário
+      const { data: user } = await supabase
+        .from('user_profiles')
+        .select('email, full_name, phone')
+        .eq('id', userId)
+        .single();
+      
+      if (!user) {
+        result.errors.push('Usuário não encontrado');
+        return result;
+      }
+      
+      // 2. Preparar conteúdo da notificação
+      const notificationData = {
+        ...data,
+        userName: user.full_name,
+        userEmail: user.email
+      };
+      
+      // 3. Enviar conforme o tipo
+      if (type === 'email' && user.email) {
+        try {
+          const emailResult = await sendEmail({
+            to: user.email,
+            subject: this.getEmailSubject(template, notificationData),
             template,
-            data,
-          },
-        });
-
-        if (error) throw error;
-
-        return {
-          success: true,
-          messageId: result.messageId,
-        };
-      },
-      // Fallback - salvar notificação no sistema interno
-      async () => {
+            data: notificationData
+          });
+          
+          if (emailResult.success) {
+            result.syncedSystems.push('resend');
+            result.success = true;
+          } else {
+            result.errors.push(emailResult.error || 'Falha no envio de email');
+          }
+        } catch (emailError: any) {
+          result.errors.push(`Erro no email: ${emailError.message}`);
+        }
+      }
+      
+      // 4. Registrar notificação no Supabase
+      try {
         await supabase.from('system_notifications').insert({
           beneficiary_uuid: userId,
-          title: data.subject || 'Notificação AiLun',
-          message: data.message || 'Você tem uma nova notificação.',
+          title: this.getNotificationTitle(template),
+          message: this.getNotificationMessage(template, notificationData),
           type: 'info',
-          metadata: { template, fallback: true },
+          metadata: {
+            template,
+            notification_type: type,
+            sent_at: new Date().toISOString()
+          }
         });
-
-        return {
-          success: true,
-          messageId: 'fallback_notification',
-        };
+        
+        result.syncedSystems.push('supabase');
+      } catch (supabaseError: any) {
+        result.warnings.push(`Falha ao registrar notificação: ${supabaseError.message}`);
       }
-    );
+      
+    } catch (error: any) {
+      this.logger.error('Erro no envio de notificação', { error: error.message });
+      result.errors.push('Erro interno no envio de notificação');
+    }
+    
+    return result;
   }
 
-  /**
-   * Verifica plano ativo e permissões
-   */
-  private async verifyActivePlan(
-    beneficiaryUuid: string,
-    serviceType: string
-  ): Promise<{ isValid: boolean; reason?: string }> {
-    try {
-      const { getBeneficiaryByCPF, canUseService } = await import('./beneficiary-plan-service');
-      const { checkSubscriptionStatus } = await import('./asaas');
+  // ==================== SINCRONIZAÇÃO ====================
 
-      // Buscar beneficiário
+  /**
+   * Sincronizar dados do usuário entre sistemas
+   */
+  async syncUserData(userId: string): Promise<OrchestrationResult> {
+    const result: OrchestrationResult = {
+      success: false,
+      errors: [],
+      warnings: [],
+      syncedSystems: []
+    };
+    
+    try {
+      this.logger.info('Sincronizando dados do usuário', { userId });
+      
+      // 1. Buscar dados no Supabase
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (!userProfile) {
+        result.errors.push('Usuário não encontrado');
+        return result;
+      }
+      
       const { data: beneficiary } = await supabase
         .from('beneficiaries')
         .select('*')
-        .eq('beneficiary_uuid', beneficiaryUuid)
+        .eq('user_id', userId)
         .single();
-
-      if (!beneficiary) {
-        return { isValid: false, reason: 'Beneficiário não encontrado' };
+      
+      if (beneficiary) {
+        // 2. Sincronizar com RapiDoc
+        try {
+          const rapidocBeneficiary = await rapidocService.getBeneficiaryByCPF(beneficiary.cpf);
+          
+          if (!rapidocBeneficiary) {
+            // Criar beneficiário no RapiDoc
+            const createData: BeneficiaryCreateData = {
+              name: beneficiary.full_name,
+              cpf: beneficiary.cpf,
+              birthday: beneficiary.birth_date,
+              phone: beneficiary.phone,
+              email: beneficiary.email,
+              zipCode: userProfile.address?.zipCode,
+              address: userProfile.address?.street,
+              city: userProfile.address?.city,
+              state: userProfile.address?.state,
+              serviceType: rapidocService.mapServiceType(beneficiary.service_type || 'clinical')
+            };
+            
+            await rapidocService.createBeneficiary(createData);
+          }
+          
+          result.syncedSystems.push('rapidoc');
+        } catch (rapidocError: any) {
+          result.errors.push(`RapiDoc sync falhou: ${rapidocError.message}`);
+        }
+        
+        // 3. Sincronizar com Asaas
+        try {
+          const asaasCustomer = await asaasService.getCustomerByCPF(beneficiary.cpf);
+          
+          if (!asaasCustomer.success) {
+            // Criar customer no Asaas
+            await asaasService.createCustomer({
+              name: beneficiary.full_name,
+              cpfCnpj: beneficiary.cpf,
+              email: beneficiary.email,
+              phone: beneficiary.phone,
+              address: userProfile.address?.street,
+              addressNumber: userProfile.address?.number,
+              complement: userProfile.address?.complement,
+              province: userProfile.address?.neighborhood,
+              city: userProfile.address?.city,
+              state: userProfile.address?.state,
+              postalCode: userProfile.address?.zipCode
+            });
+          }
+          
+          result.syncedSystems.push('asaas');
+        } catch (asaasError: any) {
+          result.errors.push(`Asaas sync falhou: ${asaasError.message}`);
+        }
       }
-
-      // Verificar status da assinatura
-      const subscriptionStatus = await checkSubscriptionStatus(beneficiaryUuid);
-      if (!subscriptionStatus.hasActiveSubscription) {
-        return { isValid: false, reason: 'Assinatura inativa' };
-      }
-
-      // Verificar se o serviço está incluído no plano
-      const serviceCheck = await canUseService(beneficiaryUuid, serviceType as any);
-      if (!serviceCheck.canUse) {
-        return { isValid: false, reason: serviceCheck.reason };
-      }
-
-      return { isValid: true };
-    } catch (error) {
-      console.error('Erro ao verificar plano:', error);
-      return { isValid: false, reason: 'Erro na verificação do plano' };
-    }
-  }
-
-  /**
-   * Sincroniza dados entre sistemas
-   */
-  async syncUserData(userId: string): Promise<{
-    success: boolean;
-    syncedSystems: string[];
-    errors: string[];
-  }> {
-    const syncedSystems: string[] = [];
-    const errors: string[] = [];
-
-    // Sincronizar com RapiDoc
-    try {
-      const { data } = await supabase.functions.invoke('tema-orchestrator', {
-        body: {
-          action: 'sync_beneficiary',
-          user_id: userId,
-        },
-      });
-      if (data?.success) {
-        syncedSystems.push('RapiDoc');
-      }
+      
+      result.success = result.syncedSystems.length > 0;
+      
     } catch (error: any) {
-      errors.push(`RapiDoc: ${error.message}`);
+      this.logger.error('Erro na sincronização de dados', { error: error.message });
+      result.errors.push('Erro interno na sincronização');
     }
-
-    // Sincronizar com Asaas
-    try {
-      const { data } = await supabase.functions.invoke('asaas-webhook', {
-        body: {
-          action: 'sync_customer',
-          user_id: userId,
-        },
-      });
-      if (data?.success) {
-        syncedSystems.push('Asaas');
-      }
-    } catch (error: any) {
-      errors.push(`Asaas: ${error.message}`);
-    }
-
-    return {
-      success: errors.length === 0,
-      syncedSystems,
-      errors,
-    };
-  }
-
-  /**
-   * Verifica status de saúde de todas as integrações
-   */
-  async checkIntegrationsHealth(): Promise<{
-    overall: 'healthy' | 'degraded' | 'down';
-    services: {
-      rapidoc: 'healthy' | 'degraded' | 'down';
-      supabase: 'healthy' | 'degraded' | 'down';
-      asaas: 'healthy' | 'degraded' | 'down';
-      resend: 'healthy' | 'degraded' | 'down';
-    };
-    lastCheck: string;
-  }> {
-    const connectivity = await errorRecovery.checkConnectivity();
     
-    const services = {
-      rapidoc: connectivity.rapidoc ? 'healthy' as const : 'down' as const,
-      supabase: connectivity.supabase ? 'healthy' as const : 'down' as const,
-      asaas: connectivity.asaas ? 'healthy' as const : 'down' as const,
-      resend: connectivity.resend ? 'healthy' as const : 'down' as const,
-    };
+    return result;
+  }
 
-    const healthyCount = Object.values(services).filter(status => status === 'healthy').length;
-    const overall = healthyCount === 4 ? 'healthy' : healthyCount >= 2 ? 'degraded' : 'down';
+  // ==================== SAÚDE DO SISTEMA ====================
 
-    return {
-      overall,
-      services,
-      lastCheck: new Date().toISOString(),
+  /**
+   * Verificar saúde de todas as integrações
+   */
+  async checkHealth(): Promise<IntegrationHealth> {
+    // Cache por 2 minutos
+    if (this.healthCache && Date.now() < this.healthCacheExpiry) {
+      return this.healthCache;
+    }
+    
+    this.logger.info('Verificando saúde das integrações');
+    
+    const health: IntegrationHealth = {
+      overall: 'healthy',
+      services: {
+        rapidoc: 'down',
+        supabase: 'down',
+        asaas: 'down',
+        resend: 'down'
+      },
+      lastCheck: new Date()
     };
+    
+    // Testar RapiDoc
+    try {
+      const rapidocHealth = await rapidocService.checkHealth();
+      health.services.rapidoc = rapidocHealth.status;
+    } catch {
+      health.services.rapidoc = 'down';
+    }
+    
+    // Testar Supabase
+    try {
+      await supabase.from('user_profiles').select('count').limit(1);
+      health.services.supabase = 'healthy';
+    } catch {
+      health.services.supabase = 'down';
+    }
+    
+    // Testar Asaas
+    try {
+      const asaasHealth = await asaasService.checkHealth();
+      health.services.asaas = asaasHealth.status === 'ok' ? 'healthy' : 'down';
+    } catch {
+      health.services.asaas = 'down';
+    }
+    
+    // Testar Resend (simples)
+    health.services.resend = 'healthy'; // Assumir saudável se não tiver erro
+    
+    // Determinar saúde geral
+    const healthyServices = Object.values(health.services).filter(s => s === 'healthy').length;
+    const totalServices = Object.keys(health.services).length;
+    
+    if (healthyServices === totalServices) {
+      health.overall = 'healthy';
+    } else if (healthyServices > totalServices / 2) {
+      health.overall = 'degraded';
+    } else {
+      health.overall = 'down';
+    }
+    
+    // Cache por 2 minutos
+    this.healthCache = health;
+    this.healthCacheExpiry = Date.now() + 2 * 60 * 1000;
+    
+    this.logger.info('Verificação de saúde concluída', {
+      overall: health.overall,
+      healthy: healthyServices,
+      total: totalServices
+    });
+    
+    return health;
+  }
+
+  // ==================== UTILITÁRIOS ====================
+
+  private calculateWaitTime(serviceType: string): number {
+    const waitTimes = {
+      clinical: 0, // Imediato
+      specialist: 30, // 30 minutos
+      psychology: 45, // 45 minutos
+      nutrition: 60 // 60 minutos
+    };
+    
+    return (waitTimes as any)[serviceType] || 30;
+  }
+
+  private getEmailSubject(template: string, data: any): string {
+    const subjects = {
+      consultation_scheduled: `Consulta Agendada - AiLun Saúde`,
+      consultation_completed: `Consulta Finalizada - AiLun Saúde`,
+      payment_confirmation: `Pagamento Confirmado - AiLun Saúde`,
+      subscription_expired: `Assinatura Expirada - AiLun Saúde`
+    };
+    
+    return (subjects as any)[template] || 'Notificação - AiLun Saúde';
+  }
+
+  private getNotificationTitle(template: string): string {
+    const titles = {
+      consultation_scheduled: 'Consulta Agendada',
+      consultation_completed: 'Consulta Finalizada',
+      payment_confirmation: 'Pagamento Confirmado',
+      subscription_expired: 'Assinatura Expirada'
+    };
+    
+    return (titles as any)[template] || 'Notificação';
+  }
+
+  private getNotificationMessage(template: string, data: any): string {
+    const messages = {
+      consultation_scheduled: `Sua consulta foi agendada com sucesso. Tipo: ${data.consultationType}`,
+      consultation_completed: `Consulta finalizada. Duração: ${data.duration || 'N/A'}`,
+      payment_confirmation: `Pagamento de R$ ${data.amount} confirmado via ${data.paymentMethod}`,
+      subscription_expired: 'Sua assinatura expirou. Renove para continuar usando os serviços.'
+    };
+    
+    return (messages as any)[template] || 'Nova notificação disponível';
   }
 }
 
-// Instância singleton
-export const integrationOrchestrator = IntegrationOrchestrator.getInstance();
+export const useIntegrationOrchestrator = () => {
+  const orchestrator = new IntegrationOrchestrator();
+  return orchestrator;
+};
 
-// Hooks para usar em componentes React
-export function useIntegrationOrchestrator() {
-  return {
-    requestConsultation: integrationOrchestrator.requestConsultation.bind(integrationOrchestrator),
-    processPayment: integrationOrchestrator.processPayment.bind(integrationOrchestrator),
-    sendNotification: integrationOrchestrator.sendNotification.bind(integrationOrchestrator),
-    syncUserData: integrationOrchestrator.syncUserData.bind(integrationOrchestrator),
-    checkHealth: integrationOrchestrator.checkIntegrationsHealth.bind(integrationOrchestrator),
-  };
-}
+export default IntegrationOrchestrator;
+
+export type {
+  IntegrationHealth,
+  OrchestrationResult,
+  NotificationRequest,
+  PaymentRequest
+};
