@@ -1,70 +1,231 @@
-export const RAPIDOC_CONFIG = {
-  BASE_URL: process.env.RAPIDOC_BASE_URL || 'https://api.rapidoc.tech/tema/api/',
-  CLIENT_ID: process.env.RAPIDOC_CLIENT_ID || '540e4b44-d68d-4ade-885f-fd4940a3a045',
-  TOKEN: process.env.RAPIDOC_TOKEN || 'eyJhbGciOiJSUzUxMiJ9.eyJjbGllbnQiOiJBSUxVTiBURUNOT0xPR0lBIn0.Wkzl4kZkBhTCHoSI_9r5TDmTY9ZHrxIj7kyCUvWeXM9FKIhpf9vY464wFwb4u0K_ys_TtB00awXU42duDxEz_KJ4oloJbklLsIaiHW6OgGnrv5iLN1wNYb9uTPDJjCkiNBtNIr0F5_7U8gV6qwztAWn5vY8qrt7DxOoaO_8uIe-jydSZYjl9jMtMjWd3phmjjxfoDLqLGRKoSgw01Efk6ivkzndB2gcdmZIz6tgwhTfwuQLRkhMmqCv188twAkP2Dyt8A_OREr8iyiXHlBNlZnLcYlng5_9PHDUww2exl_QC6RuhB2k-vwsZ4eOxjOThpkCWT-E4zomUMpVuoEFtN_yt3vGiTwr_WHWjleDnOR1CeGCtxRCDmzU7IGmwa7fEhOrx7VUXPKZKidmF2HGicBq4QK22JvAimuDstuAcHIepr9gs8abm0p93_-BbnZDoM4edmhFLvBykfbV-rXVhen0nJVm5c9av4QP8tb41lglrs3DVa7KCqESG8kB47uCf74K8GJLpHzgk2ERHH_E3o1I_NdFwf1qZTAxiCCGIi0wjtVkU9zTrEyNb5HNpSgXn3Hj7IyMiCvHTzrweY7aizFF9uyrIf_5-SY-jmE-XuhvZiOuRQO-7XnCWHtuuuHXUVxKEFmG7EQWvI-e7z62cAJdQZhlxEBtepSgzpC_GKPc',
-  CONTENT_TYPE: 'application/vnd.rapidoc.tema-v2+json',
+/**
+ * Configuração RapiDoc - AiLun Saúde
+ * Configurações centralizadas para integração com API RapiDoc
+ */
+
+// Configurações de ambiente
+const RAPIDOC_BASE_URL = process.env.RAPIDOC_BASE_URL || 'https://giovannedev.brazilsouth.cloudapp.azure.com';
+const RAPIDOC_CLIENT_ID = process.env.RAPIDOC_CLIENT_ID;
+const RAPIDOC_TOKEN = process.env.RAPIDOC_TOKEN;
+
+// Validação de configuração
+const validateConfig = () => {
+  const issues: string[] = [];
   
-  get HEADERS() {
-    return {
-      'Authorization': `Bearer ${this.TOKEN}`,
-      'clientId': this.CLIENT_ID,
-      'Content-Type': this.CONTENT_TYPE,
-    };
-  },
-
-  // Configurações de Rate Limiting
-  RATE_LIMIT: {
-    REQUESTS_PER_SECOND: 10,
-    BURST_LIMIT: 20
-  },
-
-  // Configurações de Cache
-  CACHE: {
-    SPECIALTIES_DURATION: 5 * 60 * 1000, // 5 minutos
-    AVAILABILITY_DURATION: 2 * 60 * 1000, // 2 minutos
-    REFERRALS_DURATION: 2 * 60 * 1000, // 2 minutos
+  if (!RAPIDOC_CLIENT_ID) {
+    issues.push('RAPIDOC_CLIENT_ID não configurado');
   }
+  
+  if (!RAPIDOC_TOKEN) {
+    issues.push('RAPIDOC_TOKEN não configurado');
+  }
+  
+  if (!RAPIDOC_BASE_URL) {
+    issues.push('RAPIDOC_BASE_URL não configurado');
+  }
+  
+  return {
+    isValid: issues.length === 0,
+    issues,
+  };
 };
 
-export const SERVICE_TYPE_CONFIG = {
-  G: {
-    name: 'Clínico 24h',
-    price: 49.90,
-    includes: {
-      clinical: true,
-      specialists: false,
-      psychology: false,
-      nutrition: false,
+// Configuração principal
+export const RAPIDOC_CONFIG = {
+  // URLs base
+  baseUrl: RAPIDOC_BASE_URL,
+  apiPath: '/tema/api',
+  
+  // Autenticação
+  clientId: RAPIDOC_CLIENT_ID!,
+  token: RAPIDOC_TOKEN!,
+  
+  // Headers padrão
+  defaultHeaders: {
+    'Authorization': `Bearer ${RAPIDOC_TOKEN}`,
+    'clientId': RAPIDOC_CLIENT_ID!,
+    'Content-Type': 'application/vnd.rapidoc.tema-v2+json',
+    'Accept': 'application/json',
+    'User-Agent': 'AiLun-Saude/2.1.0',
+  },
+  
+  // Timeouts (em ms)
+  timeouts: {
+    connection: 10000, // 10 segundos
+    response: 30000,   // 30 segundos
+    retry: 5000,       // 5 segundos entre tentativas
+  },
+  
+  // Retry configuration
+  retry: {
+    maxAttempts: 3,
+    backoffMultiplier: 2,
+    initialDelay: 1000,
+  },
+  
+  // Rate limiting
+  rateLimit: {
+    maxRequests: 100,
+    windowMs: 60000, // 1 minuto
+  },
+  
+  // Endpoints mapeados
+  endpoints: {
+    // Beneficiários
+    beneficiaries: '/tema/api/beneficiaries',
+    beneficiaryByCpf: (cpf: string) => `/tema/api/beneficiaries/${cpf}`,
+    beneficiaryByUuid: (uuid: string) => `/tema/api/beneficiaries/${uuid}`,
+    deactivateBeneficiary: (uuid: string) => `/tema/api/beneficiaries/${uuid}`,
+    reactivateBeneficiary: (uuid: string) => `/tema/api/beneficiaries/${uuid}/reactivate`,
+    
+    // Consultas
+    requestAppointment: (uuid: string) => `/tema/api/beneficiaries/${uuid}/request-appointment`,
+    beneficiaryAppointments: (uuid: string) => `/tema/api/beneficiaries/${uuid}/appointments`,
+    beneficiaryMedicalReferrals: (uuid: string) => `/tema/api/beneficiaries/${uuid}/medical-referrals`,
+    
+    // Agendamentos
+    specialties: '/tema/api/specialties',
+    specialtyAvailability: '/tema/api/specialty-availability',
+    appointments: '/tema/api/appointments',
+    appointmentByUuid: (uuid: string) => `/tema/api/appointments/${uuid}`,
+    cancelAppointment: (uuid: string) => `/tema/api/appointments/${uuid}`,
+    
+    // Encaminhamentos
+    medicalReferrals: '/tema/api/beneficiary-medical-referrals',
+    
+    // Planos
+    plans: '/tema/api/plans',
+  },
+  
+  // Mapeamentos de tipo de serviço
+  serviceTypeMappings: {
+    // Sistema → RapiDoc
+    toRapidoc: {
+      'clinical': 'G',      // Clínico Geral
+      'psychology': 'P',    // Psicologia
+      'specialist': 'GS',   // Clínico + Especialista
+      'nutrition': 'GS',    // Nutrição (tratada como especialista)
+      'clinical_psychology': 'GP',  // Clínico + Psicologia
+      'full': 'GSP',        // Clínico + Especialistas + Psicologia
+    },
+    
+    // RapiDoc → Sistema
+    fromRapidoc: {
+      'G': ['clinical'],
+      'P': ['psychology'],
+      'GP': ['clinical', 'psychology'],
+      'GS': ['clinical', 'specialist'],
+      'GSP': ['clinical', 'specialist', 'psychology'],
     }
   },
-  GP: {
-    name: 'Clínico + Psicologia',
-    price: 89.90,
-    includes: {
-      clinical: true,
-      specialists: false,
-      psychology: true,
-      nutrition: false,
-    }
+  
+  // Formatos de data
+  dateFormats: {
+    birthday: 'YYYY-MM-DD',        // Para cadastro de beneficiários
+    appointment: 'DD/MM/YYYY',     // Para agendamentos
+    datetime: 'DD/MM/YYYY HH:MM:SS', // Para timestamps
   },
-  GS: {
-    name: 'Clínico + Especialistas',
-    price: 79.90,
-    includes: {
-      clinical: true,
-      specialists: true,
-      psychology: false,
-      nutrition: false,
-    }
+  
+  // Especialidades conhecidas (para cache/fallback)
+  knownSpecialties: [
+    { name: 'Pediatria', searchTerms: ['pediatria', 'pediatra'] },
+    { name: 'Dermatologia', searchTerms: ['dermatologia', 'dermatologista'] },
+    { name: 'Neurologia', searchTerms: ['neurologia', 'neurologista'] },
+    { name: 'Ortopedia', searchTerms: ['ortopedia', 'ortopedista'] },
+    { name: 'Endocrinologia', searchTerms: ['endocrinologia', 'endocrinologista'] },
+    { name: 'Ginecologia e Obstetrícia', searchTerms: ['ginecologia', 'obstetricia', 'ginecologista'] },
+    { name: 'Psiquiatria', searchTerms: ['psiquiatria', 'psiquiatra'] },
+    { name: 'Urologia', searchTerms: ['urologia', 'urologista'] },
+    { name: 'Nutrição', searchTerms: ['nutrição', 'nutricionista'] },
+    { name: 'Psicologia', searchTerms: ['psicologia', 'psicologo', 'psicologa'] },
+  ],
+  
+  // Configurações de desenvolvimento
+  development: {
+    enableLogging: process.env.NODE_ENV === 'development',
+    logLevel: 'info', // 'debug' | 'info' | 'warn' | 'error'
+    mockMode: false, // Para testes sem API real
   },
-  GSP: {
-    name: 'Completo (Clínico + Especialistas + Psicologia)',
-    price: 119.90,
-    includes: {
-      clinical: true,
-      specialists: true,
-      psychology: true,
-      nutrition: false,
-    }
-  }
+  
+  // Configurações de produção
+  production: {
+    enableAnalytics: true,
+    enableErrorReporting: true,
+    enablePerformanceMonitoring: true,
+  },
 };
+
+// Validação da configuração
+export const CONFIG_VALIDATION = validateConfig();
+
+// Função para obter configuração com validação
+export const getRapidocConfig = () => {
+  if (!CONFIG_VALIDATION.isValid) {
+    throw new Error(
+      `Configuração RapiDoc inválida: ${CONFIG_VALIDATION.issues.join(', ')}`
+    );
+  }
+  
+  return RAPIDOC_CONFIG;
+};
+
+// Função para verificar se a configuração está pronta
+export const isRapidocConfigured = (): boolean => {
+  return CONFIG_VALIDATION.isValid;
+};
+
+// Função para obter informações de configuração (sem dados sensíveis)
+export const getRapidocInfo = () => {
+  return {
+    configured: CONFIG_VALIDATION.isValid,
+    baseUrl: RAPIDOC_CONFIG.baseUrl,
+    hasClientId: !!RAPIDOC_CLIENT_ID,
+    hasToken: !!RAPIDOC_TOKEN,
+    environment: process.env.NODE_ENV || 'development',
+    apiPath: RAPIDOC_CONFIG.apiPath,
+    issues: CONFIG_VALIDATION.issues,
+  };
+};
+
+// Utilitários para mapeamento de tipos
+export const mapServiceTypeToRapidoc = (serviceType: string): string => {
+  return RAPIDOC_CONFIG.serviceTypeMappings.toRapidoc[serviceType] || 'G';
+};
+
+export const mapServiceTypeFromRapidoc = (rapidocType: string): string[] => {
+  return RAPIDOC_CONFIG.serviceTypeMappings.fromRapidoc[rapidocType] || ['clinical'];
+};
+
+// Utilitários para formatação de data
+export const formatDateForRapidoc = (date: Date, format: keyof typeof RAPIDOC_CONFIG.dateFormats = 'appointment'): string => {
+  const formatStr = RAPIDOC_CONFIG.dateFormats[format];
+  
+  if (format === 'appointment') {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } else if (format === 'birthday') {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${year}-${month}-${day}`;
+  }
+  
+  return date.toISOString().split('T')[0]; // fallback to ISO date
+};
+
+export const parseDateFromRapidoc = (dateString: string): Date => {
+  if (dateString.includes('/')) {
+    // DD/MM/YYYY format
+    const [day, month, year] = dateString.split('/');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  } else if (dateString.includes('-')) {
+    // YYYY-MM-DD format
+    return new Date(dateString);
+  }
+  
+  return new Date(dateString); // fallback
+};
+
+export default RAPIDOC_CONFIG;

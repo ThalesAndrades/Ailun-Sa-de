@@ -1,6 +1,6 @@
 /**
  * Metro configuration para AiLun Saúde
- * Configurações de bundling otimizadas para Expo sem NativeWind
+ * Configuração simplificada baseada no padrão Expo
  */
 
 const { getDefaultConfig } = require('expo/metro-config');
@@ -8,60 +8,21 @@ const { getDefaultConfig } = require('expo/metro-config');
 // Obter configuração padrão do Expo
 const config = getDefaultConfig(__dirname);
 
-// Configurações adicionais para melhor performance
-config.resolver.platforms = ['ios', 'android', 'native', 'web'];
-
-// Configurações de assets
+// Configurações básicas de assets
 config.resolver.assetExts.push(
-  // Arquivos de fonte
+  // Fontes
   'ttf',
   'otf',
-  'woff',
-  'woff2',
-  // Imagens adicionais
+  // Imagens
   'svg',
   'webp',
-  // Áudio
+  // Áudio/Vídeo
   'mp3',
   'wav',
-  'm4a',
-  'aac',
-  // Outros
-  'bin',
-  'txt',
-  'json'
+  'm4a'
 );
 
-// Configurações de transformação
-config.transformer = {
-  ...config.transformer,
-  unstable_allowRequireContext: true,
-  minifierConfig: {
-    keep_fnames: true,
-    mangle: {
-      keep_fnames: true,
-    },
-  },
-};
-
-// Configurações de cache para desenvolvimento
-config.resetCache = process.env.NODE_ENV === 'development';
-
-// Configurações de serializer para otimização
-config.serializer = {
-  ...config.serializer,
-};
-
-// Configurações do watchman para melhor detecção de mudanças
-config.watchFolders = [
-  __dirname,
-];
-
-// Configurações de Metro para lidar com symlinks
-config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
-
-// Configurações experimentais para melhor performance
+// Manter configurações experimentais desabilitadas para estabilidade
 config.transformer.experimentalImportSupport = false;
-config.transformer.inlineRequires = true;
 
 module.exports = config;

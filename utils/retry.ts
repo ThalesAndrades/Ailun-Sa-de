@@ -70,7 +70,7 @@ export async function withRetry<T>(
  */
 function isRetryableError(error: any, retryableStatuses: number[]): boolean {
   // Erros de rede são sempre retryable
-  if (error.message?.includes('Network Error') || error.message?.includes('timeout') || error.message?.includes('Load failed')) {
+  if (error.message?.includes('Network Error') || error.message?.includes('timeout')) {
     return true;
   }
 
