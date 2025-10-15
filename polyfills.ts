@@ -1,50 +1,104 @@
 
 /**
- * Polyfills Completos para Compatibilidade Expo Router + React 18
+ * Polyfills Críticos para Expo Router 6.0.12 + React 18
+ * DEVE ser importado antes de qualquer outro módulo React/Expo
  */
 
-// URL polyfill essencial
-try {
-  require('react-native-url-polyfill/auto');
-} catch (error) {
-  console.warn('URL polyfill not available:', error);
-}
-
-// React.use polyfill robusto para expo-router
-if (typeof React !== 'undefined' || typeof global !== 'undefined') {
+// Aplicar polyfills IMEDIATAMENTE na importação
+(() => {
+  'use strict';
+  
+  // URL polyfill essencial
   try {
-    const React = require('react');
-    
-    // Polyfill para React.use (necessário para expo-router 6.0.12)
-    if (!React.use) {
-      React.use = function(promise) {
-        if (promise && typeof promise.then === 'function') {
-          throw promise; // Suspend pattern
-        }
-        return promise;
-      };
-    }
-    
-    // Adicionar ao global para acesso direto
-    if (typeof global !== 'undefined') {
-      global.React = React;
-    }
+    require('react-native-url-polyfill/auto');
   } catch (error) {
-    console.warn('React polyfill setup failed:', error);
-    
-    // Fallback global para React.use
-    if (typeof global !== 'undefined' && !global.React) {
-      global.React = {
-        use: function(promise) {
-          if (promise && typeof promise.then === 'function') {
-            throw promise;
-          }
-          return promise;
+    console.warn('[Polyfill] URL polyfill failed:', error);
+  }
+
+  // REACT.USE POLYFILL CRÍTICO - Deve ser aplicado ANTES de tudo
+  try {
+    // Tentar obter React de múltiplas formas
+    let React;
+    try {
+      React = require('react');
+    } catch {
+      // Se require falhar, tentar global
+      React = (typeof global !== 'undefined' && global.React) || {};
+    }
+
+    // Implementação robusta do React.use
+    const usePolyfill = function(resource) {
+      // Se é uma Promise (Suspense pattern)
+      if (resource && typeof resource.then === 'function') {
+        throw resource; // Suspend
+      }
+      
+      // Se é um Context
+      if (resource && resource._context !== undefined) {
+        // Usar useContext se disponível
+        if (React.useContext) {
+          return React.useContext(resource);
         }
-      };
+        // Fallback para contexts
+        return resource._currentValue || resource._defaultValue || null;
+      }
+      
+      // Para recursos síncronos
+      return resource;
+    };
+
+    // Aplicar polyfill se não existir
+    if (!React.use) {
+      React.use = usePolyfill;
+      console.log('[Polyfill] React.use polyfill aplicado com sucesso');
+    }
+
+    // Garantir que está no global também
+    if (typeof global !== 'undefined') {
+      if (!global.React) {
+        global.React = React;
+      } else if (!global.React.use) {
+        global.React.use = usePolyfill;
+      }
+    }
+
+    // Aplicar em window para web
+    if (typeof window !== 'undefined') {
+      if (!window.React) {
+        window.React = React;
+      } else if (!window.React.use) {
+        window.React.use = usePolyfill;
+      }
+    }
+    
+  } catch (error) {
+    console.error('[Polyfill] React.use setup crítico falhou:', error);
+    
+    // FALLBACK DE EMERGÊNCIA
+    const emergencyUse = function(resource) {
+      if (resource && typeof resource.then === 'function') {
+        throw resource;
+      }
+      if (resource && resource._context) {
+        return resource._currentValue || resource._defaultValue || null;
+      }
+      return resource;
+    };
+    
+    // Aplicar em todos os lugares possíveis
+    try {
+      if (typeof global !== 'undefined') {
+        if (!global.React) global.React = {};
+        global.React.use = emergencyUse;
+      }
+      if (typeof window !== 'undefined') {
+        if (!window.React) window.React = {};
+        window.React.use = emergencyUse;
+      }
+    } catch (e) {
+      console.error('[Polyfill] Fallback de emergência falhou:', e);
     }
   }
-}
 
 // Configurações globais essenciais
 if (typeof global !== 'undefined') {
@@ -135,3 +189,4 @@ if (typeof global !== 'undefined' && !global.AbortController) {
     }
   };
 }
+})(); // Missing closing parenthesis for the IIFE
