@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -141,11 +142,12 @@ export default function PaymentEnhancedScreen() {
         <Text style={styles.inputLabel}>Nome no Cartão</Text>
         <View style={[styles.inputContainer, cardErrors.holderName && styles.inputError]}>
           <MaterialIcons name="person" size={20} color="#666" />
-          <input
+          <TextInput
             style={styles.input}
             placeholder="Nome conforme impresso no cartão"
             value={cardData.holderName}
-            onChange={(e) => setCardData(prev => ({ ...prev, holderName: e.target.value }))}
+            onChangeText={(text) => setCardData(prev => ({ ...prev, holderName: text }))}
+            placeholderTextColor="#999"
           />
         </View>
         {cardErrors.holderName && (
@@ -157,12 +159,12 @@ export default function PaymentEnhancedScreen() {
         <Text style={styles.inputLabel}>Número do Cartão</Text>
         <View style={[styles.inputContainer, cardErrors.number && styles.inputError]}>
           <MaterialIcons name="credit-card" size={20} color="#666" />
-          <input
+          <TextInput
             style={styles.input}
             placeholder="0000 0000 0000 0000"
             value={cardData.number}
-            onChange={(e) => {
-              const formatted = e.target.value
+            onChangeText={(text) => {
+              const formatted = text
                 .replace(/\s/g, '')
                 .replace(/(\d{4})(\d)/, '$1 $2')
                 .replace(/(\d{4}) (\d{4})(\d)/, '$1 $2 $3')
@@ -170,6 +172,8 @@ export default function PaymentEnhancedScreen() {
               setCardData(prev => ({ ...prev, number: formatted }));
             }}
             maxLength={19}
+            keyboardType="numeric"
+            placeholderTextColor="#999"
           />
         </View>
         {cardErrors.number && (
@@ -181,20 +185,24 @@ export default function PaymentEnhancedScreen() {
         <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
           <Text style={styles.inputLabel}>Validade</Text>
           <View style={styles.expiryContainer}>
-            <input
+            <TextInput
               style={[styles.input, styles.smallInput]}
               placeholder="MM"
               value={cardData.expiryMonth}
-              onChange={(e) => setCardData(prev => ({ ...prev, expiryMonth: e.target.value }))}
+              onChangeText={(text) => setCardData(prev => ({ ...prev, expiryMonth: text }))}
               maxLength={2}
+              keyboardType="numeric"
+              placeholderTextColor="#999"
             />
             <Text style={styles.expirySeparator}>/</Text>
-            <input
+            <TextInput
               style={[styles.input, styles.smallInput]}
               placeholder="AAAA"
               value={cardData.expiryYear}
-              onChange={(e) => setCardData(prev => ({ ...prev, expiryYear: e.target.value }))}
+              onChangeText={(text) => setCardData(prev => ({ ...prev, expiryYear: text }))}
               maxLength={4}
+              keyboardType="numeric"
+              placeholderTextColor="#999"
             />
           </View>
         </View>
@@ -203,13 +211,15 @@ export default function PaymentEnhancedScreen() {
           <Text style={styles.inputLabel}>CVV</Text>
           <View style={[styles.inputContainer, cardErrors.ccv && styles.inputError]}>
             <MaterialIcons name="lock" size={20} color="#666" />
-            <input
+            <TextInput
               style={styles.input}
               placeholder="000"
               value={cardData.ccv}
-              onChange={(e) => setCardData(prev => ({ ...prev, ccv: e.target.value }))}
+              onChangeText={(text) => setCardData(prev => ({ ...prev, ccv: text }))}
               maxLength={4}
-              type="password"
+              secureTextEntry
+              keyboardType="numeric"
+              placeholderTextColor="#999"
             />
           </View>
         </View>
@@ -467,9 +477,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     color: '#333',
-    outline: 'none',
-    border: 'none',
-    background: 'transparent',
   },
   rowInputs: {
     flexDirection: 'row',
@@ -481,11 +488,11 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'ios' ? 16 : 12,
     backgroundColor: '#fff',
   },
   smallInput: {
-    width: 50,
+    width: 60,
     textAlign: 'center',
     marginLeft: 0,
   },
