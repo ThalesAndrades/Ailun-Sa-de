@@ -463,9 +463,11 @@ async function createRapidocBeneficiary(data: {
   phone: string
   serviceType: string
 }): Promise<{ success: boolean; data?: any; error?: string }> {
-  console.log('[createRapidocBeneficiary] Iniciando criação do beneficiário')
+  console.log('[createRapidocBeneficiary] ===== INICIANDO CRIAÇÃO BENEFICIÁRIO =====')
   console.log('[createRapidocBeneficiary] Nome:', data.name)
   console.log('[createRapidocBeneficiary] CPF:', data.cpf.replace(/\d(?=\d{4})/g, '*'))
+  console.log('[createRapidocBeneficiary] Email:', data.email)
+  console.log('[createRapidocBeneficiary] Tipo de serviço:', data.serviceType)
   
   try {
     const rapidocClientId = Deno.env.get('RAPIDOC_CLIENT_ID')
@@ -522,7 +524,9 @@ async function createRapidocBeneficiary(data: {
       throw new Error(errorMsg)
     }
 
-    console.log('[createRapidocBeneficiary] Beneficiário criado com sucesso:', result.uuid || result.id)
+    console.log('[createRapidocBeneficiary] ===== BENEFICIÁRIO CRIADO COM SUCESSO =====')
+    console.log('[createRapidocBeneficiary] UUID retornado:', result.uuid || result.id)
+    console.log('[createRapidocBeneficiary] Status:', result.status)
     return { success: true, data: result }
 
   } catch (error) {
@@ -550,7 +554,10 @@ async function createAsaasCustomer(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  console.log('[createAsaasCustomer] Iniciando criação do cliente:', data.name)
+  console.log('[createAsaasCustomer] ===== INICIANDO CRIAÇÃO CLIENTE ASAAS =====')
+  console.log('[createAsaasCustomer] Nome:', data.name)
+  console.log('[createAsaasCustomer] Email:', data.email)
+  console.log('[createAsaasCustomer] CPF mascarado:', data.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4'))
   
   if (!asaasApiKey) {
     throw new Error('ASAAS_API_KEY não configurada')
@@ -599,7 +606,9 @@ async function createAsaasCustomer(data: {
       throw new Error(errorMsg)
     }
 
-    console.log('[createAsaasCustomer] Cliente criado com sucesso:', result.id)
+    console.log('[createAsaasCustomer] ===== CLIENTE ASAAS CRIADO COM SUCESSO =====')
+    console.log('[createAsaasCustomer] ID do Cliente:', result.id)
+    console.log('[createAsaasCustomer] Status da resposta:', response.status)
     return result
     
   } catch (error) {
@@ -619,7 +628,10 @@ async function createAsaasSubscription(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  console.log('[createAsaasSubscription] Iniciando criação de assinatura para cliente:', data.customerId)
+  console.log('[createAsaasSubscription] ===== INICIANDO CRIAÇÃO ASSINATURA =====')
+  console.log('[createAsaasSubscription] Cliente ID:', data.customerId)
+  console.log('[createAsaasSubscription] Tipo de cobrança:', data.billingType)
+  console.log('[createAsaasSubscription] Valor:', data.value)
   
   if (!asaasApiKey) {
     throw new Error('ASAAS_API_KEY não configurada')
@@ -694,7 +706,10 @@ async function createAsaasSubscription(data: {
       throw new Error(errorMsg)
     }
 
-    console.log('[createAsaasSubscription] Assinatura criada com sucesso:', result.id)
+    console.log('[createAsaasSubscription] ===== ASSINATURA CRIADA COM SUCESSO =====')
+    console.log('[createAsaasSubscription] ID da Assinatura:', result.id)
+    console.log('[createAsaasSubscription] Status:', result.status)
+    console.log('[createAsaasSubscription] Próxima cobrança:', result.nextDueDate)
     return result
     
   } catch (error) {
@@ -712,7 +727,10 @@ async function createAsaasPixPayment(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  console.log('[createAsaasPixPayment] Criando pagamento PIX:', data.customerId)
+  console.log('[createAsaasPixPayment] ===== INICIANDO CRIAÇÃO PAGAMENTO PIX =====')
+  console.log('[createAsaasPixPayment] Cliente ID:', data.customerId)
+  console.log('[createAsaasPixPayment] Valor:', data.value)
+  console.log('[createAsaasPixPayment] Descrição:', data.description)
   
   if (!asaasApiKey) {
     throw new Error('ASAAS_API_KEY não configurada')
@@ -797,7 +815,10 @@ async function createAsaasBoletoPayment(data: {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
 
-  console.log('[createAsaasBoletoPayment] Criando boleto:', data.customerId)
+  console.log('[createAsaasBoletoPayment] ===== INICIANDO CRIAÇÃO BOLETO =====')
+  console.log('[createAsaasBoletoPayment] Cliente ID:', data.customerId)
+  console.log('[createAsaasBoletoPayment] Valor:', data.value)
+  console.log('[createAsaasBoletoPayment] Descrição:', data.description)
   
   if (!asaasApiKey) {
     throw new Error('ASAAS_API_KEY não configurada')

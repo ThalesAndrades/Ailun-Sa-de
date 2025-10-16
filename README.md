@@ -1,10 +1,10 @@
-# Welcome to AiLun Saude
+# Welcome to Ailun Saúde
 
-**AiLun Saude** é uma plataforma de saúde digital que conecta pacientes com profissionais de saúde através de consultas online, gerenciamento de informações médicas e assinaturas de planos de saúde.
+**Ailun Saúde** é uma plataforma de saúde digital que conecta pacientes com profissionais de saúde através de consultas online, gerenciamento de informações médicas e assinaturas de planos de saúde.
 
 ## 🏥 Sobre o Projeto
 
-O aplicativo AiLun Saude, construído com **React Native** e **Expo**, oferece uma experiência completa de cuidados com a saúde, integrando:
+O aplicativo Ailun Saúde, construído com **React Native** e **Expo**, oferece uma experiência completa de cuidados com a saúde, integrando:
 
 - 🩺 **Consultas médicas online** (clínico geral, especialistas, psicólogos, nutricionistas)
 - 📋 **Gerenciamento de informações de saúde**
@@ -358,7 +358,7 @@ Este projeto é privado. Para colaboração, entre em contato com a AiLun Tecnol
 
 ## 📧 Contato
 
-**AiLun Tecnologia**  
+**Ailun Tecnologia**  
 CNPJ: 60.740.536/0001-75  
 Email: contato@ailun.com.br
 
@@ -377,5 +377,5 @@ Email: contato@ailun.com.br
 
 ---
 
-**Desenvolvido com ❤️ pela equipe AiLun Tecnologia**
+**Desenvolvido com ❤️ pela equipe Ailun Tecnologia**
 
