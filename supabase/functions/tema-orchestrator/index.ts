@@ -127,7 +127,15 @@ async function handleCreateSubscription(data: CreateSubscriptionData, supabase: 
   console.log('[handleCreateSubscription] =============================================')
   console.log('[handleCreateSubscription] Iniciando criação de assinatura')
   console.log('[handleCreateSubscription] Email:', data?.email)
-  console.log('[handleCreateSubscription] Dados recebidos:', JSON.stringify(data, null, 2))
+  console.log('[handleCreateSubscription] Método de pagamento:', data?.paymentMethod)
+  console.log('[handleCreateSubscription] Valor total:', data?.totalPrice)
+  console.log('[handleCreateSubscription] Tipo de serviço:', data?.serviceType)
+  console.log('[handleCreateSubscription] Serviços inclusos:', {
+    specialists: data?.includeSpecialists,
+    psychology: data?.includePsychology,
+    nutrition: data?.includeNutrition,
+    memberCount: data?.memberCount
+  })
   
   // Validar dados obrigatórios
   if (!data) {
@@ -140,6 +148,14 @@ async function handleCreateSubscription(data: CreateSubscriptionData, supabase: 
   
   if (!data.paymentMethod || !['credit_card', 'pix', 'boleto'].includes(data.paymentMethod)) {
     throw new Error('Método de pagamento inválido')
+  }
+
+  if (!data.totalPrice || data.totalPrice <= 0) {
+    throw new Error('Valor do plano inválido')
+  }
+
+  if (!data.serviceType) {
+    throw new Error('Tipo de serviço não especificado')
   }
   
   console.log('[handleCreateSubscription] Validações iniciais OK')
@@ -201,9 +217,18 @@ async function handleCreateSubscription(data: CreateSubscriptionData, supabase: 
 
     // 4. Processar pagamento
     console.log('[handleCreateSubscription] Processando pagamento:', data.paymentMethod)
+    console.log('[handleCreateSubscription] Valor a ser cobrado:', data.totalPrice)
+    console.log('[handleCreateSubscription] Cliente Asaas ID:', asaasCustomer.id)
     let paymentResult: any = {}
 
     if (data.paymentMethod === 'credit_card' && data.creditCard) {
+      console.log('[handleCreateSubscription] Processando cartão de crédito')
+      
+      // Validar dados do cartão
+      if (!data.creditCard.holderName || !data.creditCard.number || !data.creditCard.expiryMonth || !data.creditCard.expiryYear || !data.creditCard.ccv) {
+        throw new Error('Dados do cartão de crédito incompletos')
+      }
+      
       // Criar assinatura com cartão de crédito
       const subscription = await createAsaasSubscription({
         customerId: asaasCustomer.id,
@@ -212,51 +237,78 @@ async function handleCreateSubscription(data: CreateSubscriptionData, supabase: 
         creditCardHolderInfo: {
           name: data.fullName,
           email: data.email,
-          cpfCnpj: data.cpf,
-          postalCode: data.cep,
+          cpfCnpj: data.cpf.replace(/\D/g, ''),
+          postalCode: data.cep.replace(/\D/g, ''),
           addressNumber: data.number,
           addressComplement: data.complement,
-          phone: data.phone,
+          phone: data.phone.replace(/\D/g, ''),
         },
         beneficiaryUuid,
         value: data.totalPrice,
+        serviceType: data.serviceType,
+        planDetails: {
+          includeSpecialists: data.includeSpecialists,
+          includePsychology: data.includePsychology,
+          includeNutrition: data.includeNutrition,
+          memberCount: data.memberCount,
+        }
       })
+
+      console.log('[handleCreateSubscription] Assinatura criada:', subscription.id)
+      console.log('[handleCreateSubscription] Status da assinatura:', subscription.status)
 
       paymentResult = {
         asaasSubscriptionId: subscription.id,
         paymentMethod: 'credit_card',
+        subscriptionStatus: subscription.status,
       }
 
     } else if (data.paymentMethod === 'pix') {
-      // Criar cobrança PIX
+      console.log('[handleCreateSubscription] Processando PIX')
+      
+      // Criar cobrança PIX mensal
       const pixPayment = await createAsaasPixPayment({
         customerId: asaasCustomer.id,
         value: data.totalPrice,
-        description: `Assinatura AiLun Saúde - ${data.fullName}`,
+        description: `Assinatura AiLun Saúde ${data.serviceType} - ${data.fullName}`,
         beneficiaryUuid,
+        serviceType: data.serviceType,
       })
+
+      console.log('[handleCreateSubscription] PIX criado:', pixPayment.id)
+      console.log('[handleCreateSubscription] QR Code gerado:', pixPayment.encodedImage ? 'SIM' : 'NÃO')
 
       paymentResult = {
         paymentId: pixPayment.id,
         pixQrCode: pixPayment.encodedImage,
         pixCopyPaste: pixPayment.payload,
         paymentMethod: 'pix',
+        paymentStatus: pixPayment.status,
       }
 
     } else if (data.paymentMethod === 'boleto') {
+      console.log('[handleCreateSubscription] Processando Boleto')
+      
       // Criar cobrança via boleto
       const boletoPayment = await createAsaasBoletoPayment({
         customerId: asaasCustomer.id,
         value: data.totalPrice,
-        description: `Assinatura AiLun Saúde - ${data.fullName}`,
+        description: `Assinatura AiLun Saúde ${data.serviceType} - ${data.fullName}`,
         beneficiaryUuid,
+        serviceType: data.serviceType,
       })
+
+      console.log('[handleCreateSubscription] Boleto criado:', boletoPayment.id)
+      console.log('[handleCreateSubscription] URL do boleto:', boletoPayment.bankSlipUrl ? 'SIM' : 'NÃO')
 
       paymentResult = {
         paymentId: boletoPayment.id,
         boletoUrl: boletoPayment.bankSlipUrl,
         paymentMethod: 'boleto',
+        paymentStatus: boletoPayment.status,
       }
+    } else {
+      throw new Error(`Método de pagamento não suportado: ${data.paymentMethod}`)
     }
 
     // 5. Salvar dados no Supabase
@@ -624,6 +676,13 @@ async function createAsaasSubscription(data: {
   creditCardHolderInfo: any
   beneficiaryUuid: string
   value: number
+  serviceType: string
+  planDetails: {
+    includeSpecialists: boolean
+    includePsychology: boolean
+    includeNutrition: boolean
+    memberCount: number
+  }
 }): Promise<any> {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
@@ -642,14 +701,24 @@ async function createAsaasSubscription(data: {
   nextDueDate.setMonth(nextDueDate.getMonth() + 1)
   nextDueDate.setDate(1) // Primeira cobrança sempre no dia 1
   
+  // Construir descrição detalhada do plano
+  const planServices = ['Clínico Geral 24h']
+  if (data.planDetails.includeSpecialists) planServices.push('Especialistas')
+  if (data.planDetails.includePsychology) planServices.push('Psicologia')
+  if (data.planDetails.includeNutrition) planServices.push('Nutrição')
+  
+  const planDescription = `AiLun Saúde ${data.serviceType} - ${planServices.join(' + ')}${data.planDetails.memberCount > 1 ? ` (${data.planDetails.memberCount} membros)` : ''}`
+
   const subscriptionData: any = {
     customer: data.customerId,
     billingType: data.billingType,
     value: Math.round(data.value * 100) / 100, // Garantir 2 casas decimais
     nextDueDate: nextDueDate.toISOString().split('T')[0],
     cycle: 'MONTHLY',
-    description: `Assinatura AiLun Saúde - ${data.billingType === 'CREDIT_CARD' ? 'Cartão de Crédito' : 'PIX'}`,
+    description: planDescription,
     externalReference: data.beneficiaryUuid,
+    // Adicionar metadados do plano
+    observations: `Tipo: ${data.serviceType} | Especialistas: ${data.planDetails.includeSpecialists ? 'Sim' : 'Não'} | Psicologia: ${data.planDetails.includePsychology ? 'Sim' : 'Não'} | Nutrição: ${data.planDetails.includeNutrition ? 'Sim' : 'Não'} | Membros: ${data.planDetails.memberCount}`,
   }
 
   // Configurar dados do cartão de crédito se necessário
@@ -723,6 +792,7 @@ async function createAsaasPixPayment(data: {
   value: number
   description: string
   beneficiaryUuid: string
+  serviceType: string
 }): Promise<any> {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
@@ -747,6 +817,8 @@ async function createAsaasPixPayment(data: {
     dueDate: dueDate.toISOString().split('T')[0],
     description: data.description.trim(),
     externalReference: data.beneficiaryUuid,
+    // Adicionar metadados para identificação
+    observations: `Primeira mensalidade - Plano ${data.serviceType}`,
   }
 
   console.log('[createAsaasPixPayment] Dados do pagamento:', paymentData)
@@ -811,6 +883,7 @@ async function createAsaasBoletoPayment(data: {
   value: number
   description: string
   beneficiaryUuid: string
+  serviceType: string
 }): Promise<any> {
   const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
   const asaasApiUrl = 'https://api.asaas.com/v3'
@@ -840,6 +913,8 @@ async function createAsaasBoletoPayment(data: {
     dueDate: dueDate.toISOString().split('T')[0],
     description: data.description.trim(),
     externalReference: data.beneficiaryUuid,
+    // Adicionar metadados para identificação
+    observations: `Primeira mensalidade - Plano ${data.serviceType}`,
   }
 
   console.log('[createAsaasBoletoPayment] Dados do boleto:', paymentData)

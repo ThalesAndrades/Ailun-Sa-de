@@ -21,6 +21,13 @@ import FormInput from '../../components/signup/FormInput';
 import { isValidCreditCard, isValidCvv, isValidExpiryMonth, isValidExpiryYear } from '../../utils/validators';
 import { formatCurrency } from '../../utils/plan-calculator';
 
+// Função auxiliar para converter data brasileira para ISO
+function convertBrazilianDateToISO(brazilianDate: string): string {
+  // Formato esperado: DD/MM/AAAA
+  const [day, month, year] = brazilianDate.split('/')
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+}
+
 type PaymentStep = 'confirmation' | 'payment_details' | 'processing' | 'pix_payment' | 'success';
 
 export default function ConfirmationScreen() {
@@ -84,52 +91,78 @@ export default function ConfirmationScreen() {
     setProcessing(true);
     
     try {
+      console.log('[ConfirmationScreen] Preparando dados de registro...');
+      console.log('[ConfirmationScreen] Parâmetros recebidos:', params);
+      
+      // Preparar dados de registro com conversões adequadas
       const registrationData = {
         fullName: params.name as string,
-        cpf: params.cpf as string,
-        birthDate: params.birthdate as string,
-        email: params.email as string,
-        phone: params.phone as string,
-        cep: params.cep as string,
-        street: params.street as string,
-        number: params.number as string,
-        complement: params.complement as string,
-        neighborhood: params.neighborhood as string,
-        city: params.city as string,
-        state: params.state as string,
-        includeSpecialists: params.includeSpecialists === 'true',
-        includePsychology: params.includePsychology === 'true',
-        includeNutrition: params.includeNutrition === 'true',
+        cpf: (params.cpf as string).replace(/\D/g, ''),
+        birthDate: convertBrazilianDateToISO(params.birthdate as string),
+        email: (params.email as string).toLowerCase().trim(),
+        phone: (params.phone as string).replace(/\D/g, ''),
+        cep: (params.cep as string).replace(/\D/g, ''),
+        street: (params.street as string).trim(),
+        number: (params.number as string).trim(),
+        complement: params.complement ? (params.complement as string).trim() : undefined,
+        neighborhood: (params.neighborhood as string).trim(),
+        city: (params.city as string).trim(),
+        state: (params.state as string).trim(),
+        includeSpecialists: params.includeSpecialists === 'true' || params.includeSpecialists === true,
+        includePsychology: params.includePsychology === 'true' || params.includePsychology === true,
+        includeNutrition: params.includeNutrition === 'true' || params.includeNutrition === true,
         memberCount: parseInt(params.memberCount as string) || 1,
-        serviceType: params.serviceType as string,
-        totalPrice,
-        discountPercentage: parseFloat(params.discountPercentage as string),
+        serviceType: params.serviceType as string || 'GS',
+        totalPrice: totalPrice,
+        discountPercentage: parseFloat(params.discountPercentage as string) || 0,
         paymentMethod: paymentMethod as 'credit_card' | 'pix' | 'boleto',
       };
+      
+      console.log('[ConfirmationScreen] Dados limpos:', {
+        ...registrationData,
+        cpf: registrationData.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4'),
+        phone: registrationData.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3'),
+      });
 
       // Adicionar dados do cartão se necessário
       if (paymentMethod === 'credit_card') {
+        if (!holderName.trim() || !cardNumber.trim() || !expiryMonth.trim() || !expiryYear.trim() || !cvv.trim()) {
+          throw new Error('Por favor, preencha todos os dados do cartão de crédito');
+        }
+        
         registrationData.creditCard = {
-          holderName,
+          holderName: holderName.trim(),
           number: cardNumber.replace(/\s/g, ''),
-          expiryMonth,
-          expiryYear,
+          expiryMonth: expiryMonth.padStart(2, '0'),
+          expiryYear: expiryYear,
           ccv: cvv,
         };
+        
+        console.log('[ConfirmationScreen] Dados do cartão adicionados (card number masked)');
       }
 
+      console.log('[ConfirmationScreen] Enviando para processamento...');
       const result = await register(registrationData);
 
       if (result.success) {
+        console.log('[ConfirmationScreen] Processamento concluído com sucesso!');
+        console.log('[ConfirmationScreen] Beneficiário UUID:', result.beneficiaryUuid);
+        console.log('[ConfirmationScreen] Método de pagamento:', paymentMethod);
+        
         setPaymentResult(result);
         
         if (paymentMethod === 'pix' && result.pixQrCode) {
+          console.log('[ConfirmationScreen] Redirecionando para tela PIX');
           setCurrentStep('pix_payment');
         } else if (paymentMethod === 'boleto' && result.boletoUrl) {
+          console.log('[ConfirmationScreen] Abrindo boleto:', result.boletoUrl);
           // Abrir boleto em nova janela/navegador
           if (result.boletoUrl) {
             await Linking.openURL(result.boletoUrl);
           }
+          setCurrentStep('success');
+        } else if (paymentMethod === 'credit_card' && result.asaasSubscriptionId) {
+          console.log('[ConfirmationScreen] Cartão processado, assinatura criada:', result.asaasSubscriptionId);
           setCurrentStep('success');
         } else {
           setCurrentStep('success');
@@ -143,18 +176,42 @@ export default function ConfirmationScreen() {
           useNativeDriver: true,
         }).start();
       } else {
+        console.error('[ConfirmationScreen] Erro no processamento:', result.error);
         Alert.alert(
           'Erro no Pagamento',
-          result.error || 'Ocorreu um erro ao processar o pagamento. Tente novamente.'
+          result.error || 'Ocorreu um erro ao processar o pagamento. Tente novamente.',
+          [
+            { text: 'OK', onPress: () => setCurrentStep('confirmation') }
+          ]
         );
-        setCurrentStep('confirmation');
       }
     } catch (error: any) {
+      console.error('[ConfirmationScreen] Erro no processamento:', error);
+      console.error('[ConfirmationScreen] Stack trace:', error.stack);
+      
+      let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
+      
+      if (error.message) {
+        if (error.message.includes('Edge Function')) {
+          errorMessage = 'Erro no servidor. Por favor, tente novamente em alguns instantes.';
+        } else if (error.message.includes('cartão')) {
+          errorMessage = 'Erro nos dados do cartão. Verifique as informações e tente novamente.';
+        } else if (error.message.includes('PIX')) {
+          errorMessage = 'Erro ao gerar PIX. Tente outro método de pagamento.';
+        } else if (error.message.includes('boleto')) {
+          errorMessage = 'Erro ao gerar boleto. Tente outro método de pagamento.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       Alert.alert(
-        'Erro',
-        error.message || 'Ocorreu um erro inesperado. Tente novamente.'
+        'Erro no Processamento',
+        errorMessage,
+        [
+          { text: 'OK', onPress: () => setCurrentStep('confirmation') }
+        ]
       );
-      setCurrentStep('confirmation');
     } finally {
       setProcessing(false);
     }
