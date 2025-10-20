@@ -37,11 +37,13 @@ eas init --non-interactive --force
 }
 ```
 
-## ⚠️ AÇÃO NECESSÁRIA: Configurar Variáveis de Ambiente
+## ✅ Variáveis de Ambiente Configuradas
 
-**ANTES de fazer o build de produção**, você DEVE configurar as variáveis de ambiente no EAS!
+As variáveis públicas do Supabase foram adicionadas diretamente no `eas.json`:
+- ✅ `EXPO_PUBLIC_SUPABASE_URL`
+- ✅ `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 
-Veja a documentação completa: [docs/EAS_ENVIRONMENT_VARIABLES.md](./EAS_ENVIRONMENT_VARIABLES.md)
+**Nota**: Para Edge Functions e APIs externas (Asaas, Resend, RapiDoc), as chaves já estão configuradas no backend do Supabase.
 
 ### Opção 1: Script Automático (Recomendado)
 
