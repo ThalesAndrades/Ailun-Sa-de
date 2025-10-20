@@ -37,30 +37,52 @@ eas init --non-interactive --force
 }
 ```
 
-## ✅ Variáveis de Ambiente Configuradas
+## ✅ Variáveis de Ambiente: CONFIGURAÇÃO COMPLETA
 
-As variáveis públicas do Supabase foram adicionadas diretamente no `eas.json`:
-- ✅ `EXPO_PUBLIC_SUPABASE_URL`
-- ✅ `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+### Status: TUDO FUNCIONANDO ✅
 
-**Nota**: Para Edge Functions e APIs externas (Asaas, Resend, RapiDoc), as chaves já estão configuradas no backend do Supabase.
-
-### Opção 1: Script Automático (Recomendado)
-
-**Mac/Linux:**
-```bash
-chmod +x scripts/configure-eas-secrets.sh
-./scripts/configure-eas-secrets.sh
+#### 1. Variáveis Públicas (App React Native)
+**Configuradas no `eas.json`** ✅
+```json
+"env": {
+  "EXPO_PUBLIC_SUPABASE_URL": "https://bmtieinegditdeijyslu.supabase.co",
+  "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGci..."
+}
 ```
 
-**Windows:**
-```bash
-scripts\configure-eas-secrets.bat
+#### 2. Variáveis Sensíveis (Edge Functions)
+**Configuradas no Supabase Backend** ✅
+- ✅ `ASAAS_API_KEY`
+- ✅ `RESEND_API_KEY`
+- ✅ `RAPIDOC_CLIENT_ID`
+- ✅ `RAPIDOC_TOKEN`
+- ✅ `RAPIDOC_BASE_URL`
+- ✅ `SUPABASE_SERVICE_ROLE_KEY`
+- ✅ `SUPABASE_DB_URL`
+
+### ℹ️ Sobre o Warning
+
+Se você ver a mensagem:
+```
+No environment variables with visibility "Plain text" and "Sensitive" found
 ```
 
-### Opção 2: Interface Web
+**Isso é NORMAL e ESPERADO!**
 
-Acesse: https://expo.dev/accounts/onspace/projects/ailun-saude-app/secrets
+✅ Significa que não há EAS Secrets configuradas, mas **não é necessário** porque:
+- As variáveis públicas já estão no `eas.json`
+- As variáveis sensíveis já estão no Supabase (para Edge Functions)
+
+### 🏗️ Arquitetura Correta
+
+```
+React Native App
+  ↓ usa apenas variáveis públicas (EXPO_PUBLIC_*)
+  ↓ chama via supabaseClient
+Supabase Edge Functions
+  ↓ usa variáveis sensíveis (já configuradas)
+APIs Externas (Asaas, Resend, RapiDoc)
+```
 
 ## Próximos Passos
 
