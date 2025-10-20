@@ -33,7 +33,6 @@
     },
     "production": {
       "autoSubmit": false,
-      "submitOnDemand": true,
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_DISABLE_LOGS": "true",
@@ -61,7 +60,7 @@
       "ios": {
         "appleId": "thales@ailunsaude.com.br",
         "ascAppId": "6753972192",
-        "appleTeamId": "onspace",
+        "appleTeamId": "2QJ24JV9N2",
         "language": "pt-BR"
       }
     }
