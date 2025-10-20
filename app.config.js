@@ -43,9 +43,6 @@ module.exports = {
     extra: {
       router: {
         origin: false
-      },
-      eas: {
-        projectId: "ailun-saude-production"
       }
     }
   }

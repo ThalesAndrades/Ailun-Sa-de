@@ -8,16 +8,22 @@
       "distribution": "internal",
       "ios": {
         "simulator": true,
-        "buildConfiguration": "Debug"
+        "buildConfiguration": "Debug",
+        "resourceClass": "default"
+      },
+      "android": {
+        "resourceClass": "default"
       }
     },
     "preview": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "resourceClass": "default"
       },
       "ios": {
         "simulator": false,
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "resourceClass": "default"
       },
       "distribution": "internal",
       "env": {
@@ -30,12 +36,14 @@
         "EXPO_PUBLIC_DISABLE_LOGS": "true"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "aab",
+        "resourceClass": "large"
       },
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",
-        "autoIncrement": true
+        "autoIncrement": true,
+        "resourceClass": "large"
       }
     }
   },
