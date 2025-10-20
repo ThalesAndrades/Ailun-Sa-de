@@ -3,6 +3,7 @@
     "version": ">= 12.0.0"
   },
   "build": {
+    "_comment": "IMPORTANTE: Configure as variáveis de ambiente no EAS antes de fazer build de produção. Veja: docs/EAS_ENVIRONMENT_VARIABLES.md",
     "development": {
       "developmentClient": true,
       "distribution": "internal",
@@ -31,6 +32,7 @@
       }
     },
     "production": {
+      "_comment": "Variáveis de ambiente devem ser configuradas via 'eas secret:create' - não via 'env'",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_DISABLE_LOGS": "true"

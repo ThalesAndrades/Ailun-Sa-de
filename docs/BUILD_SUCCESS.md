@@ -37,6 +37,29 @@ eas init --non-interactive --force
 }
 ```
 
+## ⚠️ AÇÃO NECESSÁRIA: Configurar Variáveis de Ambiente
+
+**ANTES de fazer o build de produção**, você DEVE configurar as variáveis de ambiente no EAS!
+
+Veja a documentação completa: [docs/EAS_ENVIRONMENT_VARIABLES.md](./EAS_ENVIRONMENT_VARIABLES.md)
+
+### Opção 1: Script Automático (Recomendado)
+
+**Mac/Linux:**
+```bash
+chmod +x scripts/configure-eas-secrets.sh
+./scripts/configure-eas-secrets.sh
+```
+
+**Windows:**
+```bash
+scripts\configure-eas-secrets.bat
+```
+
+### Opção 2: Interface Web
+
+Acesse: https://expo.dev/accounts/onspace/projects/ailun-saude-app/secrets
+
 ## Próximos Passos
 
 ### Build iOS - Preview
