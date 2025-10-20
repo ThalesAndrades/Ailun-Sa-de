@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ailun Saúde",
     "slug": "ailun-saude-app",
-    "owner": "onspace",
+    "owner": "thales-andrades",
     "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/adaptive-icon.png",

@@ -31,6 +31,17 @@
         "EXPO_PUBLIC_APP_ENV": "staging"
       }
     },
+    "simulator": {
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug",
+        "resourceClass": "default"
+      },
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development"
+      }
+    },
     "production": {
       "autoSubmit": false,
       "env": {
