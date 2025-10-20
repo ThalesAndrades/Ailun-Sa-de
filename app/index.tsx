@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import 'react-native-url-polyfill/auto';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
