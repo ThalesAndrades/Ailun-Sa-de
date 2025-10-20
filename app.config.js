@@ -43,6 +43,9 @@ module.exports = {
     extra: {
       router: {
         origin: false
+      },
+      eas: {
+        projectId: "6f414a22-cc84-442f-9022-bb0ddc251d59"
       }
     }
   }

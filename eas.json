@@ -1,59 +1,45 @@
 {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
   "cli": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
     "version": ">= 12.0.0"
   },
   "build": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
     "development": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "simulator": true,
         "buildConfiguration": "Debug",
         "resourceClass": "default"
       },
       "android": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "resourceClass": "default"
       }
     },
     "preview": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
       "android": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "buildType": "apk",
         "resourceClass": "default"
       },
       "ios": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "simulator": false,
         "buildConfiguration": "Release",
         "resourceClass": "default"
       },
       "distribution": "internal",
       "env": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "EXPO_PUBLIC_APP_ENV": "staging"
       }
     },
     "production": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
       "env": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_DISABLE_LOGS": "true"
       },
       "android": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "buildType": "aab",
         "resourceClass": "large"
       },
       "ios": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "simulator": false,
         "buildConfiguration": "Release",
         "autoIncrement": true,
@@ -62,16 +48,12 @@
     }
   },
   "submit": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
     "production": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
       "android": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
       },
       "ios": {
-  "$comment": "ATENÇÃO: Se você está vendo erro 'Invalid UUID appId', execute: npm run clear-eas-cache",
         "appleId": "your-apple-id@email.com",
         "ascAppId": "your-app-store-connect-app-id",
         "appleTeamId": "your-team-id"
