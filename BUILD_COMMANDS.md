@@ -4,10 +4,14 @@
 
 O OnSpace AI deve executar automaticamente:
 ```bash
-eas build --platform ios --profile production --no-wait
+eas build --platform ios --profile production --no-wait --no-submit
 ```
 
-**IMPORTANTE**: SEM a flag `--auto-submit`
+**CRÍTICO**: 
+- ✅ Use `--no-submit` para EVITAR submit automático
+- ❌ NÃO use `--auto-submit` (causa erro de credenciais)
+- 📦 Build gera IPA para download
+- 🚀 Submit manual depois (quando pronto)
 
 ## 🔄 Comandos Alternativos
 
@@ -16,9 +20,9 @@ eas build --platform ios --profile production --no-wait
 eas build --platform ios --profile preview
 ```
 
-### 2. Build sem Wait (Background)
+### 2. Build Apenas (Sem Submit)
 ```bash
-eas build --platform ios --profile production --no-wait
+eas build --platform ios --profile production --no-wait --no-submit
 ```
 
 ### 3. Build e Monitorar (Foreground)
