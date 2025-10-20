@@ -2,6 +2,7 @@
   "expo": {
     "name": "Ailun Saúde",
     "slug": "ailun-saude-app",
+    "owner": "onspace",
     "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/adaptive-icon.png",
