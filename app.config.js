@@ -18,8 +18,20 @@ module.exports = {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.ailun.saude",
-      buildNumber: "12"
+      bundleIdentifier: "app.ailun",
+      buildNumber: "13",
+      deploymentTarget: "14.0",
+      infoPlist: {
+        NSCameraUsageDescription: "Este aplicativo precisa de acesso à câmera para consultas médicas por vídeo.",
+        NSMicrophoneUsageDescription: "Este aplicativo precisa de acesso ao microfone para consultas médicas por áudio.",
+        NSFaceIDUsageDescription: "Use Face ID ou Touch ID para login rápido e seguro no aplicativo.",
+        NSPhotoLibraryUsageDescription: "Este aplicativo precisa de acesso à biblioteca de fotos para compartilhar imagens.",
+        NSLocationWhenInUseUsageDescription: "Este aplicativo precisa de acesso à sua localização para serviços próximos.",
+        NSCalendarsUsageDescription: "Este aplicativo precisa de acesso ao calendário para agendar consultas.",
+        NSContactsUsageDescription: "Este aplicativo precisa de acesso aos contatos para facilitar o agendamento.",
+        UIBackgroundModes: ["remote-notification"],
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     android: {
       adaptiveIcon: {
