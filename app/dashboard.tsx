@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import 'react-native-url-polyfill/auto';
 import { 
   View, 
   Text, 
@@ -268,7 +269,7 @@ export default function DashboardScreen() {
       id: 'doctor',
       title: 'Médico Agora',
       subtitle: 'Consulta imediata com clínico geral',
-      icon: 'medical-services',
+      icon: 'medical-services' as keyof typeof MaterialIcons.glyphMap,
       color: '#FF6B6B',
       gradient: ['#FF6B6B', '#FF8E53'],
       onPress: handleDoctorNow
@@ -277,7 +278,7 @@ export default function DashboardScreen() {
       id: 'specialists',
       title: 'Especialistas',
       subtitle: 'Cardiologista, dermatologista e mais',
-      icon: 'person-search',
+      icon: 'person-search' as keyof typeof MaterialIcons.glyphMap,
       color: '#4ECDC4',
       gradient: ['#4ECDC4', '#44A08D'],
       onPress: handleSpecialists
@@ -286,7 +287,7 @@ export default function DashboardScreen() {
       id: 'psychologists',
       title: 'Psicólogos',
       subtitle: 'Cuidado da saúde mental',
-      icon: 'psychology',
+      icon: 'psychology' as keyof typeof MaterialIcons.glyphMap,
       color: '#A8E6CF',
       gradient: ['#A8E6CF', '#88D8A3'],
       onPress: handlePsychology
@@ -295,7 +296,7 @@ export default function DashboardScreen() {
       id: 'nutritionists',
       title: 'Nutricionistas',
       subtitle: 'Planos alimentares personalizados',
-      icon: 'restaurant',
+      icon: 'restaurant' as keyof typeof MaterialIcons.glyphMap,
       color: '#FFB74D',
       gradient: ['#FFB74D', '#FFA726'],
       onPress: handleNutrition

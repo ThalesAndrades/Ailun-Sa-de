@@ -51,7 +51,7 @@ export const Colors = {
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.3)',
   backdropBlur: 'rgba(255, 255, 255, 0.9)',
-} as const;
+};
 
 // ==================== TIPOGRAFIA ====================
 

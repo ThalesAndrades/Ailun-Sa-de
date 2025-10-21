@@ -4,10 +4,20 @@ const RAPIDOC_TOKEN = 'eyJhbGciOiJSUzUxMiJ9.eyJjbGllbnQiOiJBSUxVTiBURUNOT0xPR0lB
 
 const RAPIDOC_CONFIG = {
   BASE_URL: 'https://api.rapidoc.tech/tema/api/',
+  baseUrl: 'https://api.rapidoc.tech/tema/api/',
   LOGIN_URL: 'https://api.rapidoc.tech/login',
   CLIENT_ID: RAPIDOC_CLIENT_ID,
   TOKEN: RAPIDOC_TOKEN,
+  token: RAPIDOC_TOKEN,
+  clientId: RAPIDOC_CLIENT_ID,
+  CONTENT_TYPE: 'application/vnd.rapidoc.tema-v2+json',
+  contentType: 'application/vnd.rapidoc.tema-v2+json',
   HEADERS: {
+    'Authorization': `Bearer ${RAPIDOC_TOKEN}`,
+    'clientId': RAPIDOC_CLIENT_ID,
+    'Content-Type': 'application/vnd.rapidoc.tema-v2+json'
+  },
+  headers: {
     'Authorization': `Bearer ${RAPIDOC_TOKEN}`,
     'clientId': RAPIDOC_CLIENT_ID,
     'Content-Type': 'application/vnd.rapidoc.tema-v2+json'

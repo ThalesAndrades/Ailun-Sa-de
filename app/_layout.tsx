@@ -1,9 +1,11 @@
+import 'react-native-url-polyfill/auto';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CPFAuthProvider } from '../contexts/CPFAuthContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import React from 'react';
 
 export default function RootLayout() {
   return (

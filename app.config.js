@@ -1,0 +1,65 @@
+module.exports = {
+  expo: {
+    name: "Ailun Saúde",
+    slug: "ailun-saude-app",
+    owner: "thales-andrades",
+    version: "1.2.0",
+    orientation: "portrait",
+    icon: "./assets/adaptive-icon.png",
+    scheme: "ailun",
+    userInterfaceStyle: "automatic",
+    splash: {
+      image: "./assets/splash.png",
+      resizeMode: "contain",
+      backgroundColor: "#00B4DB"
+    },
+    assetBundlePatterns: [
+      "**/*"
+    ],
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: "app.ailun",
+      buildNumber: "13",
+      deploymentTarget: "14.0",
+      infoPlist: {
+        NSCameraUsageDescription: "Este aplicativo precisa de acesso à câmera para consultas médicas por vídeo.",
+        NSMicrophoneUsageDescription: "Este aplicativo precisa de acesso ao microfone para consultas médicas por áudio.",
+        NSFaceIDUsageDescription: "Use Face ID ou Touch ID para login rápido e seguro no aplicativo.",
+        NSPhotoLibraryUsageDescription: "Este aplicativo precisa de acesso à biblioteca de fotos para compartilhar imagens.",
+        NSLocationWhenInUseUsageDescription: "Este aplicativo precisa de acesso à sua localização para serviços próximos.",
+        NSCalendarsUsageDescription: "Este aplicativo precisa de acesso ao calendário para agendar consultas.",
+        NSContactsUsageDescription: "Este aplicativo precisa de acesso aos contatos para facilitar o agendamento.",
+        UIBackgroundModes: ["remote-notification"],
+        ITSAppUsesNonExemptEncryption: false
+      }
+    },
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#00B4DB"
+      },
+      package: "com.ailun.saude",
+      versionCode: 12
+    },
+    web: {
+      bundler: "metro",
+      output: "static",
+      favicon: "./assets/favicon.png"
+    },
+    plugins: [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    experiments: {
+      typedRoutes: true
+    },
+    extra: {
+      router: {
+        origin: false
+      },
+      eas: {
+        projectId: "cc54d990-b563-4ac0-af92-91a286f137c7"
+      }
+    }
+  }
+};

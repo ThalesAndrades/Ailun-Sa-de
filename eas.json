@@ -1,28 +1,63 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug",
+        "resourceClass": "default"
+      },
+      "android": {
+        "resourceClass": "default"
+      }
     },
     "preview": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "resourceClass": "default"
+      },
+      "ios": {
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "resourceClass": "default"
       },
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "staging"
       }
     },
+    "simulator": {
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug",
+        "resourceClass": "default"
+      },
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development"
+      }
+    },
     "production": {
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
-        "EXPO_PUBLIC_DISABLE_LOGS": "true"
+        "EXPO_PUBLIC_DISABLE_LOGS": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://bmtieinegditdeijyslu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtdGllaW5lZ2RpdGRlaWp5c2x1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ0NjU1ODEsImV4cCI6MjA1MDA0MTU4MX0.K_gXBhJYiEBPu5JVDPVNUb7-4CW7qE7Jb3gPZKEpjZY"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "resourceClass": "large"
+      },
+      "ios": {
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "autoIncrement": true,
+        "resourceClass": "medium"
       }
     }
   },
@@ -33,10 +68,10 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "admin@ailun.app",
-        "ascAppId": "6451234567",
-        "appleTeamId": "A12BC3DE4F",
-        "bundleIdentifier": "app.ailun"
+        "appleId": "thales@ailun.com.br",
+        "ascAppId": "6753972192",
+        "appleTeamId": "2QJ24JV9N2",
+        "language": "pt-BR"
       }
     }
   }

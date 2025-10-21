@@ -9,6 +9,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface UserProfile {
   id: string;
   email: string;
+  cpf?: string;
   full_name?: string;
   phone?: string;
   birth_date?: string;
