@@ -17,8 +17,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ailun.saude",
-      "buildNumber": "12",
+      "bundleIdentifier": "app.ailun",
+      "buildNumber": "13",
       "infoPlist": {
         "NSCameraUsageDescription": "Este aplicativo precisa de acesso à câmera para consultas médicas por vídeo.",
         "NSMicrophoneUsageDescription": "Este aplicativo precisa de acesso ao microfone para consultas médicas por áudio.",

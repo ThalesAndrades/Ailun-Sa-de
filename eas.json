@@ -22,7 +22,7 @@
         "EXPO_PUBLIC_DISABLE_LOGS": "true"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "app-bundle"
       }
     }
   },
@@ -33,9 +33,10 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-team-id"
+        "appleId": "admin@ailun.app",
+        "ascAppId": "6451234567",
+        "appleTeamId": "A12BC3DE4F",
+        "bundleIdentifier": "app.ailun"
       }
     }
   }
