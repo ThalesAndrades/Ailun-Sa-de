@@ -45,7 +45,7 @@ export async function checkActiveBeneficiary(cpf: string): Promise<{
   error?: string;
 }> {
   try {
-    logger.info('[checkActiveBeneficiary] Verificando CPF:', cpf.substring(0, 3) + '***');
+    logger.info('[checkActiveBeneficiary] Verificando CPF: ' + cpf.substring(0, 3) + '***');
 
     const { data: beneficiary, error } = await supabase
       .from('beneficiaries')
@@ -84,7 +84,7 @@ export async function authenticateActiveBeneficiary(
   password: string
 ): Promise<AuthenticationResult> {
   try {
-    logger.info('[authenticateActiveBeneficiary] Iniciando autenticação para CPF:', cpf.substring(0, 3) + '***');
+    logger.info('[authenticateActiveBeneficiary] Iniciando autenticação para CPF: ' + cpf.substring(0, 3) + '***');
 
     // 1. Verificar se é beneficiário ativo
     const beneficiaryCheck = await checkActiveBeneficiary(cpf);
@@ -103,7 +103,7 @@ export async function authenticateActiveBeneficiary(
     const expectedPassword = cpf.replace(/\D/g, '').substring(0, 4);
     
     if (password !== expectedPassword) {
-      logger.warn('[authenticateActiveBeneficiary] Senha incorreta para CPF:', cpf.substring(0, 3) + '***');
+      logger.warn('[authenticateActiveBeneficiary] Senha incorreta para CPF: ' + cpf.substring(0, 3) + '***');
       return {
         success: false,
         error: 'Senha incorreta. Use os 4 primeiros dígitos do CPF.'
@@ -136,7 +136,7 @@ export async function authenticateActiveBeneficiary(
 
     // 4. Se não existe usuário, criar um novo
     if (!user) {
-      logger.info('[authenticateActiveBeneficiary] Criando novo usuário para beneficiário:', beneficiary.beneficiary_uuid);
+      logger.info('[authenticateActiveBeneficiary] Criando novo usuário para beneficiário: ' + beneficiary.beneficiary_uuid);
       
       const email = beneficiary.email || `${cpf.replace(/\D/g, '')}@ailun.temp`;
       const temporaryPassword = `Ailun${cpf.replace(/\D/g, '').substring(0, 6)}!`;

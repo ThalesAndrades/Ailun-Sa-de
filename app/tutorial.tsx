@@ -97,7 +97,7 @@ export default function TutorialScreen() {
 
   return (
     <LinearGradient 
-      colors={currentStepData.bgGradient} 
+      colors={currentStepData.bgGradient as unknown as readonly [string, ...string[]]} 
       style={[styles.container, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
@@ -146,7 +146,7 @@ export default function TutorialScreen() {
                 {step.features.map((feature, featureIndex) => (
                   <View key={featureIndex} style={styles.featureCard}>
                     <LinearGradient
-                      colors={step.gradient}
+                      colors={step.gradient as unknown as readonly [string, ...string[]]}
                       style={styles.featureGradient}
                     >
                       <View style={styles.featureIconContainer}>

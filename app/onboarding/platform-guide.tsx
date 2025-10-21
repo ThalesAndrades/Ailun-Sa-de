@@ -194,7 +194,7 @@ export default function PlatformGuideScreen() {
   });
 
   return (
-    <LinearGradient colors={currentGuideStep.gradient} style={styles.gradient}>
+    <LinearGradient colors={currentGuideStep.gradient as unknown as readonly [string, ...string[]]} style={styles.gradient}>
       <View style={[styles.container, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
         {/* Header com botão de pular */}
         <View style={styles.header}>

@@ -37,7 +37,7 @@ interface ServiceButton {
   subtitle: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   color: string;
-  gradient: string[];
+  gradient: readonly any[];
   onPress: () => void;
 }
 
@@ -475,7 +475,7 @@ export default function DashboardScreen() {
                 style={styles.notificationAlert}
                 onPress={handleNotifications}
               >
-                <MaterialIcons name="notifications_active" size={20} color="#FF9800" />
+                <MaterialIcons name="notifications-active" size={20} color="#FF9800" />
                 <Text style={styles.notificationAlertText}>
                   Você tem {unreadCount} notificação{unreadCount > 1 ? 'ões' : ''} não lida{unreadCount > 1 ? 's' : ''}
                 </Text>
@@ -515,7 +515,7 @@ export default function DashboardScreen() {
                   disabled={consultationLoading && service.id === 'doctor'}
                 >
                 <LinearGradient
-                  colors={service.gradient}
+                  colors={service.gradient as unknown as readonly [string, ...string[]]}
                   style={styles.serviceGradient}
                 >
                   <View style={styles.serviceIconContainer}>
@@ -575,7 +575,7 @@ export default function DashboardScreen() {
                 <Text style={styles.featureText}>Pagamentos seguros via Asaas</Text>
               </View>
               <View style={styles.featureItem}>
-                <MaterialIcons name="notifications_active" size={20} color="#00B4DB" />
+                <MaterialIcons name="notifications-active" size={20} color="#00B4DB" />
                 <Text style={styles.featureText}>Notificações inteligentes</Text>
               </View>
               <View style={styles.featureItem}>

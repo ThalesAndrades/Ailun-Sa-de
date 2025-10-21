@@ -14,7 +14,7 @@ export interface LogContext {
   service?: string;
   method?: string;
   userId?: string;
-  requestId?: string;
+  requestId?: number;
   [key: string]: any;
 }
 

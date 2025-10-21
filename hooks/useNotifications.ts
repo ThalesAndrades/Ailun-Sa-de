@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Subscription } from 'expo-modules-core';
+import type { Subscription } from 'expo-modules-core';
 import {
   registerForPushNotifications,
   getUnreadNotifications,
@@ -26,8 +26,8 @@ export function useNotifications(beneficiaryUuid?: string) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const notificationListener = useRef<Subscription>();
-  const responseListener = useRef<Subscription>();
+  const notificationListener = useRef<Subscription | null>(null);
+  const responseListener = useRef<Subscription | null>(null);
 
   // Registrar para notificações push
   useEffect(() => {
