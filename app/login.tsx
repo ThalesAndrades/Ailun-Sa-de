@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import 'react-native-url-polyfill/auto';
 import { logger } from '../utils/logger';
+import { tokenService } from '../services/tokenService';
 import {
   View,
   Text,
@@ -128,9 +129,21 @@ export default function LoginScreen() {
         });
 
         if (result.success) {
-          const storedPassword = await SecureStore.getItemAsync(lastUsedCPF);
-          if (storedPassword) {
-            await performLogin(lastUsedCPF, storedPassword);
+          // Verificar se há token salvo (autenticação automática)
+          const tokens = await tokenService.getAllTokens();
+          if (tokens && tokens.cpf === lastUsedCPF) {
+            // Token válido, fazer login automático
+            if (!tokenService.isTokenExpired(tokens.accessToken)) {
+              logger.info('Login automático via biometria');
+              router.replace('/dashboard');
+            } else {
+              // Token expirado, pedir senha
+              setCpf(lastUsedCPF);
+              logger.debug('Token expirado, necessário fazer login novamente');
+            }
+          } else {
+            // Sem token, preencher CPF e pedir senha
+            setCpf(lastUsedCPF);
           }
         }
       }
@@ -263,14 +276,13 @@ export default function LoginScreen() {
       const cpfString = String(cpfValue).trim();
       const senhaString = String(senhaValue).trim();
       
-      // Salvar credenciais apenas em plataformas nativas
+      // Salvar apenas CPF para lembrar último usuário (NÃO salvar senha)
       if (Platform.OS !== 'web') {
         try {
           const numericCPF = cpfString.replace(/\D/g, '');
           await SecureStore.setItemAsync(CPF_KEY, numericCPF);
-          await SecureStore.setItemAsync(numericCPF, senhaString);
         } catch (error) {
-          logger.error('Erro ao salvar credenciais', error as Error);
+          logger.error('Erro ao salvar último CPF', error as Error);
         }
       }
       
@@ -278,6 +290,17 @@ export default function LoginScreen() {
       const result = await authenticateBeneficiary(cpfString, senhaString);
       
       if (result.success) {
+        // Salvar tokens de autenticação (NÃO senha)
+        if (result.tokens) {
+          await tokenService.saveTokens({
+            accessToken: result.tokens.accessToken,
+            refreshToken: result.tokens.refreshToken,
+            userId: result.user?.id || '',
+            cpf: cpfString.replace(/\D/g, ''),
+          });
+          logger.info('Tokens salvos com sucesso');
+        }
+        
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -309,7 +332,7 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    console.log('[handleLogin] Iniciando processo de login para beneficiário ativo');
+    logger.info('Iniciando processo de login');
     
     // Capturar os valores atuais do estado no momento da execução
     const currentCPF = cpf;
