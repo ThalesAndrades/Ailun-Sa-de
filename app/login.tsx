@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import 'react-native-url-polyfill/auto';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -134,7 +135,7 @@ export default function LoginScreen() {
         }
       }
     } catch (error) {
-      console.log('Erro ao verificar autenticação biométrica:', error);
+      logger.debug('Erro ao verificar autenticação biométrica', { error });
     }
   };
 
@@ -191,9 +192,7 @@ export default function LoginScreen() {
   };
 
   const validateFields = (cpfValue: string, senhaValue: string) => {
-    console.log('[validateFields] Iniciando validação');
-    console.log('[validateFields] CPF recebido:', cpfValue, 'tipo:', typeof cpfValue);
-    console.log('[validateFields] Senha recebida:', senhaValue, 'tipo:', typeof senhaValue);
+    logger.debug('Validação de campos iniciada');
     
     // Limpar erros anteriores
     setCpfError('');
@@ -205,10 +204,6 @@ export default function LoginScreen() {
     const cpfString = String(cpfValue || '').trim();
     const senhaString = String(senhaValue || '').trim();
     const numericCPF = cpfString.replace(/\D/g, '');
-    
-    console.log('[validateFields] CPF como string:', cpfString);
-    console.log('[validateFields] CPF numérico:', numericCPF);
-    console.log('[validateFields] Tamanho do CPF numérico:', numericCPF.length);
     
     // Validar CPF
     if (!cpfString) {
@@ -225,8 +220,7 @@ export default function LoginScreen() {
       isValid = false;
     }
 
-    console.log('[validateFields] Senha como string:', senhaString);
-    console.log('[validateFields] Tamanho da senha:', senhaString.length);
+
     
     // Validar Senha
     if (!senhaString) {
@@ -243,7 +237,7 @@ export default function LoginScreen() {
       isValid = false;
     }
 
-    console.log('[validateFields] Resultado da validação:', isValid);
+    logger.debug('Resultado da validação', { isValid });
 
     if (!isValid && Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -262,7 +256,7 @@ export default function LoginScreen() {
   };
 
   const performLogin = async (cpfValue: string, senhaValue: string) => {
-    console.log('[performLogin] Executando login com beneficiário ativo');
+    logger.info('Executando login');
     
     try {
       // Garantir que são strings e limpar
@@ -276,7 +270,7 @@ export default function LoginScreen() {
           await SecureStore.setItemAsync(CPF_KEY, numericCPF);
           await SecureStore.setItemAsync(numericCPF, senhaString);
         } catch (error) {
-          console.log('Erro ao salvar credenciais:', error);
+          logger.error('Erro ao salvar credenciais', error as Error);
         }
       }
       
@@ -306,7 +300,7 @@ export default function LoginScreen() {
         }
       }
     } catch (error: any) {
-      console.error('Erro no login:', error);
+      logger.error('Erro no login', error);
       showTemplateMessage(MessageTemplates.errors.network);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
