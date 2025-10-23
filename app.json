@@ -5,7 +5,7 @@
     "owner": "thales-andrades",
     "version": "1.2.1",
     "orientation": "portrait",
-    "icon": "./assets/adaptive-icon.png",
+    "icon": "./assets/icon.png",
     "scheme": "ailun",
     "userInterfaceStyle": "automatic",
     "splash": {
