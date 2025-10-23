@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   createCompleteSubscription,
   checkSubscriptionStatus,
@@ -48,7 +49,7 @@ export function useSubscription(beneficiaryUuid: string): UseSubscriptionReturn 
       const data = await checkSubscriptionStatus(beneficiaryUuid);
       setSubscriptionData(data);
     } catch (err: any) {
-      console.error('Erro ao carregar assinatura:', err);
+      logger.error('Erro ao carregar assinatura', err as Error);
       setError(err.message || 'Erro ao carregar assinatura');
     } finally {
       setLoading(false);
@@ -95,7 +96,7 @@ export function useSubscription(beneficiaryUuid: string): UseSubscriptionReturn 
 
       return result;
     } catch (err: any) {
-      console.error('Erro ao criar assinatura:', err);
+      logger.error('Erro ao criar assinatura', err as Error);
       setError(err.message || 'Erro ao criar assinatura');
       return { success: false, error: err.message };
     } finally {
@@ -123,7 +124,7 @@ export function useSubscription(beneficiaryUuid: string): UseSubscriptionReturn 
       
       return true;
     } catch (err: any) {
-      console.error('Erro ao cancelar assinatura:', err);
+      logger.error('Erro ao cancelar assinatura', err as Error);
       setError(err.message || 'Erro ao cancelar assinatura');
       return false;
     } finally {
@@ -143,7 +144,7 @@ export function useSubscription(beneficiaryUuid: string): UseSubscriptionReturn 
       const payments = await getSubscriptionPayments(subscriptionData.subscription.id);
       return payments;
     } catch (err: any) {
-      console.error('Erro ao buscar histórico:', err);
+      logger.error('Erro ao buscar histórico de pagamentos', err as Error);
       setError(err.message || 'Erro ao buscar histórico');
       return [];
     }

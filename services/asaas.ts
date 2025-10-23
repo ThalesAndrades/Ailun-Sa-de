@@ -9,6 +9,7 @@
  */
 
 import { supabase } from './supabase';
+import { logger } from '../utils/logger';
 
 // NOTA: Este serviço não deve ser usado diretamente no frontend
 // Todas as operações devem passar pela Edge Function 'tema-orchestrator'
@@ -99,7 +100,7 @@ async function asaasRequest(
   try {
     const url = `${ASAAS_API_URL}${endpoint}`;
     
-    console.log(`[asaasRequest] ${method} ${url}`);
+    logger.debug(`Asaas request: ${method} ${endpoint}`);
     
     const options: RequestInit = {
       method,
@@ -112,24 +113,23 @@ async function asaasRequest(
 
     if (data && (method === 'POST' || method === 'PUT')) {
       options.body = JSON.stringify(data);
-      console.log(`[asaasRequest] Body:`, JSON.stringify(data, null, 2));
+      logger.debug('Asaas request body prepared');
     }
 
     const response = await fetch(url, options);
     const result = await response.json();
 
-    console.log(`[asaasRequest] Response status:`, response.status);
-    console.log(`[asaasRequest] Response:`, result);
+    logger.debug('Asaas response received', { status: response.status });
 
     if (!response.ok) {
       const errorMsg = result.errors?.[0]?.description || result.message || 'Erro na requisição ao Asaas';
-      console.error(`[asaasRequest] Erro na API:`, errorMsg);
+      logger.error('Erro na API Asaas', new Error(errorMsg), { status: response.status });
       throw new Error(errorMsg);
     }
 
     return result;
   } catch (error: any) {
-    console.error('[asaasRequest] Erro na requisição:', error);
+    logger.error('Erro na requisição Asaas', error);
     throw new Error(`Falha na requisição Asaas: ${error.message}`);
   }
 }
@@ -179,10 +179,7 @@ export async function createAsaasCustomer(data: {
     throw new Error('Email inválido');
   }
 
-  console.log('[createAsaasCustomer] Criando cliente:', {
-    ...customerData,
-    cpfCnpj: customerData.cpfCnpj.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4')
-  });
+  logger.info('Criando cliente Asaas');
 
   const customer = await asaasRequest('/customers', 'POST', customerData);
   
@@ -197,9 +194,9 @@ export async function createAsaasCustomer(data: {
           updated_at: new Date().toISOString(),
         });
       
-      console.log('[createAsaasCustomer] Cliente salvo no Supabase:', customer.id);
+      logger.info('Cliente Asaas salvo no Supabase');
     } catch (error) {
-      console.warn('[createAsaasCustomer] Erro ao salvar no Supabase:', error);
+      logger.warn('Erro ao salvar cliente no Supabase', { error });
     }
   }
 
@@ -220,7 +217,7 @@ export async function getAsaasCustomerByCPF(cpf: string): Promise<AsaasCustomer 
     
     return null;
   } catch (error) {
-    console.error('Erro ao buscar cliente:', error);
+    logger.error('Erro ao buscar cliente Asaas', error as Error);
     return null;
   }
 }
@@ -369,7 +366,7 @@ export async function checkSubscriptionStatus(beneficiaryUuid: string): Promise<
       status: subscription.status,
     };
   } catch (error) {
-    console.error('Erro ao verificar assinatura:', error);
+    logger.error('Erro ao verificar assinatura', error as Error);
     return {
       hasActiveSubscription: false,
       status: 'ERROR',
@@ -386,7 +383,7 @@ export async function processAsaasWebhook(event: string, payment: AsaasPayment):
     const beneficiaryUuid = payment.externalReference;
     
     if (!beneficiaryUuid) {
-      console.warn('Webhook sem externalReference:', payment.id);
+      logger.warn('Webhook sem externalReference', { paymentId: payment.id });
       return;
     }
 
@@ -438,7 +435,7 @@ export async function processAsaasWebhook(event: string, payment: AsaasPayment):
         break;
     }
   } catch (error) {
-    console.error('Erro ao processar webhook:', error);
+    logger.error('Erro ao processar webhook', error as Error);
     throw error;
   }
 }
@@ -529,7 +526,7 @@ export async function createCompleteSubscription(data: {
       pixCopyPaste,
     };
   } catch (error: any) {
-    console.error('Erro ao criar assinatura:', error);
+    logger.error('Erro ao criar assinatura completa', error as Error);
     return {
       success: false,
       error: error.message || 'Erro ao criar assinatura',

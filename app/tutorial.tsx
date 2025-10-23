@@ -103,7 +103,7 @@ export default function TutorialScreen() {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image
-            source="https://cdn-ai.onspace.ai/onspace/project/image/ksdz89BjSWxDET66Tbtsxc/instories_926E70A0-81FF-43ED-878A-889EE40D615D.png"
+            source={require('../assets/logo-ailun.png')}
             style={styles.logo}
             contentFit="contain"
           />
