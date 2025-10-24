@@ -8,22 +8,44 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-interface FormInputProps extends TextInputProps {
+interface FormInputProps {
   label: string;
   value?: string;
+  onChangeText?: (text: string) => void;
   error?: string;
   icon?: keyof typeof MaterialIcons.glyphMap;
   isValid?: boolean;
   showCheckmark?: boolean;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'number-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  maxLength?: number;
+  editable?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
+  autoComplete?: any;
+  textContentType?: any;
 }
 
 export default function FormInput({ 
-  label, 
+  label,
+  value,
+  onChangeText,
   error, 
   icon, 
   isValid = false,
   showCheckmark = true,
-  ...textInputProps 
+  placeholder,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  maxLength,
+  editable,
+  multiline,
+  numberOfLines,
+  autoComplete,
+  textContentType,
 }: FormInputProps) {
   return (
     <View style={styles.container}>
@@ -42,7 +64,18 @@ export default function FormInput({
         <TextInput
           style={[styles.input, icon && styles.inputWithIcon]}
           placeholderTextColor="#999"
-          {...textInputProps}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
+          editable={editable}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
         />
         
         {showCheckmark && isValid && !error && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import 'react-native-url-polyfill/auto';
-import { 
+import { Alert, 
   View, 
   Text, 
   TouchableOpacity, 

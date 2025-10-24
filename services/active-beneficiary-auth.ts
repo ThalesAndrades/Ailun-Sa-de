@@ -31,6 +31,11 @@ export interface AuthenticationResult {
     profile?: any;
     subscription?: any;
   };
+  user?: any;
+  tokens?: {
+    accessToken: string;
+    refreshToken: string;
+  };
   error?: string;
   requiresOnboarding?: boolean;
   requiresSubscription?: boolean;

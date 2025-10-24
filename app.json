@@ -3,7 +3,7 @@
     "name": "Ailun Saúde",
     "slug": "ailun-saude-app",
     "owner": "thales-andrades",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "ailun",
@@ -19,7 +19,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.ailun",
-      "buildNumber": "24",
+      "buildNumber": "25",
       "deploymentTarget": "14.0",
       "infoPlist": {
         "NSCameraUsageDescription": "Este aplicativo precisa de acesso à câmera para consultas médicas por vídeo.",
@@ -39,7 +39,7 @@
         "backgroundColor": "#00B4DB"
       },
       "package": "com.ailun.saude",
-      "versionCode": 14,
+      "versionCode": 15,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.CAMERA",

@@ -81,6 +81,8 @@ export function useActiveBeneficiaryAuth(): UseActiveBeneficiaryAuthResult {
             beneficiary: rapidocResult.beneficiary as any,
             user: rapidocResult.user,
           },
+          user: rapidocResult.user,
+          tokens: rapidocResult.tokens,
           requiresOnboarding: rapidocResult.requiresOnboarding,
           requiresSubscription: false,
         };
