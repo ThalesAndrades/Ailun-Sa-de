@@ -10,6 +10,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 interface FormInputProps extends TextInputProps {
   label: string;
+  value?: string;
   error?: string;
   icon?: keyof typeof MaterialIcons.glyphMap;
   isValid?: boolean;
