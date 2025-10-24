@@ -14,6 +14,10 @@ import {
   type AuthenticationResult,
   type ActiveBeneficiaryData 
 } from '../services/active-beneficiary-auth';
+import { 
+  authenticateWithRapidoc,
+  checkRapidocCPF 
+} from '../services/rapidoc-auth';
 import { logger } from '../utils/logger';
 import { showTemplateMessage } from '../utils/alertHelpers';
 import { MessageTemplates } from '../constants/messageTemplates';
@@ -63,7 +67,43 @@ export function useActiveBeneficiaryAuth(): UseActiveBeneficiaryAuthResult {
 
       const numericCPF = cpf.replace(/\D/g, '');
       
-      // Autenticar
+      // Primeiro, tentar autenticar via RapiDoc
+      logger.info('[useActiveBeneficiaryAuth] Tentando autenticação via RapiDoc');
+      const rapidocResult = await authenticateWithRapidoc(numericCPF, password);
+      
+      if (rapidocResult.success) {
+        logger.info('[useActiveBeneficiaryAuth] Autenticação RapiDoc bem-sucedida');
+        
+        // Converter resultado RapiDoc para formato AuthenticationResult
+        const result: AuthenticationResult = {
+          success: true,
+          data: {
+            beneficiary: rapidocResult.beneficiary as any,
+            user: rapidocResult.user,
+          },
+          requiresOnboarding: rapidocResult.requiresOnboarding,
+          requiresSubscription: false,
+        };
+        
+        if (result.success && result.data) {
+          setBeneficiary(result.data.beneficiary);
+          setUser(result.data.user);
+          setIsAuthenticated(true);
+          
+          if (result.requiresOnboarding) {
+            showTemplateMessage(MessageTemplates.auth.loginSuccess(result.data.beneficiary.full_name));
+            setTimeout(() => router.replace('/onboarding/platform-guide'), 1500);
+          } else {
+            showTemplateMessage(MessageTemplates.auth.loginSuccess(result.data.beneficiary.full_name));
+            setTimeout(() => router.replace('/dashboard'), 1500);
+          }
+        }
+        
+        return result;
+      }
+      
+      // Se RapiDoc falhar, tentar autenticação local
+      logger.info('[useActiveBeneficiaryAuth] RapiDoc falhou, tentando autenticação local');
       const result = await authenticateActiveBeneficiary(numericCPF, password);
       
       if (result.success && result.data) {
