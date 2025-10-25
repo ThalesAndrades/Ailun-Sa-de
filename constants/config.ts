@@ -14,7 +14,7 @@ export const API_CONFIG = {
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
   
   // RapiDoc
-  RAPIDOC_BASE_URL: process.env.RAPIDOC_BASE_URL || 'https://api.rapidoc.tech',
+  RAPIDOC_BASE_URL: process.env.RAPIDOC_BASE_URL || 'https://api.rapidoc.tech/tema/api/',
   RAPIDOC_CLIENT_ID: process.env.RAPIDOC_CLIENT_ID!,
   RAPIDOC_TOKEN: process.env.RAPIDOC_TOKEN!,
   
