@@ -212,7 +212,7 @@ export default function ScheduleConsultationScreen() {
             appointment_id: response.appointmentId,
             scheduled_date: response.scheduledDate,
             scheduled_time: response.scheduledTime,
-            status: 'pending',
+            status: 'scheduled',
           });
 
           // Incrementar uso para serviços limitados
