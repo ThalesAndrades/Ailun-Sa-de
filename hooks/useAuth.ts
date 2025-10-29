@@ -65,7 +65,7 @@ export const useAuth = (): UseAuthReturn => {
       
       // Buscar perfil no Supabase
       const { data: profileData, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
@@ -150,7 +150,7 @@ export const useAuth = (): UseAuthReturn => {
 
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({
           ...data,
           updated_at: new Date().toISOString(),

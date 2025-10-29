@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Buscar perfil no Supabase incluindo novos campos de beneficiário ativo
       const { data: profileData, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*, is_active_beneficiary, plan_type, plan_details')
         .eq('id', userId)
         .single();
@@ -176,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({
           ...data,
           updated_at: new Date().toISOString(),

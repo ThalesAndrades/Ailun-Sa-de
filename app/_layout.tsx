@@ -5,15 +5,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CPFAuthProvider } from '../contexts/CPFAuthContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import React from 'react';
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <CPFAuthProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <Stack screenOptions={{ headerShown: false }}>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <CPFAuthProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <Stack screenOptions={{ headerShown: false }}>
               {/* Tela inicial e login */}
               <Stack.Screen name="index" />
               <Stack.Screen name="login" />
@@ -54,11 +56,12 @@ export default function RootLayout() {
               <Stack.Screen name="subscription" />
               <Stack.Screen name="tutorial" />
               <Stack.Screen name="splash" />
-            </Stack>
-            <StatusBar style="auto" />
-          </NotificationProvider>
-        </AuthProvider>
-      </CPFAuthProvider>
-    </SafeAreaProvider>
+              </Stack>
+              <StatusBar style="auto" />
+            </NotificationProvider>
+          </AuthProvider>
+        </CPFAuthProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

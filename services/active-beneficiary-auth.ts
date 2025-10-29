@@ -129,7 +129,7 @@ export async function authenticateActiveBeneficiary(
         
         // Buscar perfil do usuário
         const { data: profileData } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .select('*')
           .eq('id', user.id)
           .single();
@@ -176,7 +176,7 @@ export async function authenticateActiveBeneficiary(
 
       // Criar perfil do usuário
       const { data: newProfile } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .insert({
           id: user!.id,
           email: user!.email!,

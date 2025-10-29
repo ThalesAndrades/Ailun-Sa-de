@@ -214,7 +214,7 @@ async function getOrCreateSupabaseUser(
       if (!userError && userData.user) {
         // Buscar perfil
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .select('*')
           .eq('id', userData.user.id)
           .single();
@@ -261,7 +261,7 @@ async function getOrCreateSupabaseUser(
 
     // Criar perfil
     const { data: newProfile } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .insert({
         id: user!.id,
         email: user!.email!,

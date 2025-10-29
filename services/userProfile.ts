@@ -29,7 +29,7 @@ export async function ensureBeneficiaryProfile(
   try {
     // Verificar se já existe profile
     const { data: existingProfile, error: selectError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single();
@@ -47,7 +47,7 @@ export async function ensureBeneficiaryProfile(
 
     // Criar profile se não existir
     const { data: profile, error: insertError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .insert({
         id: userId,
         email,
@@ -84,7 +84,7 @@ export async function ensureBeneficiaryProfile(
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   try {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single();
@@ -112,7 +112,7 @@ export async function updateUserProfile(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),

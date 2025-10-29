@@ -12,18 +12,18 @@ export const API_CONFIG = {
   // Supabase
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL!,
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-  
+
   // RapiDoc
-  RAPIDOC_BASE_URL: process.env.RAPIDOC_BASE_URL || 'https://api.rapidoc.tech/tema/api/',
-  RAPIDOC_CLIENT_ID: process.env.RAPIDOC_CLIENT_ID!,
-  RAPIDOC_TOKEN: process.env.RAPIDOC_TOKEN!,
-  
-  // Asaas
-  ASAAS_API_KEY: process.env.ASAAS_API_KEY!,
+  RAPIDOC_BASE_URL: process.env.EXPO_PUBLIC_RAPIDOC_BASE_URL || 'https://api.rapidoc.tech/tema/api/',
+  RAPIDOC_CLIENT_ID: process.env.EXPO_PUBLIC_RAPIDOC_CLIENT_ID!,
+  RAPIDOC_TOKEN: process.env.EXPO_PUBLIC_RAPIDOC_TOKEN!,
+
+  // Asaas (usado apenas em Edge Functions, não precisa de EXPO_PUBLIC_)
+  ASAAS_API_KEY: process.env.ASAAS_API_KEY || '',
   ASAAS_BASE_URL: 'https://api.asaas.com/v3',
-  
-  // Resend
-  RESEND_API_KEY: process.env.RESEND_API_KEY!,
+
+  // Resend (usado apenas em Edge Functions, não precisa de EXPO_PUBLIC_)
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
 } as const;
 
 // Configurações de comportamento
@@ -124,16 +124,17 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
   }
   
   if (!API_CONFIG.RAPIDOC_CLIENT_ID) {
-    errors.push('RAPIDOC_CLIENT_ID não configurada');
+    errors.push('EXPO_PUBLIC_RAPIDOC_CLIENT_ID não configurada');
   }
-  
+
   if (!API_CONFIG.RAPIDOC_TOKEN) {
-    errors.push('RAPIDOC_TOKEN não configurada');
+    errors.push('EXPO_PUBLIC_RAPIDOC_TOKEN não configurada');
   }
-  
-  if (!API_CONFIG.ASAAS_API_KEY) {
-    errors.push('ASAAS_API_KEY não configurada');
-  }
+
+  // ASAAS e RESEND não são obrigatórios no cliente, apenas em Edge Functions
+  // if (!API_CONFIG.ASAAS_API_KEY) {
+  //   errors.push('ASAAS_API_KEY não configurada');
+  // }
   
   return {
     valid: errors.length === 0,
