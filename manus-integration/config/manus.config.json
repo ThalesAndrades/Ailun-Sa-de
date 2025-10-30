@@ -1,0 +1,48 @@
+{
+  "project": {
+    "name": "Ailun Saúde",
+    "version": "1.0.0",
+    "description": "Integração Manus + Claude para automação e análise de dados de saúde"
+  },
+  "claude": {
+    "model": "claude-3-5-sonnet-20240620",
+    "max_tokens": 4096,
+    "temperature": 0.7,
+    "api_version": "2023-06-01"
+  },
+  "manus": {
+    "enabled": true,
+    "automation_enabled": true,
+    "mcp_enabled": true,
+    "log_level": "info"
+  },
+  "integrations": {
+    "supabase": {
+      "enabled": true,
+      "tables": ["user_profiles", "appointments", "health_records", "consultations"]
+    },
+    "rapidoc": {
+      "enabled": true,
+      "endpoints": ["api/tema/consultas", "api/tema/pacientes"]
+    },
+    "notifications": {
+      "enabled": true,
+      "channels": ["email", "push", "sms"]
+    }
+  },
+  "automation": {
+    "daily_reports": {
+      "enabled": true,
+      "schedule": "0 0 9 * * *",
+      "recipients": ["admin@ailun.com.br"]
+    },
+    "health_analysis": {
+      "enabled": true,
+      "schedule": "0 0 */6 * * *"
+    },
+    "appointment_reminders": {
+      "enabled": true,
+      "schedule": "0 0 8 * * *"
+    }
+  }
+}

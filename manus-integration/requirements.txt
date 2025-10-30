@@ -1,0 +1,22 @@
+# Dependências para Integração Manus + Claude
+# Projeto: Ailun Saúde
+
+# SDK Anthropic para chamadas à API do Claude
+anthropic>=0.34.0
+
+# Bibliotecas auxiliares
+python-dotenv>=1.0.0  # Gerenciamento de variáveis de ambiente
+requests>=2.31.0       # HTTP requests
+pydantic>=2.0.0        # Validação de dados
+typer>=0.9.0           # CLI interfaces
+rich>=13.0.0           # Terminal formatting
+
+# Integração com Supabase (já usado no projeto)
+supabase>=2.0.0
+
+# Análise de dados
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Agendamento de tarefas
+schedule>=1.2.0
