@@ -1,0 +1,50 @@
+name: EAS Submit to App Stores
+
+on:
+  # Permite executar manualmente pelo GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to submit'
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+          - both
+
+jobs:
+  submit:
+    name: Submit to App Store
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Submit para App Store (iOS)
+        if: ${{ github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both' }}
+        run: eas submit --platform ios --latest --non-interactive
+
+      - name: Submit para Play Store (Android)
+        if: ${{ github.event.inputs.platform == 'android' || github.event.inputs.platform == 'both' }}
+        run: eas submit --platform android --latest --non-interactive
+
+      - name: Sucesso
+        if: success()
+        run: echo "✅ App submetido com sucesso para as lojas!"
